@@ -140,6 +140,7 @@ async function handleUploadSubmit(e) {
   const btn = document.getElementById('btnSubmitUpload');
   btn.disabled = true;
   btn.textContent = 'Uploading...';
+  showPageLoader('Uploading file and saving record to database...');
 
   try {
     const res = await fetch('api/file_manager.php', {
@@ -159,6 +160,7 @@ async function handleUploadSubmit(e) {
     console.error(err);
     showToast('Upload error occurred.', 'danger');
   } finally {
+    hidePageLoader();
     btn.disabled = false;
     btn.textContent = 'Upload File';
   }
@@ -168,6 +170,7 @@ async function handleQuickBackup() {
   const btn = document.getElementById('btnQuickBackup');
   btn.disabled = true;
   btn.innerHTML = 'Creating Backup...';
+  showPageLoader('Backing up MySQL database (roberice_db)...');
 
   const user = JSON.parse(sessionStorage.getItem('roberice_logged_user')) || {};
   const formData = new FormData();
@@ -191,6 +194,7 @@ async function handleQuickBackup() {
     console.error(e);
     showToast('Failed to create database backup.', 'danger');
   } finally {
+    hidePageLoader();
     btn.disabled = false;
     btn.innerHTML = `
       <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path></svg>
@@ -201,6 +205,8 @@ async function handleQuickBackup() {
 
 async function deleteFileRecord(fileId, fileName) {
   if (!confirm(`Are you sure you want to permanently delete "${fileName}"?`)) return;
+
+  showPageLoader(`Deleting "${fileName}"...`);
 
   try {
     const res = await fetch('api/file_manager.php?action=delete', {
@@ -218,7 +224,9 @@ async function deleteFileRecord(fileId, fileName) {
     }
   } catch (e) {
     console.error(e);
-    showToast('Delete error occurred.', 'danger');
+    showToast('Failed to delete file.', 'danger');
+  } finally {
+    hidePageLoader();
   }
 }
 

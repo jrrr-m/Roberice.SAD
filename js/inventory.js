@@ -325,6 +325,8 @@ async function handleRestockSubmit(e) {
 
   const user = JSON.parse(sessionStorage.getItem('roberice_logged_user')) || {};
 
+  showPageLoader('Recording restock batch and updating warehouse stock...');
+
   try {
     const res = await fetch('api/adjust_stock.php', {
       method: 'POST',
@@ -356,6 +358,8 @@ async function handleRestockSubmit(e) {
   } catch (err) {
     console.error(err);
     showToast('Failed to save restock.', 'danger');
+  } finally {
+    hidePageLoader();
   }
 }
 
@@ -372,6 +376,8 @@ async function handleAdjustSubmit(e) {
   const note = document.getElementById('adjustNote').value.trim();
 
   const user = JSON.parse(sessionStorage.getItem('roberice_logged_user')) || {};
+
+  showPageLoader('Saving inventory adjustment to database...');
 
   try {
     const res = await fetch('api/adjust_stock.php', {
@@ -402,6 +408,8 @@ async function handleAdjustSubmit(e) {
   } catch (err) {
     console.error(err);
     showToast('Failed to save adjustment.', 'danger');
+  } finally {
+    hidePageLoader();
   }
 }
 

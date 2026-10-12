@@ -68,6 +68,8 @@ async function loadSalesReport() {
   const cashier = document.getElementById('filterCashier').value;
   const payment = document.getElementById('filterPayment').value;
 
+  showPageLoader('Compiling sales report from database...');
+
   const params = new URLSearchParams();
 
   if (preset === 'september_2026' || preset === 'this_month') {
@@ -95,8 +97,11 @@ async function loadSalesReport() {
     currentReportData = data;
     renderReportView(data);
   } catch (err) {
+    hidePageLoader();
     console.error('Error fetching sales report:', err);
     showToast('Failed to load sales report: ' + err.message, 'danger');
+  } finally {
+    setTimeout(hidePageLoader, 200);
   }
 }
 

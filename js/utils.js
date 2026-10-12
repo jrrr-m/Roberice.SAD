@@ -118,3 +118,154 @@ function closeModal(modalId) {
   const modal = document.getElementById(modalId);
   if (modal) modal.classList.remove('active');
 }
+
+/* ==========================================================================
+   Global Branded Loading Screen & Database Sync Controller
+   ========================================================================== */
+
+let globalLoaderTimeout = null;
+let activeDatabaseRequests = 0;
+
+function initGlobalLoader() {
+  if (document.getElementById('robericeGlobalLoader')) return;
+
+  // Insert Full Overlay
+  const loaderEl = document.createElement('div');
+  loaderEl.id = 'robericeGlobalLoader';
+  loaderEl.className = 'global-loader-overlay active'; // Active by default on page entry
+  loaderEl.innerHTML = `
+    <div class="loader-content-card">
+      <div class="loader-spinner-wrapper">
+        <div class="loader-ring-outer"></div>
+        <div class="loader-ring-inner"></div>
+        <div class="loader-logo-center">
+          <img src="assets/roberice-logo.png" alt="Roberice Logo" onerror="this.style.display='none';this.parentElement.innerText='🌾';">
+        </div>
+      </div>
+      <div class="loader-brand-title">Roberice Store</div>
+      <div class="loader-status-pill">
+        <span class="loader-status-dot"></span>
+        <span id="robericeLoaderMessage" class="loader-status-text">Connecting to database...</span>
+      </div>
+      <div class="loader-bar-track">
+        <div class="loader-bar-indicator"></div>
+      </div>
+    </div>
+  `;
+
+  // Insert Top Minimal Progress Bar for background syncs
+  const topLoader = document.createElement('div');
+  topLoader.id = 'robericeTopBarLoader';
+  topLoader.className = 'top-bar-loader';
+  topLoader.innerHTML = '<div class="top-bar-loader-inner"></div>';
+
+  const appendLoaders = () => {
+    if (!document.getElementById('robericeGlobalLoader')) {
+      document.body.appendChild(loaderEl);
+    }
+    if (!document.getElementById('robericeTopBarLoader')) {
+      document.body.appendChild(topLoader);
+    }
+  };
+
+  if (document.body) {
+    appendLoaders();
+  } else {
+    document.addEventListener('DOMContentLoaded', appendLoaders);
+  }
+}
+
+// Show Page Loader with customizable status message
+function showPageLoader(message = 'Connecting to database...') {
+  initGlobalLoader();
+  const loader = document.getElementById('robericeGlobalLoader');
+  const msgEl = document.getElementById('robericeLoaderMessage');
+
+  if (msgEl) {
+    msgEl.textContent = message;
+  }
+
+  if (loader) {
+    loader.classList.add('active');
+  }
+
+  // Safety timer fallback: Never trap user for more than 5.5s
+  clearTimeout(globalLoaderTimeout);
+  globalLoaderTimeout = setTimeout(() => {
+    hidePageLoader();
+  }, 5500);
+}
+
+// Hide Page Loader with smooth transition
+function hidePageLoader() {
+  const loader = document.getElementById('robericeGlobalLoader');
+  if (loader && loader.classList.contains('active')) {
+    loader.classList.remove('active');
+  }
+  clearTimeout(globalLoaderTimeout);
+}
+
+// Minimal Top Bar Loader functions
+function showTopLoader() {
+  const topBar = document.getElementById('robericeTopBarLoader');
+  if (topBar) topBar.classList.add('active');
+}
+
+function hideTopLoader() {
+  const topBar = document.getElementById('robericeTopBarLoader');
+  if (topBar) topBar.classList.remove('active');
+}
+
+// Initialize loader as early as possible
+initGlobalLoader();
+
+// Automatically dismiss the initial page loader once DOM and initial resources load
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    if (activeDatabaseRequests <= 0) {
+      hidePageLoader();
+    }
+  }, 250);
+});
+
+// Fallback safety for faster DOM transitions
+document.addEventListener('DOMContentLoaded', () => {
+  setTimeout(() => {
+    if (activeDatabaseRequests <= 0) {
+      hidePageLoader();
+    }
+  }, 1000);
+});
+
+// Global fetch wrapper: Automatically display loader during database operations
+const _originalFetch = window.fetch;
+window.fetch = async function(...args) {
+  const url = typeof args[0] === 'string' ? args[0] : (args[0] && args[0].url) || '';
+  const isApi = url.includes('api/');
+  const isMutation = args[1] && ['POST', 'PUT', 'DELETE'].includes(args[1].method);
+
+  if (isApi) {
+    activeDatabaseRequests++;
+    if (isMutation) {
+      showPageLoader('Updating database records...');
+    } else {
+      showTopLoader();
+    }
+  }
+
+  try {
+    return await _originalFetch.apply(this, args);
+  } finally {
+    if (isApi) {
+      activeDatabaseRequests = Math.max(0, activeDatabaseRequests - 1);
+      if (activeDatabaseRequests === 0) {
+        hideTopLoader();
+        setTimeout(() => {
+          if (activeDatabaseRequests === 0) {
+            hidePageLoader();
+          }
+        }, 150);
+      }
+    }
+  }
+};

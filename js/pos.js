@@ -353,6 +353,8 @@ async function processSale() {
   const paymentMethod = document.getElementById('paymentMethod').value;
   const user = JSON.parse(sessionStorage.getItem('roberice_logged_user')) || {};
 
+  showPageLoader('Processing checkout & updating inventory in database...');
+
   try {
     const response = await fetch('api/process_sale.php', {
       method: 'POST',
@@ -372,6 +374,7 @@ async function processSale() {
     const result = await response.json();
 
     if (!result.success) {
+      hidePageLoader();
       showToast(result.message || 'Unable to complete sale.', 'danger');
       return;
     }

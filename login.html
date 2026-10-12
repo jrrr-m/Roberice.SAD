@@ -38,6 +38,7 @@
     </form>
   </div>
 
+  <script src="js/utils.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       const loginForm = document.getElementById('loginForm');
@@ -53,6 +54,7 @@
         loginAlert.style.display = 'none';
         btnLogin.disabled = true;
         btnLogin.textContent = 'Signing In...';
+        showPageLoader('Verifying account credentials...');
 
         try {
           const response = await fetch('api/login.php', {
@@ -69,6 +71,7 @@
           const result = await response.json();
 
           if (!result.success) {
+            hidePageLoader();
             loginAlert.textContent = result.message || 'Invalid username or password.';
             loginAlert.style.display = 'block';
             return;
@@ -79,13 +82,18 @@
             JSON.stringify(result.user)
           );
 
-          if (result.user.role === 'admin') {
-            window.location.href = 'dashboard.html';
-          } else {
-            window.location.href = 'pos.html';
-          }
+          showPageLoader('Welcome back! Loading system...');
+
+          setTimeout(() => {
+            if (result.user.role === 'admin') {
+              window.location.href = 'dashboard.html';
+            } else {
+              window.location.href = 'pos.html';
+            }
+          }, 350);
 
         } catch (error) {
+          hidePageLoader();
           console.error('Login error:', error);
           loginAlert.textContent = 'Unable to connect to the server.';
           loginAlert.style.display = 'block';
