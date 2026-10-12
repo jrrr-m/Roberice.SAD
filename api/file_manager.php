@@ -168,7 +168,98 @@ try {
     }
 
     if ($action === "export_sales") {
-        $exportName = "sales_export_" . date("Ymd_His") . ".csv";
+        $reportType = trim($_POST["report_type"] ?? "");
+        $dailyDate = trim($_POST["daily_date"] ?? $_POST["date"] ?? "");
+        $week = trim($_POST["week"] ?? "");
+        $quarter = trim($_POST["quarter"] ?? "");
+        $year = trim($_POST["year"] ?? "");
+        $month = trim($_POST["month"] ?? "");
+        $startDate = trim($_POST["start_date"] ?? "");
+        $endDate = trim($_POST["end_date"] ?? "");
+        $cashierId = trim($_POST["cashier_id"] ?? "all");
+        $paymentMethod = trim($_POST["payment_method"] ?? "all");
+        $origin = trim($_POST["origin"] ?? "all");
+
+        $where = ["t.transaction_status = 'Completed'"];
+        $params = [];
+        $typeLabel = "Report";
+
+        if ($reportType === "daily" || (!empty($dailyDate) && empty($reportType))) {
+            $targetDate = !empty($dailyDate) ? $dailyDate : date("Y-m-d");
+            $where[] = "DATE(t.transaction_date) = ?";
+            $params[] = $targetDate;
+            $typeLabel = "Daily_" . $targetDate;
+        } elseif ($reportType === "weekly" || (!empty($week) && empty($reportType))) {
+            if (!empty($week) && preg_match('/^(\d{4})-W(\d{1,2})$/', $week, $m)) {
+                $wYear = (int)$m[1];
+                $wNum = (int)$m[2];
+                $dto = new DateTime();
+                $dto->setISODate($wYear, $wNum, 1);
+                $wStart = $dto->format('Y-m-d');
+                $dto->modify('+6 days');
+                $wEnd = $dto->format('Y-m-d');
+                $typeLabel = "Weekly_W{$wNum}_{$wYear}";
+            } elseif (!empty($startDate) && !empty($endDate)) {
+                $wStart = $startDate;
+                $wEnd = $endDate;
+                $typeLabel = "Weekly_" . $startDate . "_" . $endDate;
+            } else {
+                $dto = new DateTime();
+                $wStart = (clone $dto)->modify('this week monday')->format('Y-m-d');
+                $wEnd = (clone $dto)->modify('this week sunday')->format('Y-m-d');
+                $typeLabel = "Weekly_" . $dto->format('Y_W');
+            }
+            $where[] = "DATE(t.transaction_date) BETWEEN ? AND ?";
+            $params[] = $wStart;
+            $params[] = $wEnd;
+        } elseif ($reportType === "monthly" || (!empty($month) && empty($reportType))) {
+            $targetMonth = !empty($month) ? $month : date("Y-m");
+            $where[] = "DATE_FORMAT(t.transaction_date, '%Y-%m') = ?";
+            $params[] = $targetMonth;
+            $typeLabel = "Monthly_" . $targetMonth;
+        } elseif ($reportType === "quarterly" || (!empty($quarter) && empty($reportType))) {
+            $q = (int)($quarter ?: 1);
+            if ($q < 1 || $q > 4) $q = 1;
+            $y = (int)($year ?: date("Y"));
+            $quarterMap = [
+                1 => ["start" => "01-01", "end" => "03-31"],
+                2 => ["start" => "04-01", "end" => "06-30"],
+                3 => ["start" => "07-01", "end" => "09-30"],
+                4 => ["start" => "10-01", "end" => "12-31"],
+            ];
+            $where[] = "DATE(t.transaction_date) BETWEEN ? AND ?";
+            $params[] = "{$y}-{$quarterMap[$q]['start']}";
+            $params[] = "{$y}-{$quarterMap[$q]['end']}";
+            $typeLabel = "Quarterly_Q{$q}_{$y}";
+        } elseif ($reportType === "yearly" || (!empty($year) && empty($reportType) && empty($month) && empty($quarter))) {
+            $y = (int)($year ?: date("Y"));
+            $where[] = "YEAR(t.transaction_date) = ?";
+            $params[] = $y;
+            $typeLabel = "Yearly_" . $y;
+        } elseif (!empty($startDate) && !empty($endDate)) {
+            $where[] = "DATE(t.transaction_date) BETWEEN ? AND ?";
+            $params[] = $startDate;
+            $params[] = $endDate;
+            $typeLabel = "Custom_" . $startDate . "_" . $endDate;
+        }
+
+        if ($cashierId !== "" && $cashierId !== "all") {
+            $where[] = "t.user_id = ?";
+            $params[] = $cashierId;
+        }
+
+        if ($paymentMethod !== "" && $paymentMethod !== "all") {
+            $where[] = "t.payment_method = ?";
+            $params[] = $paymentMethod;
+        }
+
+        if ($origin !== "" && $origin !== "all") {
+            $where[] = "p.origin = ?";
+            $params[] = $origin;
+        }
+
+        $whereSql = implode(" AND ", $where);
+        $exportName = "sales_export_" . $typeLabel . "_" . date("Ymd_His") . ".csv";
         $destPath = $uploadsDir . "/" . $exportName;
         $relPath = "uploads/" . $exportName;
 
@@ -206,10 +297,13 @@ try {
             JOIN users u ON t.user_id = u.user_id
             JOIN transaction_item ti ON t.transaction_id = ti.transaction_id
             JOIN product p ON ti.product_id = p.product_id
+            WHERE $whereSql
             ORDER BY t.transaction_date DESC
         ";
 
-        $rows = $conn->query($sql)->fetchAll(PDO::FETCH_ASSOC);
+        $stmt = $conn->prepare($sql);
+        $stmt->execute($params);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
         foreach ($rows as $r) {
             fputcsv($fp, [
                 "TXN-" . str_pad($r["transaction_id"], 4, "0", STR_PAD_LEFT),

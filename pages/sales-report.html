@@ -28,33 +28,124 @@
 
         <!-- Filter Controls Card -->
         <div class="card" style="margin-bottom: 24px;">
-          <div class="card-title" style="margin-bottom: 14px;">
+          <div class="card-title" style="margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
             <span>Report Filters & Period Selection</span>
-            <span class="period-tag" id="currentPeriodDisplay" style="font-size: 13px; color: var(--primary); font-weight: 700;">
-              Period: September 2026
-            </span>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span class="badge badge-info" id="currentReportTypeBadge" style="font-size: 11px; text-transform: uppercase;">Daily Report</span>
+              <span class="period-tag" id="currentPeriodDisplay" style="font-size: 13px; color: var(--primary); font-weight: 700;">
+                Period: Loading...
+              </span>
+            </div>
+          </div>
+
+          <!-- Report Frequency / Period Quick Navigation Buttons -->
+          <div class="report-type-nav" id="reportTypeNav">
+            <button type="button" class="report-nav-btn active" data-type="daily">
+              <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+              Daily Report
+            </button>
+            <button type="button" class="report-nav-btn" data-type="weekly">
+              <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
+              Weekly Report
+            </button>
+            <button type="button" class="report-nav-btn" data-type="monthly">
+              <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+              Monthly Report
+            </button>
+            <button type="button" class="report-nav-btn" data-type="quarterly">
+              <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"></path></svg>
+              Quarterly Report
+            </button>
+            <button type="button" class="report-nav-btn" data-type="yearly">
+              <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+              Yearly Report
+            </button>
+            <button type="button" class="report-nav-btn" data-type="custom">
+              <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+              Custom Range
+            </button>
+            <button type="button" class="report-nav-btn" data-type="all_time">
+              <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+              All Time
+            </button>
           </div>
 
           <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end;">
-            <!-- Quick Preset Dropdown -->
+            <!-- Report Type Dropdown -->
             <div class="form-group" style="margin-bottom:0; min-width: 170px;">
-              <label for="filterPeriodPreset">Quick Preset Period</label>
-              <select id="filterPeriodPreset" class="form-select">
-                <option value="september_2026" selected>September 2026 (Class Demo)</option>
-                <option value="this_month">Current Month</option>
-                <option value="all_time">All Recorded History</option>
-                <option value="today">Today Only</option>
+              <label for="filterReportType">Report Type</label>
+              <select id="filterReportType" class="form-select">
+                <option value="daily" selected>Daily Report</option>
+                <option value="weekly">Weekly Report</option>
+                <option value="monthly">Monthly Report</option>
+                <option value="quarterly">Quarterly Report</option>
+                <option value="yearly">Yearly Report</option>
                 <option value="custom">Custom Date Range...</option>
+                <option value="all_time">All Recorded History</option>
               </select>
             </div>
 
-            <!-- Specific Month Selector -->
-            <div class="form-group" id="monthPickerGroup" style="margin-bottom:0; min-width: 150px;">
-              <label for="filterMonthInput">Target Month</label>
-              <input type="month" id="filterMonthInput" class="form-control" value="2026-09">
+            <!-- 1. Daily Report Picker Group -->
+            <div class="form-group" id="dailyPickerGroup" style="margin-bottom:0; min-width: 180px;">
+              <label for="filterDailyDate">Target Date</label>
+              <div style="display:flex; gap:6px;">
+                <input type="date" id="filterDailyDate" class="form-control" value="2026-10-12">
+                <button type="button" class="btn btn-secondary btn-sm" id="btnDailyToday" title="Set to Today" style="padding: 0 10px; font-size: 11px;">Today</button>
+              </div>
             </div>
 
-            <!-- Custom Date Range -->
+            <!-- 2. Weekly Report Picker Group -->
+            <div class="form-group" id="weeklyPickerGroup" style="margin-bottom:0; min-width: 220px; display: none;">
+              <label for="filterWeekInput">Target Week</label>
+              <div style="display:flex; gap:6px; align-items:center;">
+                <input type="week" id="filterWeekInput" class="form-control" value="2026-W42">
+                <button type="button" class="btn btn-secondary btn-sm" id="btnWeekCurrent" title="Set to Current Week" style="padding: 0 10px; font-size: 11px; white-space: nowrap;">This Week</button>
+              </div>
+              <small id="weeklyRangeNotice" style="display:block; font-size:11px; color:var(--text-muted); margin-top:3px; font-weight:500;"></small>
+            </div>
+
+            <!-- 3. Monthly Report Month Selector -->
+            <div class="form-group" id="monthPickerGroup" style="margin-bottom:0; min-width: 180px; display: none;">
+              <label for="filterMonthInput">Target Month</label>
+              <div style="display:flex; gap:6px;">
+                <input type="month" id="filterMonthInput" class="form-control" value="2026-10">
+                <button type="button" class="btn btn-secondary btn-sm" id="btnMonthDemo" title="September 2026 Demo" style="padding: 0 10px; font-size: 11px; white-space: nowrap;">Demo Mo.</button>
+              </div>
+            </div>
+
+            <!-- 4. Quarterly Report Picker Group -->
+            <div class="form-group" id="quarterPickerGroup" style="margin-bottom:0; min-width: 160px; display: none;">
+              <label for="filterQuarter">Target Quarter</label>
+              <select id="filterQuarter" class="form-select">
+                <option value="1">Q1 (Jan 1 - Mar 31)</option>
+                <option value="2">Q2 (Apr 1 - Jun 30)</option>
+                <option value="3">Q3 (Jul 1 - Sep 30)</option>
+                <option value="4" selected>Q4 (Oct 1 - Dec 31)</option>
+              </select>
+            </div>
+
+            <div class="form-group" id="quarterYearGroup" style="margin-bottom:0; min-width: 110px; display: none;">
+              <label for="filterQuarterYear">Year</label>
+              <select id="filterQuarterYear" class="form-select">
+                <option value="2026" selected>2026</option>
+                <option value="2025">2025</option>
+                <option value="2024">2024</option>
+                <option value="2027">2027</option>
+              </select>
+            </div>
+
+            <!-- 5. Yearly Report Picker Group -->
+            <div class="form-group" id="yearPickerGroup" style="margin-bottom:0; min-width: 130px; display: none;">
+              <label for="filterYearInput">Target Year</label>
+              <select id="filterYearInput" class="form-select">
+                <option value="2026" selected>2026</option>
+                <option value="2025">2025</option>
+                <option value="2024">2024</option>
+                <option value="2027">2027</option>
+              </select>
+            </div>
+
+            <!-- 6. Custom Date Range Group -->
             <div class="form-group" id="customStartGroup" style="margin-bottom:0; display:none;">
               <label for="filterStartDate">Start Date</label>
               <input type="date" id="filterStartDate" class="form-control">

@@ -8,51 +8,218 @@ document.addEventListener('DOMContentLoaded', () => initSalesReport());
 
 async function initSalesReport() {
   bindFilterEvents();
+  setDefaultFilterDates();
+  setReportType('daily', false);
   await loadSalesReport();
 }
 
-function bindFilterEvents() {
-  const presetSelect = document.getElementById('filterPeriodPreset');
-  const monthInput = document.getElementById('filterMonthInput');
-  const monthGroup = document.getElementById('monthPickerGroup');
-  const customStartGroup = document.getElementById('customStartGroup');
-  const customEndGroup = document.getElementById('customEndGroup');
+function getCurrentISOWeek() {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
+  const week1 = new Date(d.getFullYear(), 0, 4);
+  const weekNo = 1 + Math.round(((d - week1) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
+  return `${d.getFullYear()}-W${String(weekNo).padStart(2, '0')}`;
+}
 
-  presetSelect.addEventListener('change', () => {
-    const val = presetSelect.value;
-    if (val === 'september_2026') {
-      monthGroup.style.display = 'block';
-      monthInput.value = '2026-09';
-      customStartGroup.style.display = 'none';
-      customEndGroup.style.display = 'none';
-    } else if (val === 'this_month') {
-      monthGroup.style.display = 'block';
-      const now = new Date();
-      monthInput.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-      customStartGroup.style.display = 'none';
-      customEndGroup.style.display = 'none';
-    } else if (val === 'custom') {
-      monthGroup.style.display = 'none';
-      customStartGroup.style.display = 'block';
-      customEndGroup.style.display = 'block';
-    } else {
-      monthGroup.style.display = 'none';
-      customStartGroup.style.display = 'none';
-      customEndGroup.style.display = 'none';
-    }
+function setDefaultFilterDates() {
+  const now = new Date();
+  const todayStr = now.toISOString().split('T')[0];
+  const curMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const curWeekStr = getCurrentISOWeek();
+
+  const dailyInput = document.getElementById('filterDailyDate');
+  if (dailyInput && !dailyInput.value) dailyInput.value = todayStr;
+
+  const weekInput = document.getElementById('filterWeekInput');
+  if (weekInput && !weekInput.value) weekInput.value = curWeekStr;
+
+  const monthInput = document.getElementById('filterMonthInput');
+  if (monthInput && !monthInput.value) monthInput.value = curMonthStr;
+
+  updateWeeklyNotice();
+}
+
+function updateWeeklyNotice() {
+  const weekInput = document.getElementById('filterWeekInput');
+  const notice = document.getElementById('weeklyRangeNotice');
+  if (!weekInput || !notice) return;
+  const val = weekInput.value;
+  if (!val) {
+    notice.textContent = '';
+    return;
+  }
+  const match = val.match(/^(\d{4})-W(\d{1,2})$/);
+  if (!match) {
+    notice.textContent = '';
+    return;
+  }
+  const y = parseInt(match[1], 10);
+  const w = parseInt(match[2], 10);
+  const simple = new Date(y, 0, 1 + (w - 1) * 7);
+  const dayOfWeek = simple.getDay();
+  const ISOweekStart = new Date(simple);
+  if (dayOfWeek <= 4) {
+    ISOweekStart.setDate(simple.getDate() - simple.getDay() + 1);
+  } else {
+    ISOweekStart.setDate(simple.getDate() + 8 - simple.getDay());
+  }
+  const ISOweekEnd = new Date(ISOweekStart);
+  ISOweekEnd.setDate(ISOweekStart.getDate() + 6);
+
+  const opts = { month: 'short', day: 'numeric', year: 'numeric' };
+  notice.textContent = `Coverage: ${ISOweekStart.toLocaleDateString(undefined, opts)} – ${ISOweekEnd.toLocaleDateString(undefined, opts)}`;
+}
+
+function setReportType(type, autoLoad = true) {
+  // Update nav buttons
+  document.querySelectorAll('.report-nav-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.type === type);
   });
 
+  // Update dropdown
+  const select = document.getElementById('filterReportType');
+  if (select && select.value !== type) {
+    select.value = type;
+  }
+
+  // Update badge
+  const badge = document.getElementById('currentReportTypeBadge');
+  if (badge) {
+    const labels = {
+      daily: 'Daily Report',
+      weekly: 'Weekly Report',
+      monthly: 'Monthly Report',
+      quarterly: 'Quarterly Report',
+      yearly: 'Yearly Report',
+      custom: 'Custom Range',
+      all_time: 'All Time History'
+    };
+    badge.textContent = labels[type] || 'Report';
+  }
+
+  // Toggle Visibility
+  const dailyGrp = document.getElementById('dailyPickerGroup');
+  const weeklyGrp = document.getElementById('weeklyPickerGroup');
+  const monthGrp = document.getElementById('monthPickerGroup');
+  const quarterGrp = document.getElementById('quarterPickerGroup');
+  const quarterYrGrp = document.getElementById('quarterYearGroup');
+  const yearGrp = document.getElementById('yearPickerGroup');
+  const customStartGrp = document.getElementById('customStartGroup');
+  const customEndGrp = document.getElementById('customEndGroup');
+
+  if (dailyGrp) dailyGrp.style.display = type === 'daily' ? 'block' : 'none';
+  if (weeklyGrp) weeklyGrp.style.display = type === 'weekly' ? 'block' : 'none';
+  if (monthGrp) monthGrp.style.display = type === 'monthly' ? 'block' : 'none';
+  if (quarterGrp) quarterGrp.style.display = type === 'quarterly' ? 'block' : 'none';
+  if (quarterYrGrp) quarterYrGrp.style.display = type === 'quarterly' ? 'block' : 'none';
+  if (yearGrp) yearGrp.style.display = type === 'yearly' ? 'block' : 'none';
+  if (customStartGrp) customStartGrp.style.display = type === 'custom' ? 'block' : 'none';
+  if (customEndGrp) customEndGrp.style.display = type === 'custom' ? 'block' : 'none';
+
+  if (type === 'weekly') {
+    updateWeeklyNotice();
+  }
+
+  if (autoLoad) {
+    loadSalesReport();
+  }
+}
+
+function bindFilterEvents() {
+  // Navigation pill buttons
+  document.querySelectorAll('.report-nav-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const type = btn.dataset.type;
+      setReportType(type, true);
+    });
+  });
+
+  // Report type dropdown change
+  const typeSelect = document.getElementById('filterReportType');
+  if (typeSelect) {
+    typeSelect.addEventListener('change', () => {
+      setReportType(typeSelect.value, true);
+    });
+  }
+
+  // Week input change -> update notice
+  const weekInput = document.getElementById('filterWeekInput');
+  if (weekInput) {
+    weekInput.addEventListener('input', updateWeeklyNotice);
+    weekInput.addEventListener('change', () => {
+      updateWeeklyNotice();
+      loadSalesReport();
+    });
+  }
+
+  // Date input quick buttons
+  const btnDailyToday = document.getElementById('btnDailyToday');
+  if (btnDailyToday) {
+    btnDailyToday.addEventListener('click', () => {
+      const dailyInput = document.getElementById('filterDailyDate');
+      if (dailyInput) {
+        dailyInput.value = new Date().toISOString().split('T')[0];
+        loadSalesReport();
+      }
+    });
+  }
+
+  const btnWeekCurrent = document.getElementById('btnWeekCurrent');
+  if (btnWeekCurrent) {
+    btnWeekCurrent.addEventListener('click', () => {
+      const weekInput = document.getElementById('filterWeekInput');
+      if (weekInput) {
+        weekInput.value = getCurrentISOWeek();
+        updateWeeklyNotice();
+        loadSalesReport();
+      }
+    });
+  }
+
+  const btnMonthDemo = document.getElementById('btnMonthDemo');
+  if (btnMonthDemo) {
+    btnMonthDemo.addEventListener('click', () => {
+      const monthInput = document.getElementById('filterMonthInput');
+      if (monthInput) {
+        monthInput.value = '2026-09';
+        loadSalesReport();
+      }
+    });
+  }
+
+  // Quick auto-refresh on changes
+  const dailyDate = document.getElementById('filterDailyDate');
+  if (dailyDate) dailyDate.addEventListener('change', () => loadSalesReport());
+
+  const monthInput = document.getElementById('filterMonthInput');
+  if (monthInput) monthInput.addEventListener('change', () => loadSalesReport());
+
+  const quarterSelect = document.getElementById('filterQuarter');
+  if (quarterSelect) quarterSelect.addEventListener('change', () => loadSalesReport());
+
+  const quarterYearSelect = document.getElementById('filterQuarterYear');
+  if (quarterYearSelect) quarterYearSelect.addEventListener('change', () => loadSalesReport());
+
+  const yearInput = document.getElementById('filterYearInput');
+  if (yearInput) yearInput.addEventListener('change', () => loadSalesReport());
+
+  // Apply Filter button
   document.getElementById('btnApplyFilter').addEventListener('click', () => loadSalesReport());
+
+  // Reset Filter button
   document.getElementById('btnResetFilter').addEventListener('click', () => {
-    presetSelect.value = 'september_2026';
-    monthInput.value = '2026-09';
-    monthGroup.style.display = 'block';
-    customStartGroup.style.display = 'none';
-    customEndGroup.style.display = 'none';
     document.getElementById('filterOrigin').value = 'all';
     document.getElementById('filterCashier').value = 'all';
     document.getElementById('filterPayment').value = 'all';
-    loadSalesReport();
+    const now = new Date();
+    document.getElementById('filterDailyDate').value = now.toISOString().split('T')[0];
+    document.getElementById('filterWeekInput').value = getCurrentISOWeek();
+    document.getElementById('filterMonthInput').value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    document.getElementById('filterQuarter').value = '4';
+    document.getElementById('filterQuarterYear').value = '2026';
+    document.getElementById('filterYearInput').value = '2026';
+    setReportType('daily', true);
   });
 
   document.getElementById('btnOpenPrintReport').addEventListener('click', openPrintReportModal);
@@ -60,8 +227,13 @@ function bindFilterEvents() {
 }
 
 async function loadSalesReport() {
-  const preset = document.getElementById('filterPeriodPreset').value;
+  const reportType = document.getElementById('filterReportType').value;
+  const dailyDate = document.getElementById('filterDailyDate').value;
+  const week = document.getElementById('filterWeekInput').value;
   const month = document.getElementById('filterMonthInput').value;
+  const quarter = document.getElementById('filterQuarter').value;
+  const quarterYear = document.getElementById('filterQuarterYear').value;
+  const year = document.getElementById('filterYearInput').value;
   const start = document.getElementById('filterStartDate').value;
   const end = document.getElementById('filterEndDate').value;
   const origin = document.getElementById('filterOrigin').value;
@@ -71,16 +243,22 @@ async function loadSalesReport() {
   showTopLoader();
 
   const params = new URLSearchParams();
+  params.append('report_type', reportType);
 
-  if (preset === 'september_2026' || preset === 'this_month') {
+  if (reportType === 'daily') {
+    if (dailyDate) params.append('daily_date', dailyDate);
+  } else if (reportType === 'weekly') {
+    if (week) params.append('week', week);
+  } else if (reportType === 'monthly') {
     if (month) params.append('month', month);
-  } else if (preset === 'custom') {
+  } else if (reportType === 'quarterly') {
+    if (quarter) params.append('quarter', quarter);
+    if (quarterYear) params.append('year', quarterYear);
+  } else if (reportType === 'yearly') {
+    if (year) params.append('year', year);
+  } else if (reportType === 'custom') {
     if (start) params.append('start_date', start);
     if (end) params.append('end_date', end);
-  } else if (preset === 'today') {
-    const today = new Date().toISOString().split('T')[0];
-    params.append('start_date', today);
-    params.append('end_date', today);
   }
 
   if (origin !== 'all') params.append('origin', origin);
@@ -232,7 +410,7 @@ function openPrintReportModal() {
     </div>
 
     <div class="print-report-title">
-      <h2>OFFICIAL SALES SUMMARY STATEMENT</h2>
+      <h2>${data.reportTitle || 'OFFICIAL SALES SUMMARY STATEMENT'}</h2>
       <span>Coverage Period: ${data.periodLabel}</span>
       <div style="font-size:11px;color:#6b7280;margin-top:4px;">Date Generated: ${new Date().toLocaleString()} | Prepared by: ${user.name || user.username || 'Admin'}</div>
     </div>
@@ -505,6 +683,41 @@ async function exportSalesCSV() {
     const formData = new FormData();
     formData.append('action', 'export_sales');
     formData.append('uploader', user.name || 'Admin User');
+
+    const reportType = document.getElementById('filterReportType').value;
+    formData.append('report_type', reportType);
+
+    if (reportType === 'daily') {
+      const dailyDate = document.getElementById('filterDailyDate').value;
+      if (dailyDate) formData.append('daily_date', dailyDate);
+    } else if (reportType === 'weekly') {
+      const week = document.getElementById('filterWeekInput').value;
+      if (week) formData.append('week', week);
+    } else if (reportType === 'monthly') {
+      const month = document.getElementById('filterMonthInput').value;
+      if (month) formData.append('month', month);
+    } else if (reportType === 'quarterly') {
+      const quarter = document.getElementById('filterQuarter').value;
+      const quarterYear = document.getElementById('filterQuarterYear').value;
+      if (quarter) formData.append('quarter', quarter);
+      if (quarterYear) formData.append('year', quarterYear);
+    } else if (reportType === 'yearly') {
+      const year = document.getElementById('filterYearInput').value;
+      if (year) formData.append('year', year);
+    } else if (reportType === 'custom') {
+      const start = document.getElementById('filterStartDate').value;
+      const end = document.getElementById('filterEndDate').value;
+      if (start) formData.append('start_date', start);
+      if (end) formData.append('end_date', end);
+    }
+
+    const origin = document.getElementById('filterOrigin').value;
+    const cashier = document.getElementById('filterCashier').value;
+    const payment = document.getElementById('filterPayment').value;
+
+    if (origin !== 'all') formData.append('origin', origin);
+    if (cashier !== 'all') formData.append('cashier_id', cashier);
+    if (payment !== 'all') formData.append('payment_method', payment);
 
     const res = await fetch('api/file_manager.php', {
       method: 'POST',

@@ -2,6 +2,11 @@
 header("Content-Type: application/json");
 require_once "db.php";
 
+$reportType = trim($_GET["report_type"] ?? "");
+$dailyDate = trim($_GET["daily_date"] ?? $_GET["date"] ?? "");
+$week = trim($_GET["week"] ?? "");
+$quarter = trim($_GET["quarter"] ?? "");
+$year = trim($_GET["year"] ?? "");
 $month = trim($_GET["month"] ?? "");
 $startDate = trim($_GET["start_date"] ?? "");
 $endDate = trim($_GET["end_date"] ?? "");
@@ -13,27 +18,90 @@ $riceType = trim($_GET["rice_type"] ?? "all");
 // Date filtering logic
 $dateConditions = [];
 $dateParams = [];
-$periodLabel = "All Recorded Time";
+$periodLabel = "All Recorded History";
+$reportTitle = "OFFICIAL SALES SUMMARY STATEMENT";
 
-if (!empty($month)) {
-    // Expected format: YYYY-MM e.g. "2026-09"
+if ($reportType === "daily" || (!empty($dailyDate) && empty($reportType))) {
+    $targetDate = !empty($dailyDate) ? $dailyDate : date("Y-m-d");
+    $dateConditions[] = "DATE(t.transaction_date) = ?";
+    $dateParams[] = $targetDate;
+    $time = strtotime($targetDate);
+    $periodLabel = "Daily: " . date("l, F d, Y", $time);
+    $reportTitle = "OFFICIAL DAILY SALES REPORT";
+} elseif ($reportType === "weekly" || (!empty($week) && empty($reportType))) {
+    if (!empty($week) && preg_match('/^(\d{4})-W(\d{1,2})$/', $week, $m)) {
+        $wYear = (int)$m[1];
+        $wNum = (int)$m[2];
+        $dto = new DateTime();
+        $dto->setISODate($wYear, $wNum, 1);
+        $wStart = $dto->format('Y-m-d');
+        $dto->modify('+6 days');
+        $wEnd = $dto->format('Y-m-d');
+        $periodLabel = "Weekly: " . date("M d, Y", strtotime($wStart)) . " to " . date("M d, Y", strtotime($wEnd)) . " (Week {$wNum}, {$wYear})";
+    } elseif (!empty($startDate) && !empty($endDate)) {
+        $wStart = $startDate;
+        $wEnd = $endDate;
+        $periodLabel = "Weekly: " . date("M d, Y", strtotime($wStart)) . " to " . date("M d, Y", strtotime($wEnd));
+    } else {
+        $dto = new DateTime();
+        $wStart = (clone $dto)->modify('this week monday')->format('Y-m-d');
+        $wEnd = (clone $dto)->modify('this week sunday')->format('Y-m-d');
+        $wNum = (int)$dto->format('W');
+        $wYear = (int)$dto->format('Y');
+        $periodLabel = "Weekly: " . date("M d, Y", strtotime($wStart)) . " to " . date("M d, Y", strtotime($wEnd)) . " (Week {$wNum}, {$wYear})";
+    }
+    $dateConditions[] = "DATE(t.transaction_date) BETWEEN ? AND ?";
+    $dateParams[] = $wStart;
+    $dateParams[] = $wEnd;
+    $reportTitle = "OFFICIAL WEEKLY SALES REPORT";
+} elseif ($reportType === "monthly" || (!empty($month) && empty($reportType))) {
+    $targetMonth = !empty($month) ? $month : date("Y-m");
     $dateConditions[] = "DATE_FORMAT(t.transaction_date, '%Y-%m') = ?";
-    $dateParams[] = $month;
-    $time = strtotime($month . "-01");
-    $periodLabel = date("F Y", $time);
+    $dateParams[] = $targetMonth;
+    $time = strtotime($targetMonth . "-01");
+    $periodLabel = "Monthly: " . date("F Y", $time);
+    $reportTitle = "OFFICIAL MONTHLY SALES REPORT";
+} elseif ($reportType === "quarterly" || (!empty($quarter) && empty($reportType))) {
+    $q = (int)($quarter ?: 1);
+    if ($q < 1 || $q > 4) $q = 1;
+    $y = (int)($year ?: date("Y"));
+
+    $quarterMap = [
+        1 => ["start" => "01-01", "end" => "03-31", "label" => "Q1 (Jan 1 – Mar 31)"],
+        2 => ["start" => "04-01", "end" => "06-30", "label" => "Q2 (Apr 1 – Jun 30)"],
+        3 => ["start" => "07-01", "end" => "09-30", "label" => "Q3 (Jul 1 – Sep 30)"],
+        4 => ["start" => "10-01", "end" => "12-31", "label" => "Q4 (Oct 1 – Dec 31)"],
+    ];
+
+    $qStart = "{$y}-{$quarterMap[$q]['start']}";
+    $qEnd = "{$y}-{$quarterMap[$q]['end']}";
+    $dateConditions[] = "DATE(t.transaction_date) BETWEEN ? AND ?";
+    $dateParams[] = $qStart;
+    $dateParams[] = $qEnd;
+    $periodLabel = "Quarterly: {$quarterMap[$q]['label']}, {$y}";
+    $reportTitle = "OFFICIAL QUARTERLY SALES REPORT";
+} elseif ($reportType === "yearly" || (!empty($year) && empty($reportType) && empty($month) && empty($quarter))) {
+    $y = (int)($year ?: date("Y"));
+    $dateConditions[] = "YEAR(t.transaction_date) = ?";
+    $dateParams[] = $y;
+    $periodLabel = "Yearly: Full Year {$y} (Jan 01 – Dec 31, {$y})";
+    $reportTitle = "OFFICIAL YEARLY SALES REPORT";
 } elseif (!empty($startDate) && !empty($endDate)) {
     $dateConditions[] = "DATE(t.transaction_date) BETWEEN ? AND ?";
     $dateParams[] = $startDate;
     $dateParams[] = $endDate;
-    $periodLabel = date("M d, Y", strtotime($startDate)) . " to " . date("M d, Y", strtotime($endDate));
+    $periodLabel = "Custom: " . date("M d, Y", strtotime($startDate)) . " to " . date("M d, Y", strtotime($endDate));
+    $reportTitle = "OFFICIAL CUSTOM SALES REPORT";
 } elseif (!empty($startDate)) {
     $dateConditions[] = "DATE(t.transaction_date) >= ?";
     $dateParams[] = $startDate;
     $periodLabel = "From " . date("M d, Y", strtotime($startDate));
+    $reportTitle = "OFFICIAL SALES REPORT";
 } elseif (!empty($endDate)) {
     $dateConditions[] = "DATE(t.transaction_date) <= ?";
     $dateParams[] = $endDate;
     $periodLabel = "Up to " . date("M d, Y", strtotime($endDate));
+    $reportTitle = "OFFICIAL SALES REPORT";
 }
 
 try {
@@ -243,6 +311,8 @@ try {
 
     echo json_encode([
         "success" => true,
+        "reportType" => $reportType,
+        "reportTitle" => $reportTitle,
         "periodLabel" => $periodLabel,
         "summary" => [
             "totalRevenue" => $totalRevenue,
