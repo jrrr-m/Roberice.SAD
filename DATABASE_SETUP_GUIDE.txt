@@ -1,4 +1,3 @@
-See DATABASE_SETUP_GUIDE.txt for the complete guide.
 ================================================================================
 ROBERICE POS & INVENTORY MANAGEMENT SYSTEM
 XAMPP DATABASE SETUP & INSTALLATION GUIDE
@@ -6,19 +5,61 @@ XAMPP DATABASE SETUP & INSTALLATION GUIDE
 
 PROJECT NAME: Roberice POS & Inventory System
 DATABASE NAME: roberice_db
+WEB ROUTE: http://localhost/Roberice.SAD/database/init_db.php
 SQL DUMP FILE: database/roberice_db.sql
 CONFIGURATION: api/db.php
 
 --------------------------------------------------------------------------------
-1. QUICK START IN 3 STEPS
+OPTION A: AUTOMATIC SETUP (FASTEST - RECOMMENDED)
+--------------------------------------------------------------------------------
+1. Start XAMPP Control Panel -> Click Start on "Apache" and "MySQL".
+2. Open your web browser and navigate to:
+
+   http://localhost/Roberice.SAD/database/init_db.php
+   (Or replace "Roberice.SAD" with your local project folder name)
+
+   This script will automatically:
+   - Create the `roberice_db` database with utf8mb4 collation
+   - Generate all 8 tables (users, product, inventory, inventory_batch, 
+     inventory_adjustment, sales_transaction, transaction_item, file_records)
+   - Seed all default admin & cashier accounts
+   - Seed all 12 rice product varieties, stocks, packaging tiers, and historical sales
+   - Validate and display real-time table record counts
+
+3. Click "Launch Login Page" or open:
+   http://localhost/Roberice.SAD/pages/login.html
+
+--------------------------------------------------------------------------------
+OPTION B: MANUAL PHPMYADMIN IMPORT
 --------------------------------------------------------------------------------
 1. Start XAMPP Control Panel -> Click Start on Apache and MySQL.
 2. Open Browser -> Go to http://localhost/phpmyadmin
    - Click "New", enter database name: roberice_db (Collation: utf8mb4_general_ci), click "Create".
-   - Click "Import", choose "database/roberice_db.sql", and click "Import".
-3. Open http://localhost/Roberice%20-%20SAD/login.html
-   - Login as Admin: admin / admin123
-   - Login as Cashier: cashier1 / cashier123
+   - Click "Import", choose file "database/roberice_db.sql", and click "Import".
+3. Open http://localhost/Roberice.SAD/pages/login.html
 
-For the full detailed documentation, troubleshooting steps, and professor comment feature references, please open:
-DATABASE_SETUP_GUIDE.txt
+--------------------------------------------------------------------------------
+DEFAULT USER CREDENTIALS
+--------------------------------------------------------------------------------
+- Admin Account:
+  Username: admin
+  Password: admin123
+  Role: System Administrator (Full access to all 10 modules)
+
+- Cashier 1:
+  Username: cashier1
+  Password: cashier123
+  Role: Cashier (POS, View Inventory, Transactions, Sales Report)
+
+- Cashier 2:
+  Username: cashier2
+  Password: cashier123
+  Role: Cashier
+
+--------------------------------------------------------------------------------
+DATABASE RESET
+--------------------------------------------------------------------------------
+To completely wipe and re-initialize the database with fresh default seed data:
+Navigate to:
+   http://localhost/Roberice.SAD/database/init_db.php?fresh=1
+

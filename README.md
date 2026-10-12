@@ -185,11 +185,28 @@ The Sales Report module ([`pages/sales-report.html`](pages/sales-report.html)) p
    c:\xampp\htdocs\Roberice.SAD\
    ```
 2. **Start Apache & MySQL**:
-   Open **XAMPP Control Panel** and start both **Apache** and **MySQL**.
-3. **Import Database**:
+   Open **XAMPP Control Panel** and click **Start** on both **Apache** and **MySQL**.
+
+3. **Initialize Database (Choose Either Option)**:
+
+   ### ⚡ Option A: Automatic Web Setup (Fastest — Recommended)
+   Simply open your browser and navigate to:
+   ```
+   http://localhost/Roberice.SAD/database/init_db.php
+   ```
+   *(Or replace `Roberice.SAD` with your local folder name if different).*
+   This web script will automatically:
+   - Create the `roberice_db` database
+   - Build all 8 tables (`users`, `product`, `inventory`, `inventory_batch`, `inventory_adjustment`, `sales_transaction`, `transaction_item`, `file_records`)
+   - Seed default admin & cashier accounts
+   - Populate catalog varieties, stock, batch lots, and historical sales transactions
+   - Display a verified visual confirmation dashboard with direct login links
+
+   ### 📁 Option B: Manual phpMyAdmin Import
    - Navigate to [http://localhost/phpmyadmin](http://localhost/phpmyadmin).
    - Create a database named `roberice_db` (Collation: `utf8mb4_general_ci`).
    - Click **Import** and choose [`database/roberice_db.sql`](database/roberice_db.sql).
+
 4. **Access Application**:
    Open your browser and visit:
    ```
@@ -197,8 +214,8 @@ The Sales Report module ([`pages/sales-report.html`](pages/sales-report.html)) p
    ```
 
 ### Default Credentials
-- **Admin**: Username `admin` | Password `admin123`
-- **Cashier**: Username `cashier1` | Password `cashier123`
+- **Admin**: Username `admin` | Password `admin123` (Full system access)
+- **Cashier**: Username `cashier1` | Password `cashier123` (POS & inventory lookup)
 
 ---
 
