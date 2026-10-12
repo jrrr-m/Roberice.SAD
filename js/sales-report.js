@@ -68,7 +68,7 @@ async function loadSalesReport() {
   const cashier = document.getElementById('filterCashier').value;
   const payment = document.getElementById('filterPayment').value;
 
-  showPageLoader('Compiling sales report from database...');
+  showTopLoader();
 
   const params = new URLSearchParams();
 
@@ -97,11 +97,11 @@ async function loadSalesReport() {
     currentReportData = data;
     renderReportView(data);
   } catch (err) {
-    hidePageLoader();
     console.error('Error fetching sales report:', err);
     showToast('Failed to load sales report: ' + err.message, 'danger');
   } finally {
-    setTimeout(hidePageLoader, 200);
+    hideTopLoader();
+    hidePageLoader();
   }
 }
 
@@ -154,9 +154,10 @@ function renderReportView(data) {
           <td>${originBadge}</td>
           <td><span style="color:var(--text-muted);font-size:12px;">${v.rice_type || v.category}</span></td>
           <td><strong>${v.sacks || 0}</strong></td>
-          <td>${v.packs_5kg || 0}</td>
-          <td>${v.packs_10kg || 0}</td>
+          <td>${v.packs_25kg || 0}</td>
           <td>${v.packs_20kg || 0}</td>
+          <td>${v.packs_10kg || 0}</td>
+          <td>${v.packs_5kg || 0}</td>
           <td>${v.tinatakal_kg || 0} kg</td>
           <td><strong>${formatNumber(v.total_kg || 0)} kg</strong></td>
           <td><strong style="color:var(--primary);">${formatCurrency(v.revenue || 0)}</strong></td>
@@ -214,7 +215,8 @@ function openPrintReportModal() {
     <tr>
       <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;">${idx + 1}. <strong>${v.name}</strong> (${v.origin})</td>
       <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;text-align:center;">${v.sacks}</td>
-      <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;text-align:center;">${v.packs_5kg} / ${v.packs_10kg} / ${v.packs_20kg}</td>
+      <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;text-align:center;">${v.packs_25kg || 0}</td>
+      <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;text-align:center;">${v.packs_20kg || 0} / ${v.packs_10kg || 0} / ${v.packs_5kg || 0}</td>
       <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;text-align:center;">${v.tinatakal_kg} kg</td>
       <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;text-align:right;">${formatNumber(v.total_kg)} kg</td>
       <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;text-align:right;font-weight:bold;">${formatCurrency(v.revenue)}</td>
@@ -224,9 +226,9 @@ function openPrintReportModal() {
 
   printContainer.innerHTML = `
     <div class="print-store-header">
-      <h1>ROBERICE RICE RETAILING STORE</h1>
-      <p>Wholesale & Retail Rice Merchandising | POS & Inventory System</p>
-      <p style="font-size:11px;color:#6b7280;">Batangas, Philippines | Contact: (+63) 912-345-6789</p>
+      <h1>ROBERICE</h1>
+      <p style="font-weight:700;font-size:12px;color:#1f2937;">Address: 73 Farmers st. Corner Ampalaya, Marikina 1800</p>
+      <p style="font-size:11px;color:#6b7280;">Wholesale & Retail Rice Merchandising | POS & Inventory System</p>
     </div>
 
     <div class="print-report-title">
@@ -259,8 +261,9 @@ function openPrintReportModal() {
       <thead>
         <tr style="background:#f3f4f6;">
           <th style="padding:6px 8px;text-align:left;border-bottom:2px solid #9ca3af;">Rice Variety</th>
-          <th style="padding:6px 8px;text-align:center;border-bottom:2px solid #9ca3af;">Sacks</th>
-          <th style="padding:6px 8px;text-align:center;border-bottom:2px solid #9ca3af;">Packs (5k/10k/20k)</th>
+          <th style="padding:6px 8px;text-align:center;border-bottom:2px solid #9ca3af;">50kg Sacks</th>
+          <th style="padding:6px 8px;text-align:center;border-bottom:2px solid #9ca3af;">25kg Half</th>
+          <th style="padding:6px 8px;text-align:center;border-bottom:2px solid #9ca3af;">Packs (20k/10k/5k)</th>
           <th style="padding:6px 8px;text-align:center;border-bottom:2px solid #9ca3af;">Tinatakal</th>
           <th style="padding:6px 8px;text-align:right;border-bottom:2px solid #9ca3af;">Total Volume</th>
           <th style="padding:6px 8px;text-align:right;border-bottom:2px solid #9ca3af;">Revenue</th>
@@ -272,7 +275,8 @@ function openPrintReportModal() {
         <tr style="background:#f9fafb;font-weight:bold;">
           <td style="padding:8px;border-top:2px solid #111;">TOTAL</td>
           <td style="padding:8px;border-top:2px solid #111;text-align:center;">${summary.totalSacksSold || 0}</td>
-          <td style="padding:8px;border-top:2px solid #111;text-align:center;">${(summary.total5kgPacks||0)+(summary.total10kgPacks||0)+(summary.total20kgPacks||0)}</td>
+          <td style="padding:8px;border-top:2px solid #111;text-align:center;">${summary.total25kgPacks || 0}</td>
+          <td style="padding:8px;border-top:2px solid #111;text-align:center;">${(summary.total20kgPacks||0)+(summary.total10kgPacks||0)+(summary.total5kgPacks||0)}</td>
           <td style="padding:8px;border-top:2px solid #111;text-align:center;">${summary.totalTinatakalKg || 0} kg</td>
           <td style="padding:8px;border-top:2px solid #111;text-align:right;">${formatNumber(summary.totalVolumeKg || 0)} kg</td>
           <td style="padding:8px;border-top:2px solid #111;text-align:right;color:#1f4d32;">${formatCurrency(summary.totalRevenue || 0)}</td>
@@ -303,21 +307,30 @@ function printReportSheet() {
   }
 
   const contentHtml = document.getElementById('printReportContainer').innerHTML;
-
-  // Use a dedicated print iframe to ensure 100% clean, unclipped print preview
-  let printFrame = document.getElementById('reportPrintFrame');
-  if (!printFrame) {
-    printFrame = document.createElement('iframe');
-    printFrame.id = 'reportPrintFrame';
-    printFrame.style.position = 'fixed';
-    printFrame.style.right = '0';
-    printFrame.style.bottom = '0';
-    printFrame.style.width = '0';
-    printFrame.style.height = '0';
-    printFrame.style.border = '0';
-    printFrame.style.visibility = 'hidden';
-    document.body.appendChild(printFrame);
+  if (!contentHtml || !contentHtml.trim()) {
+    showToast('No sales statement content to print.', 'warning');
+    return;
   }
+
+  // Remove any previously created print iframe
+  const existingFrame = document.getElementById('reportPrintFrame');
+  if (existingFrame) {
+    existingFrame.remove();
+  }
+
+  // Create dedicated print iframe with real dimensions, positioned off-screen
+  const printFrame = document.createElement('iframe');
+  printFrame.id = 'reportPrintFrame';
+  printFrame.setAttribute('aria-hidden', 'true');
+  printFrame.style.position = 'fixed';
+  printFrame.style.left = '-9999px';
+  printFrame.style.top = '-9999px';
+  printFrame.style.width = '1024px';
+  printFrame.style.height = '1000px';
+  printFrame.style.border = '0';
+  printFrame.style.opacity = '0';
+  printFrame.style.pointerEvents = 'none';
+  document.body.appendChild(printFrame);
 
   const frameDoc = printFrame.contentWindow.document;
   frameDoc.open();
@@ -327,103 +340,125 @@ function printReportSheet() {
     <head>
       <meta charset="UTF-8">
       <title>Official Sales Statement - Roberice Store</title>
-      <link rel="stylesheet" href="css/styles.css">
       <style>
         @page {
           size: A4 portrait;
-          margin: 15mm 12mm 15mm 12mm;
+          margin: 12mm 10mm 12mm 10mm;
         }
-        * {
+        *, *::before, *::after {
           box-sizing: border-box;
+          margin: 0;
+          padding: 0;
           -webkit-print-color-adjust: exact !important;
           print-color-adjust: exact !important;
         }
-        body {
+        html, body {
           background: #ffffff !important;
-          color: #111111 !important;
-          font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          color: #111827 !important;
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+          font-size: 10.5pt;
+          line-height: 1.4;
+          width: 100%;
+          height: auto;
           margin: 0;
           padding: 0;
-          font-size: 11pt;
         }
         .print-report-sheet {
-          padding: 0 !important;
-          background: transparent !important;
-          width: 100% !important;
+          width: 100%;
+          padding: 0;
+          margin: 0;
+          background: #ffffff;
         }
         .print-store-header {
           text-align: center;
           border-bottom: 2px double #1f4d32;
-          padding-bottom: 12px;
-          margin-bottom: 16px;
+          padding-bottom: 10px;
+          margin-bottom: 12px;
         }
         .print-store-header h1 {
-          font-size: 20pt;
-          color: #1f4d32 !important;
-          margin: 0 0 4px 0;
+          font-size: 18pt;
           font-weight: 800;
+          color: #1f4d32 !important;
+          margin: 0 0 3px 0;
+          letter-spacing: 0.5px;
         }
         .print-store-header p {
           margin: 2px 0;
-          font-size: 9.5pt;
+          font-size: 9pt;
           color: #4b5563;
         }
         .print-report-title {
           text-align: center;
-          margin-bottom: 16px;
+          margin-bottom: 14px;
         }
         .print-report-title h2 {
-          font-size: 14pt;
-          margin: 0 0 4px 0;
+          font-size: 13pt;
+          font-weight: 700;
+          margin: 0 0 3px 0;
           color: #111827;
           letter-spacing: 0.5px;
         }
         .print-report-title span {
-          font-size: 11pt;
+          font-size: 10.5pt;
           color: #1f4d32;
           font-weight: 700;
         }
         .print-summary-grid {
           display: grid !important;
           grid-template-columns: repeat(4, 1fr) !important;
-          gap: 10px !important;
+          gap: 8px !important;
           background: #f9fafb !important;
           border: 1px solid #e5e7eb !important;
           padding: 10px 12px !important;
           border-radius: 6px !important;
-          margin-bottom: 16px !important;
+          margin-bottom: 14px !important;
         }
         .print-stat-item .lbl {
-          font-size: 8.5pt;
+          display: block;
+          font-size: 8pt;
           text-transform: uppercase;
           color: #6b7280;
           font-weight: 700;
+          letter-spacing: 0.5px;
         }
         .print-stat-item .val {
-          font-size: 13pt;
+          display: block;
+          font-size: 12pt;
           font-weight: 800;
           color: #111827;
           margin-top: 2px;
         }
+        h4 {
+          margin: 14px 0 6px !important;
+          font-size: 11pt !important;
+          text-transform: uppercase !important;
+          color: #374151 !important;
+          border-bottom: 1px solid #d1d5db !important;
+          padding-bottom: 4px !important;
+        }
         table {
           width: 100% !important;
           border-collapse: collapse !important;
-          margin-bottom: 18px !important;
+          margin-bottom: 16px !important;
+          font-size: 9.5pt !important;
         }
         th, td {
           border-bottom: 1px solid #e5e7eb !important;
-          padding: 6px 8px !important;
+          padding: 5px 8px !important;
         }
         th {
           background: #f3f4f6 !important;
           font-weight: 700;
           border-bottom: 2px solid #9ca3af !important;
+          font-size: 8.5pt;
+          text-transform: uppercase;
+          color: #374151;
         }
         .print-signatures {
           display: grid !important;
           grid-template-columns: 1fr 1fr !important;
-          gap: 50px !important;
-          margin-top: 30px !important;
+          gap: 40px !important;
+          margin-top: 25px !important;
           padding-top: 15px !important;
           border-top: 1px solid #e5e7eb !important;
           page-break-inside: avoid;
@@ -433,11 +468,11 @@ function printReportSheet() {
         }
         .signature-line {
           border-bottom: 1px solid #111;
-          height: 35px;
+          height: 30px;
           margin-bottom: 6px;
         }
         .signature-label {
-          font-size: 9.5pt;
+          font-size: 9pt;
           font-weight: 600;
           color: #374151;
         }
@@ -447,18 +482,21 @@ function printReportSheet() {
       <div class="print-report-sheet">
         ${contentHtml}
       </div>
-      <script>
-        window.onload = function() {
-          setTimeout(function() {
-            window.focus();
-            window.print();
-          }, 250);
-        };
-      <\/script>
     </body>
     </html>
   `);
   frameDoc.close();
+
+  // Allow iframe layout to calculate completely then trigger print dialog
+  setTimeout(() => {
+    try {
+      printFrame.contentWindow.focus();
+      printFrame.contentWindow.print();
+    } catch (e) {
+      console.warn('Iframe print error, falling back to window.print():', e);
+      window.print();
+    }
+  }, 250);
 }
 
 async function exportSalesCSV() {

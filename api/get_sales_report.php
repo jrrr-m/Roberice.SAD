@@ -88,9 +88,10 @@ try {
     $totalCash = 0;
     $totalNonCash = 0;
     $totalSacksSold = 0;
-    $total5kgPacks = 0;
-    $total10kgPacks = 0;
+    $total25kgPacks = 0;
     $total20kgPacks = 0;
+    $total10kgPacks = 0;
+    $total5kgPacks = 0;
     $totalTinatakalKg = 0;
     $totalVolumeKg = 0;
 
@@ -173,9 +174,10 @@ try {
                     "origin" => $item["origin"],
                     "rice_type" => $item["rice_type"],
                     "sacks" => 0,
-                    "packs_5kg" => 0,
-                    "packs_10kg" => 0,
+                    "packs_25kg" => 0,
                     "packs_20kg" => 0,
+                    "packs_10kg" => 0,
+                    "packs_5kg" => 0,
                     "tinatakal_kg" => 0,
                     "total_kg" => 0,
                     "revenue" => 0
@@ -184,22 +186,26 @@ try {
 
             $varietyStats[$pId]["revenue"] += $subtotal;
 
-            if ($unit === "sack") {
+            if ($unit === "sack" || $unit === "50kg") {
                 $totalSacksSold += $qty;
                 $varietyStats[$pId]["sacks"] += $qty;
-                $itemKg = $qty * $kgPerSack;
-            } elseif ($unit === "5kg") {
-                $total5kgPacks += $qty;
-                $varietyStats[$pId]["packs_5kg"] += $qty;
-                $itemKg = $qty * 5;
-            } elseif ($unit === "10kg") {
-                $total10kgPacks += $qty;
-                $varietyStats[$pId]["packs_10kg"] += $qty;
-                $itemKg = $qty * 10;
+                $itemKg = $qty * 50.0;
+            } elseif ($unit === "25kg" || $unit === "half_sack" || $unit === "half") {
+                $total25kgPacks += $qty;
+                $varietyStats[$pId]["packs_25kg"] += $qty;
+                $itemKg = $qty * 25.0;
             } elseif ($unit === "20kg") {
                 $total20kgPacks += $qty;
                 $varietyStats[$pId]["packs_20kg"] += $qty;
-                $itemKg = $qty * 20;
+                $itemKg = $qty * 20.0;
+            } elseif ($unit === "10kg") {
+                $total10kgPacks += $qty;
+                $varietyStats[$pId]["packs_10kg"] += $qty;
+                $itemKg = $qty * 10.0;
+            } elseif ($unit === "5kg") {
+                $total5kgPacks += $qty;
+                $varietyStats[$pId]["packs_5kg"] += $qty;
+                $itemKg = $qty * 5.0;
             } else {
                 // tinatakal / kg
                 $totalTinatakalKg += $qty;
@@ -245,9 +251,10 @@ try {
             "totalCash" => $totalCash,
             "totalNonCash" => $totalNonCash,
             "totalSacksSold" => $totalSacksSold,
-            "total5kgPacks" => $total5kgPacks,
-            "total10kgPacks" => $total10kgPacks,
+            "total25kgPacks" => $total25kgPacks,
             "total20kgPacks" => $total20kgPacks,
+            "total10kgPacks" => $total10kgPacks,
+            "total5kgPacks" => $total5kgPacks,
             "totalTinatakalKg" => round($totalTinatakalKg, 2),
             "totalVolumeKg" => round($totalVolumeKg, 2)
         ],

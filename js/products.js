@@ -27,12 +27,14 @@ async function renderProductsTable() {
       origin: p.origin || 'Local',
       riceType: p.rice_type || p.category || 'White Rice',
       priceSack: Number(p.price_sack || 0),
+      price25kg: Number(p.price_25kg || (p.price_sack ? p.price_sack / 2 : p.price_kg * 25)),
       priceKg: Number(p.price_kg || 0),
       price5kg: Number(p.price_5kg || (p.price_kg * 5)),
       price10kg: Number(p.price_10kg || (p.price_kg * 10)),
       price20kg: Number(p.price_20kg || (p.price_kg * 20)),
-      kgPerSack: Number(p.kg_per_sack || 50),
+      kgPerSack: 50,
       stockSacks: Number(p.stock_sacks || 0),
+      packaged25kg: Number(p.packaged_25kg || 0),
       stockKg: Number(p.stock_kg || 0),
       packaged5kg: Number(p.packaged_5kg || 0),
       packaged10kg: Number(p.packaged_10kg || 0),
@@ -131,11 +133,12 @@ function openEditProductModal(productId) {
   document.getElementById('prodRiceType').value = p.riceType;
   document.getElementById('prodCategory').value = p.category;
   document.getElementById('prodPriceSack').value = p.priceSack;
+  document.getElementById('prodPrice25kg').value = p.price25kg || (p.priceSack ? p.priceSack / 2 : '');
   document.getElementById('prodPriceKg').value = p.priceKg;
   document.getElementById('prodPrice5kg').value = p.price5kg;
   document.getElementById('prodPrice10kg').value = p.price10kg;
   document.getElementById('prodPrice20kg').value = p.price20kg;
-  document.getElementById('prodKgPerSack').value = p.kgPerSack;
+  document.getElementById('prodKgPerSack').value = 50;
   document.getElementById('prodThresholdKg').value = p.thresholdKg;
   document.getElementById('initialStockRow').style.display = 'none';
 
@@ -151,11 +154,12 @@ async function handleProductSubmit(e) {
   const riceType = document.getElementById('prodRiceType').value.trim();
   const category = document.getElementById('prodCategory').value.trim();
   const priceSack = parseFloat(document.getElementById('prodPriceSack').value);
+  const price25kg = parseFloat(document.getElementById('prodPrice25kg').value) || (priceSack / 2);
   const priceKg = parseFloat(document.getElementById('prodPriceKg').value);
   const price5kg = parseFloat(document.getElementById('prodPrice5kg').value) || (priceKg * 5);
   const price10kg = parseFloat(document.getElementById('prodPrice10kg').value) || (priceKg * 10);
   const price20kg = parseFloat(document.getElementById('prodPrice20kg').value) || (priceKg * 20);
-  const kgPerSack = parseInt(document.getElementById('prodKgPerSack').value) || 50;
+  const kgPerSack = 50;
   const thresholdKg = parseFloat(document.getElementById('prodThresholdKg').value) || 200;
 
   if (!name || !category || isNaN(priceSack) || isNaN(priceKg)) {
@@ -181,17 +185,19 @@ async function handleProductSubmit(e) {
         riceType,
         category,
         priceSack,
+        price25kg,
         priceKg,
         price5kg,
         price10kg,
         price20kg,
-        kgPerSack,
+        kgPerSack: 50,
         thresholdKg
       };
     } else {
       url = 'api/add_product.php';
 
       const initialSacks = parseInt(document.getElementById('prodInitialSacks').value) || 0;
+      const packaged25kg = parseInt(document.getElementById('prodInitial25kg').value) || 0;
       const initialKg = parseFloat(document.getElementById('prodInitialKg').value) || 0;
       const packaged5kg = parseInt(document.getElementById('prodInitial5kg').value) || 0;
       const packaged10kg = parseInt(document.getElementById('prodInitial10kg').value) || 0;
@@ -203,13 +209,15 @@ async function handleProductSubmit(e) {
         riceType,
         category,
         priceSack,
+        price25kg,
         priceKg,
         price5kg,
         price10kg,
         price20kg,
-        kgPerSack,
+        kgPerSack: 50,
         thresholdKg,
         initialSacks,
+        packaged25kg,
         initialKg,
         packaged5kg,
         packaged10kg,

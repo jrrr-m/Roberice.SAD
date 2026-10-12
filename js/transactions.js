@@ -190,7 +190,8 @@ function viewTxnReceipt(transactionId) {
 
   container.innerHTML = `
     <div class="receipt-header">
-      <h2>ROBERICE STORE</h2>
+      <h2>ROBERICE</h2>
+      <div style="font-size:11px;margin-bottom:2px;font-weight:600;">Address: 73 Farmers st. Corner Ampalaya, Marikina 1800</div>
       <div>Rice Wholesaler & Retailer</div>
       <div>Official Sales Receipt</div>
     </div>

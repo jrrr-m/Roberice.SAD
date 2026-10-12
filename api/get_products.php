@@ -15,6 +15,7 @@ try {
             p.rice_type,
             p.description,
             p.price_sack,
+            p.price_25kg,
             p.price_kg,
             p.price_5kg,
             p.price_10kg,
@@ -24,6 +25,7 @@ try {
 
             i.inventory_id,
             i.stock_sacks,
+            i.packaged_25kg,
             i.stock_kg,
             i.packaged_5kg,
             i.packaged_10kg,

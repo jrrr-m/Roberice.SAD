@@ -37,8 +37,8 @@
               <select id="filterCategory" class="form-select" style="width: 150px;">
                 <option value="all">All Rice Types</option>
               </select>
-              <button class="btn btn-warning" id="btnPosOpenSack" style="background:var(--brand-gold);color:#111;font-weight:700;white-space:nowrap;">
-                📦 Open Sack
+              <button class="btn btn-open-sack" id="btnPosOpenSack" style="white-space:nowrap;">
+                Open Sack
               </button>
             </div>
 
@@ -106,6 +106,97 @@
     </main>
   </div>
 
+  <!-- Product Packaging & Quantity Selection Modal (Standard POS Pop-up) -->
+  <div class="modal-overlay" id="modalProductPackaging">
+    <div class="modal-card" style="max-width: 540px;">
+      <div class="modal-header">
+        <div>
+          <h3 id="modalPkgProductName" style="margin-bottom: 3px;">Rice Variety</h3>
+          <div style="display:flex; gap:6px; align-items:center;">
+            <span id="modalPkgOriginBadge" class="badge badge-local">Local</span>
+            <span id="modalPkgRiceType" style="font-size:12px; color:var(--text-muted); font-weight:600;">Type</span>
+            <span id="modalPkgStockStatus" class="badge badge-success">● Available</span>
+          </div>
+        </div>
+        <button class="modal-close" onclick="closeModal('modalProductPackaging')">&times;</button>
+      </div>
+
+      <div class="modal-body" style="padding-top: 14px;">
+        <div class="form-group" style="margin-bottom: 12px;">
+          <label for="modalPkgBatchSelect" style="font-weight: 700; font-size: 11.5px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px;">
+            Rice Batch / Lot (FIFO Selection):
+          </label>
+          <select id="modalPkgBatchSelect" class="form-select" style="font-weight: 600;"></select>
+        </div>
+
+        <div style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">
+          Choose Sack Packaging or Specified Loose Kilos:
+        </div>
+
+        <!-- Packaging Options Grid -->
+        <div class="pkg-options-grid" id="modalPkgOptionsGrid">
+          <!-- Dynamically populated via JS -->
+        </div>
+
+        <!-- Custom Kilos Configuration Section (Tatakal / Loose Rice) -->
+        <div id="pkgCustomKgSection" style="margin-top:12px; display:none; background:var(--primary-light); border:1px solid var(--primary-border); border-radius:var(--radius-md); padding:12px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <label style="font-weight:700; font-size:13px; color:var(--primary); margin:0;">Specified Kilos (Deducted from Loose Rice):</label>
+            <span id="pkgLooseStockInfo" style="font-size:11px; color:var(--text-muted); font-weight:600;">Loose: 0.00 kg</span>
+          </div>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <input type="number" id="pkgCustomKgInput" class="form-control" style="font-size:17px; font-weight:700; text-align:center;" value="1" min="0.1" step="0.5" placeholder="Enter kg">
+            <span style="font-weight:700; font-size:15px; color:var(--text-main);">KG</span>
+          </div>
+          <!-- Quick Kilo Chips -->
+          <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:8px;">
+            <button type="button" class="btn btn-secondary btn-sm" onclick="setModalCustomKg(0.5)">+0.5 kg</button>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="setModalCustomKg(1)">+1 kg</button>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="setModalCustomKg(2)">+2 kg</button>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="setModalCustomKg(3)">+3 kg</button>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="setModalCustomKg(5)">+5 kg</button>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="setModalCustomKg(10)">+10 kg</button>
+          </div>
+          <div id="pkgAutoOpenNote" style="font-size:11.5px; color:#92400e; margin-top:8px; display:none; background:#fef3c7; padding:6px 10px; border-radius:6px; border:1px solid #fde68a;">
+            ℹ️ Requested kilos exceed current loose stock. Unopened sack(s) will automatically open upon completing sale.
+          </div>
+        </div>
+
+        <!-- Quantity Stepper for Sacks -->
+        <div id="pkgSackQtySection" style="margin-top:12px; display:flex; justify-content:space-between; align-items:center; background:#fdfcf7; border:1px solid var(--border-color); border-radius:var(--radius-md); padding:10px 14px;">
+          <div>
+            <div style="font-size:13px; font-weight:700; color:var(--text-main);">Quantity</div>
+            <div style="font-size:11px; color:var(--text-muted);" id="pkgSackQtyLabel">Number of sacks to add</div>
+          </div>
+          <div class="qty-control" style="background:#fff;">
+            <button type="button" class="qty-btn" onclick="stepModalQty(-1)">-</button>
+            <input type="number" id="pkgModalQtyInput" class="qty-input" value="1" min="1" max="100" style="width:60px;" onchange="updateModalSubtotal()">
+            <button type="button" class="qty-btn" onclick="stepModalQty(1)">+</button>
+          </div>
+        </div>
+
+        <!-- Total Summary Banner in Modal -->
+        <div style="margin-top:12px; background:var(--bg-main); border:1px solid var(--border-color); border-radius:var(--radius-md); padding:12px 14px; display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <span style="font-size:10.5px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.4px;">Item Total</span>
+            <div id="modalPkgSelectedLabel" style="font-size:13px; font-weight:600; color:var(--text-main);">Whole Sack (50kg) x 1</div>
+          </div>
+          <div style="text-align:right;">
+            <div id="modalPkgSubtotal" style="font-size:22px; font-weight:800; color:var(--primary);">₱0.00</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('modalProductPackaging')">Cancel</button>
+        <button type="button" class="btn btn-primary" id="btnConfirmAddToOrder" onclick="confirmModalAddToCart()">
+          <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+          Add to Order
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Open Sack Modal for Cashier POS -->
   <div class="modal-overlay" id="modalOpenSackPos">
     <div class="modal-card" style="max-width: 520px;">
@@ -124,14 +215,20 @@
             <select id="posOpenSackProduct" class="form-select" required></select>
           </div>
 
+          <div class="form-group" style="margin-top: 10px;">
+            <label for="posOpenSackBatch">Rice Batch to Open (FIFO Lot Selection)</label>
+            <select id="posOpenSackBatch" class="form-select" required></select>
+          </div>
+
           <div class="form-row">
             <div class="form-group">
               <label for="posOpenSackType">Sack Size to Open</label>
               <select id="posOpenSackType" class="form-select" required>
+                <option value="50kg">Whole Sack (50 Kilos) (+50.00 kg loose)</option>
+                <option value="25kg">Half Sack (25 Kilos) (+25.00 kg loose)</option>
                 <option value="20kg">20 Kilos Sack (+20.00 kg loose)</option>
                 <option value="10kg">10 Kilos Sack (+10.00 kg loose)</option>
                 <option value="5kg">5 Kilos Sack (+5.00 kg loose)</option>
-                <option value="sack">Standard Whole Sack</option>
               </select>
             </div>
 

@@ -88,36 +88,40 @@
             </div>
           </div>
 
-          <div class="form-row">
+          <div class="form-row" style="grid-template-columns: repeat(3, 1fr);">
             <div class="form-group">
-              <label for="prodPriceSack">Price per Sack (₱)</label>
+              <label for="prodPriceSack">Whole Sack Price (50kg) (₱)</label>
               <input type="number" id="prodPriceSack" class="form-control" placeholder="0.00" step="0.01" min="0" required>
             </div>
             <div class="form-group">
-              <label for="prodPriceKg">Price per Kg / Tinatakal (₱)</label>
+              <label for="prodPrice25kg">Half Sack Price (25kg) (₱)</label>
+              <input type="number" id="prodPrice25kg" class="form-control" placeholder="Auto / Half sack" step="0.01" min="0">
+            </div>
+            <div class="form-group">
+              <label for="prodPriceKg">Price per Kg / Loose (₱)</label>
               <input type="number" id="prodPriceKg" class="form-control" placeholder="0.00" step="0.01" min="0" required>
             </div>
           </div>
 
           <div class="form-row" style="grid-template-columns: repeat(3, 1fr);">
             <div class="form-group">
-              <label for="prodPrice5kg">5kg Pack Price (₱)</label>
-              <input type="number" id="prodPrice5kg" class="form-control" placeholder="Optional / Auto" step="0.01" min="0">
+              <label for="prodPrice20kg">20kg Pack Price (₱)</label>
+              <input type="number" id="prodPrice20kg" class="form-control" placeholder="Optional / Auto" step="0.01" min="0">
             </div>
             <div class="form-group">
               <label for="prodPrice10kg">10kg Pack Price (₱)</label>
               <input type="number" id="prodPrice10kg" class="form-control" placeholder="Optional / Auto" step="0.01" min="0">
             </div>
             <div class="form-group">
-              <label for="prodPrice20kg">20kg Pack Price (₱)</label>
-              <input type="number" id="prodPrice20kg" class="form-control" placeholder="Optional / Auto" step="0.01" min="0">
+              <label for="prodPrice5kg">5kg Pack Price (₱)</label>
+              <input type="number" id="prodPrice5kg" class="form-control" placeholder="Optional / Auto" step="0.01" min="0">
             </div>
           </div>
 
           <div class="form-row">
             <div class="form-group">
-              <label for="prodKgPerSack">Standard Kg per Sack</label>
-              <input type="number" id="prodKgPerSack" class="form-control" value="50" min="1" required>
+              <label for="prodKgPerSack">Standard Kg per Whole Sack</label>
+              <input type="number" id="prodKgPerSack" class="form-control" value="50" min="1" required readonly>
             </div>
             <div class="form-group">
               <label for="prodThresholdKg">Low-Stock Alert Threshold (Total Kg)</label>
@@ -129,28 +133,32 @@
             <div style="margin: 8px 0 4px; font-weight:600; font-size:12px; color:var(--text-muted); text-transform:uppercase;">
               Initial Inventory Stock Quantities
             </div>
-            <div class="form-row">
+            <div class="form-row" style="grid-template-columns: repeat(3, 1fr);">
               <div class="form-group">
-                <label for="prodInitialSacks">Initial Sacks</label>
+                <label for="prodInitialSacks">Initial Whole Sacks (50k)</label>
                 <input type="number" id="prodInitialSacks" class="form-control" value="10" min="0">
               </div>
               <div class="form-group">
-                <label for="prodInitialKg">Initial Loose / Tinatakal Kg</label>
+                <label for="prodInitial25kg">Initial Half Sacks (25k)</label>
+                <input type="number" id="prodInitial25kg" class="form-control" value="0" min="0">
+              </div>
+              <div class="form-group">
+                <label for="prodInitialKg">Initial Loose Kg</label>
                 <input type="number" id="prodInitialKg" class="form-control" value="0" min="0" step="0.1">
               </div>
             </div>
             <div class="form-row" style="grid-template-columns: repeat(3, 1fr);">
               <div class="form-group">
-                <label for="prodInitial5kg">Initial 5kg Packs</label>
-                <input type="number" id="prodInitial5kg" class="form-control" value="0" min="0">
+                <label for="prodInitial20kg">Initial 20kg Packs</label>
+                <input type="number" id="prodInitial20kg" class="form-control" value="0" min="0">
               </div>
               <div class="form-group">
                 <label for="prodInitial10kg">Initial 10kg Packs</label>
                 <input type="number" id="prodInitial10kg" class="form-control" value="0" min="0">
               </div>
               <div class="form-group">
-                <label for="prodInitial20kg">Initial 20kg Packs</label>
-                <input type="number" id="prodInitial20kg" class="form-control" value="0" min="0">
+                <label for="prodInitial5kg">Initial 5kg Packs</label>
+                <input type="number" id="prodInitial5kg" class="form-control" value="0" min="0">
               </div>
             </div>
           </div>

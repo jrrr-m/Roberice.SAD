@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Audit History & System Trail - Roberice POS & Inventory System</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <div class="app-container">
+    <main class="main-wrapper">
+      <div class="page-container">
+        
+        <!-- Page Header -->
+        <div class="page-header">
+          <div class="page-title">
+            <h2>Audit History & System Trail</h2>
+            <p>Chronological audit log tracking all warehouse adjustments, sack openings, batch depletions, sales, and system changes.</p>
+          </div>
+          <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <button class="btn btn-secondary" id="btnExportAuditCsv" style="white-space:nowrap;">
+              <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+              Export CSV
+            </button>
+            <button class="btn btn-primary" id="btnRefreshAudit" style="white-space:nowrap;">
+              <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+              Refresh Log
+            </button>
+          </div>
+        </div>
+
+        <!-- KPI Metric Cards -->
+        <div class="audit-kpi-grid">
+          <div class="audit-kpi-card">
+            <div class="audit-kpi-icon" style="background:#e0f2fe; color:#0284c7;">
+              <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+            </div>
+            <div>
+              <div class="audit-kpi-val" id="kpiTotalEvents">0</div>
+              <div class="audit-kpi-lbl">Total Audit Events</div>
+            </div>
+          </div>
+
+          <div class="audit-kpi-card">
+            <div class="audit-kpi-icon" style="background:#fef3c7; color:#b45309;">
+              <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
+            </div>
+            <div>
+              <div class="audit-kpi-val" id="kpiSacksOpened">0</div>
+              <div class="audit-kpi-lbl">Sacks Opened to Loose</div>
+            </div>
+          </div>
+
+          <div class="audit-kpi-card">
+            <div class="audit-kpi-icon" style="background:#fee2e2; color:#dc2626;">
+              <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+            </div>
+            <div>
+              <div class="audit-kpi-val" id="kpiBatchesDepleted">0</div>
+              <div class="audit-kpi-lbl">Batches Depleted & Archived</div>
+            </div>
+          </div>
+
+          <div class="audit-kpi-card">
+            <div class="audit-kpi-icon" style="background:#d1fae5; color:#059669;">
+              <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 11l5-5m0 0l5 5m-5-5v12"></path></svg>
+            </div>
+            <div>
+              <div class="audit-kpi-val" id="kpiRestocks">0</div>
+              <div class="audit-kpi-lbl">Restocks & Deliveries</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Filter & Search Toolbar -->
+        <div class="card" style="margin-bottom: 24px;">
+          <div class="filter-bar" style="flex-wrap: wrap; gap: 10px; margin-bottom: 16px;">
+            <div class="search-box" style="flex: 1; min-width: 240px;">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+              <input type="text" id="searchAudit" class="form-control" placeholder="Search by variety, batch code, staff, note, or ID...">
+            </div>
+
+            <div class="filter-actions" style="display:flex; flex-wrap:wrap; gap:8px;">
+              <!-- Event Type Filter -->
+              <select id="filterEventType" class="form-select" style="width: 170px;">
+                <option value="all">All Action Types</option>
+                <option value="open_sack">Sacks Opened</option>
+                <option value="batch_depleted">Batches Depleted</option>
+                <option value="restock">Restocks / Arrivals</option>
+                <option value="sale">POS Sales</option>
+                <option value="spoilage">Damage / Spoilage</option>
+                <option value="repack">Repackaging</option>
+                <option value="correction">Count Corrections</option>
+              </select>
+
+              <!-- Date Range Filter -->
+              <select id="filterDateRange" class="form-select" style="width: 150px;">
+                <option value="all">All Time</option>
+                <option value="today">Today</option>
+                <option value="week">Past 7 Days</option>
+                <option value="month">Past 30 Days</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Audit Table -->
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th style="min-width: 140px;">Timestamp</th>
+                  <th style="min-width: 120px;">Action Type</th>
+                  <th>Item / Variety</th>
+                  <th style="min-width: 130px;">Batch / Ref</th>
+                  <th style="min-width: 150px;">Quantity Shift</th>
+                  <th>Reason & Details</th>
+                  <th style="min-width: 110px;">Performed By</th>
+                </tr>
+              </thead>
+              <tbody id="auditTableBody">
+                <!-- Rendered via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- Scripts -->
+  <script src="js/data.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/audit.js"></script>
+</body>
+</html>

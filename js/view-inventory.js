@@ -1,60 +1,85 @@
 /**
  * Roberice POS & Inventory System - View Inventory Script
+ * Features: Dynamic Rice Variety Summary with Interactive Batch Drill-down & Real-time Depletion Tracking
  */
 
 let inventoryCache = [];
+const expandedVarietyIds = new Set();
 
 document.addEventListener('DOMContentLoaded', async () => {
   await loadInventory();
 
-  document.getElementById('searchInventory').addEventListener('input', renderInventoryTable);
-  document.getElementById('filterOrigin').addEventListener('change', renderInventoryTable);
-  document.getElementById('filterRiceType').addEventListener('change', renderInventoryTable);
-  document.getElementById('filterStockAge').addEventListener('change', renderInventoryTable);
-  document.getElementById('filterStatus').addEventListener('change', renderInventoryTable);
+  // Search & Filter listeners
+  const searchInput = document.getElementById('searchInventory');
+  if (searchInput) searchInput.addEventListener('input', renderInventoryTable);
+  const filterOrigin = document.getElementById('filterOrigin');
+  if (filterOrigin) filterOrigin.addEventListener('change', renderInventoryTable);
+  const filterRiceType = document.getElementById('filterRiceType');
+  if (filterRiceType) filterRiceType.addEventListener('change', renderInventoryTable);
+  const filterStockAge = document.getElementById('filterStockAge');
+  if (filterStockAge) filterStockAge.addEventListener('change', renderInventoryTable);
+  const filterStatus = document.getElementById('filterStatus');
+  if (filterStatus) filterStatus.addEventListener('change', renderInventoryTable);
 
+  // Modal Triggers & Form
   const btnViewOpenSack = document.getElementById('btnViewOpenSack');
   if (btnViewOpenSack) btnViewOpenSack.addEventListener('click', () => openViewOpenSackModal());
+
   const formViewOpenSack = document.getElementById('viewOpenSackForm');
   if (formViewOpenSack) formViewOpenSack.addEventListener('submit', handleViewOpenSackSubmit);
+
   const selViewProd = document.getElementById('viewOpenSackProduct');
+  const selViewBatch = document.getElementById('viewOpenSackBatch');
   const selViewType = document.getElementById('viewOpenSackType');
   const inpViewQty = document.getElementById('viewOpenSackQty');
-  if (selViewProd) selViewProd.addEventListener('change', updateViewOpenSackPreview);
+
+  if (selViewProd) selViewProd.addEventListener('change', () => {
+    updateViewOpenSackBatches();
+    updateViewOpenSackPreview();
+  });
+  if (selViewBatch) selViewBatch.addEventListener('change', updateViewOpenSackPreview);
   if (selViewType) selViewType.addEventListener('change', updateViewOpenSackPreview);
   if (inpViewQty) inpViewQty.addEventListener('input', updateViewOpenSackPreview);
 });
 
 async function loadInventory() {
   try {
-    const response = await fetch('api/get_products.php');
+    const response = await fetch('api/get_inventory.php');
     if (!response.ok) throw new Error('Failed to load inventory.');
 
     const data = await response.json();
     if (!Array.isArray(data)) {
-      throw new Error(data.error || 'Invalid data returned from server.');
+      throw new Error(data.error || 'Invalid inventory response.');
     }
 
-    inventoryCache = data.map(p => ({
-      id: String(p.product_id),
-      name: p.product_name,
-      category: p.category || '',
-      origin: p.origin || 'Local',
-      riceType: p.rice_type || p.category || 'White Rice',
-      priceSack: Number(p.price_sack || 0),
-      priceKg: Number(p.price_kg || 0),
-      kgPerSack: Number(p.kg_per_sack || 50),
-      stockSacks: Number(p.stock_sacks || 0),
-      stockKg: Number(p.stock_kg || 0),
-      packaged5kg: Number(p.packaged_5kg || 0),
-      packaged10kg: Number(p.packaged_10kg || 0),
-      packaged20kg: Number(p.packaged_20kg || 0),
-      receivedDate: p.received_date || '2026-09-01',
-      batchNumber: p.batch_number || 'BATCH-001',
-      daysOld: Number(p.days_old !== undefined && p.days_old !== null ? p.days_old : 0),
-      thresholdKg: Number(p.reorder_level_kg || 0),
-      status: p.product_status
-    }));
+    inventoryCache = data.map(p => {
+      const activeBatches = Array.isArray(p.batches)
+        ? p.batches.filter(b => b.status === 'Active' && Number(b.total_kg || 0) > 0)
+        : [];
+
+      return {
+        id: String(p.product_id),
+        name: p.product_name,
+        category: p.category || '',
+        origin: p.origin || 'Local',
+        riceType: p.rice_type || p.category || 'White Rice',
+        priceSack: Number(p.price_sack || 0),
+        priceKg: Number(p.price_kg || 0),
+        kgPerSack: 50,
+        stockSacks: Number(p.stock_sacks || 0),
+        packaged25kg: Number(p.packaged_25kg || 0),
+        packaged20kg: Number(p.packaged_20kg || 0),
+        packaged10kg: Number(p.packaged_10kg || 0),
+        packaged5kg: Number(p.packaged_5kg || 0),
+        stockKg: Number(p.stock_kg || 0),
+        receivedDate: p.received_date || '2026-09-01',
+        batchNumber: p.batch_number || 'BATCH-001',
+        daysOld: Number(p.days_old !== undefined && p.days_old !== null ? p.days_old : 0),
+        thresholdKg: Number(p.reorder_level_kg || 100),
+        status: p.product_status || 'Active',
+        batches: activeBatches
+      };
+    });
 
     populateRiceTypeFilter();
     renderInventoryTable();
@@ -62,7 +87,7 @@ async function loadInventory() {
     console.error('View inventory error:', error);
     const tbody = document.getElementById('inventoryTableBody');
     if (tbody) {
-      tbody.innerHTML = `<tr><td colspan="10" class="empty-state">Failed to load inventory: ${error && error.message ? error.message : error}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="11" class="empty-state">Failed to load inventory: ${error && error.message ? error.message : error}</td></tr>`;
     }
   }
 }
@@ -85,6 +110,28 @@ function populateRiceTypeFilter() {
   if ([...select.options].some(o => o.value === current)) select.value = current;
 }
 
+function toggleBatchDrawer(productId) {
+  if (expandedVarietyIds.has(productId)) {
+    expandedVarietyIds.delete(productId);
+  } else {
+    expandedVarietyIds.add(productId);
+  }
+  renderInventoryTable();
+}
+
+function getAgeBadge(daysOld) {
+  const days = Number(daysOld || 0);
+  if (days > 60) {
+    return `<span class="badge badge-old-stock">🔴 ${days}d (Old Stock)</span>`;
+  } else if (days > 30) {
+    return `<span class="badge badge-aging">🟡 ${days}d (Aging)</span>`;
+  } else if (days >= 15) {
+    return `<span class="badge badge-normal-age">🔵 ${days}d (Normal)</span>`;
+  } else {
+    return `<span class="badge badge-fresh">🟢 ${days}d (Fresh)</span>`;
+  }
+}
+
 function renderInventoryTable() {
   const tbody = document.getElementById('inventoryTableBody');
   if (!tbody) return;
@@ -100,7 +147,7 @@ function renderInventoryTable() {
       p.name.toLowerCase().includes(search) ||
       p.origin.toLowerCase().includes(search) ||
       p.riceType.toLowerCase().includes(search) ||
-      p.batchNumber.toLowerCase().includes(search);
+      p.batches.some(b => b.batch_code.toLowerCase().includes(search));
 
     const matchesOrigin = origin === 'all' || p.origin === origin;
     const matchesType = riceType === 'all' || p.riceType === riceType;
@@ -111,8 +158,8 @@ function renderInventoryTable() {
     else if (ageFilter === 'aging') matchesAge = p.daysOld > 30 && p.daysOld <= 60;
     else if (ageFilter === 'old') matchesAge = p.daysOld > 60;
 
-    const totalVolume = (p.stockSacks * p.kgPerSack) + p.stockKg + (p.packaged5kg * 5) + (p.packaged10kg * 10) + (p.packaged20kg * 20);
-    const isOut = totalVolume <= 0;
+    const totalVolume = (p.stockSacks * 50) + (p.packaged25kg * 25) + (p.packaged20kg * 20) + (p.packaged10kg * 10) + (p.packaged5kg * 5) + p.stockKg;
+    const isOut = totalVolume <= 0 || p.batches.length === 0;
     const isLow = !isOut && totalVolume <= p.thresholdKg;
 
     let matchesStatus = true;
@@ -124,16 +171,19 @@ function renderInventoryTable() {
   });
 
   if (filtered.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="10" class="empty-state">No matching rice items found.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="11" class="empty-state">No matching rice varieties found.</td></tr>`;
     return;
   }
 
-  tbody.innerHTML = filtered.map(p => {
-    const totalVolume = (p.stockSacks * p.kgPerSack) + p.stockKg + (p.packaged5kg * 5) + (p.packaged10kg * 10) + (p.packaged20kg * 20);
-    const isOut = totalVolume <= 0;
+  let htmlRows = '';
+
+  filtered.forEach(p => {
+    const isExpanded = expandedVarietyIds.has(p.id);
+    const totalVolume = (p.stockSacks * 50) + (p.packaged25kg * 25) + (p.packaged20kg * 20) + (p.packaged10kg * 10) + (p.packaged5kg * 5) + p.stockKg;
+    const isOut = totalVolume <= 0 || p.batches.length === 0;
     const isLow = !isOut && totalVolume <= p.thresholdKg;
 
-    // Status Badge
+    // Single-line Status Badge
     let statusBadge = `<span class="badge badge-success">In Stock</span>`;
     if (isOut) statusBadge = `<span class="badge badge-danger">Out of Stock</span>`;
     else if (isLow) statusBadge = `<span class="badge badge-warning">Low Stock</span>`;
@@ -143,23 +193,30 @@ function renderInventoryTable() {
       ? `<span class="badge badge-imported">Imported</span>`
       : `<span class="badge badge-local">Local</span>`;
 
-    // Age Badge
-    let ageBadge = '';
-    if (p.daysOld > 60) {
-      ageBadge = `<span class="badge badge-old-stock">🔴 ${p.daysOld}d (Old Stock)</span>`;
-    } else if (p.daysOld > 30) {
-      ageBadge = `<span class="badge badge-aging">🟡 ${p.daysOld}d (Aging)</span>`;
-    } else if (p.daysOld >= 15) {
-      ageBadge = `<span class="badge badge-normal-age">🔵 ${p.daysOld}d (Normal)</span>`;
+    // Available Batches Pill / Toggle
+    const batchCount = p.batches.length;
+    let batchPillHtml = '';
+    if (batchCount > 0) {
+      batchPillHtml = `
+        <button class="batch-toggle-pill" type="button" onclick="event.stopPropagation(); toggleBatchDrawer('${p.id}')" title="Click to view all available batches">
+          <span>${batchCount} Batch${batchCount > 1 ? 'es' : ''}</span>
+          <span class="chevron-icon">${isExpanded ? '▲' : '▼'}</span>
+        </button>
+      `;
     } else {
-      ageBadge = `<span class="badge badge-fresh">🟢 ${p.daysOld}d (Fresh)</span>`;
+      batchPillHtml = `<span style="font-size:11px;color:var(--text-muted);font-style:italic;">No active batches</span>`;
     }
 
-    return `
-      <tr>
+    // Main Variety Summary Row
+    htmlRows += `
+      <tr class="inventory-variety-row ${isExpanded ? 'is-expanded' : ''}" onclick="toggleBatchDrawer('${p.id}')" title="Click row to expand/collapse batches">
         <td>
-          <strong>${p.name}</strong>
-          <div style="font-size:11px;color:var(--text-muted);">${p.category}</div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div>
+              <strong>${p.name}</strong>
+              <div style="font-size:11px;color:var(--text-muted);">${p.category}</div>
+            </div>
+          </div>
         </td>
         <td>
           <div style="display:flex;flex-direction:column;gap:3px;align-items:flex-start;">
@@ -169,52 +226,150 @@ function renderInventoryTable() {
         </td>
         <td><strong>${formatCurrency(p.priceSack)}</strong></td>
         <td><strong>${formatCurrency(p.priceKg)}</strong></td>
-        <td>${p.stockSacks} sacks</td>
+        <td><strong>${p.stockSacks}</strong> sacks (50k)</td>
         <td>
           <div class="pack-chips-group">
-            <span class="pack-chip">5k: <strong>${p.packaged5kg}</strong></span>
-            <span class="pack-chip">10k: <strong>${p.packaged10kg}</strong></span>
+            <span class="pack-chip" style="background:#e0e7ff;color:#3730a3;">25k: <strong>${p.packaged25kg}</strong></span>
             <span class="pack-chip">20k: <strong>${p.packaged20kg}</strong></span>
+            <span class="pack-chip">10k: <strong>${p.packaged10kg}</strong></span>
+            <span class="pack-chip">5k: <strong>${p.packaged5kg}</strong></span>
           </div>
         </td>
-        <td>${p.stockKg} kg</td>
-        <td><strong>${formatNumber(totalVolume)} kg</strong></td>
+        <td><strong>${formatNumber(p.stockKg)}</strong> kg</td>
+        <td><strong style="color:var(--primary);">${formatNumber(totalVolume)} kg</strong></td>
+        <td>${batchPillHtml}</td>
+        <td style="min-width:105px;text-align:center;white-space:nowrap;">${statusBadge}</td>
         <td>
-          <div style="display:flex;flex-direction:column;gap:3px;align-items:flex-start;">
-            ${ageBadge}
-            <span style="font-size:11px;color:var(--text-muted);">${p.batchNumber}</span>
-          </div>
-        </td>
-        <td>${statusBadge}</td>
-        <td>
-          <button class="btn btn-warning btn-sm" style="background:var(--brand-gold);color:#111;font-weight:700;" onclick="openViewOpenSackModal('${p.id}')">
-            📦 Open Sack
+          <button class="btn btn-open-sack btn-sm" type="button" onclick="event.stopPropagation(); openViewOpenSackModal('${p.id}')">
+            Open Sack
           </button>
         </td>
       </tr>
     `;
-  }).join('');
+
+    // If Expanded, Render Batch Breakdown Drawer Sub-table
+    if (isExpanded) {
+      let subTableContent = '';
+
+      if (p.batches.length === 0) {
+        subTableContent = `
+          <div style="padding:14px;text-align:center;color:var(--text-muted);font-style:italic;">
+            All previous batches for <strong>${p.name}</strong> have run out and been archived to the audit log. Restock new inventory to create an active batch.
+          </div>
+        `;
+      } else {
+        const batchRowsHtml = p.batches.map(b => {
+          const bVolume = Number(b.total_kg || 0);
+          const bAgeBadge = getAgeBadge(b.days_old);
+
+          return `
+            <tr>
+              <td><span class="batch-code-tag">${b.batch_code}</span></td>
+              <td>${b.received_date}</td>
+              <td>${bAgeBadge}</td>
+              <td><strong>${b.stock_sacks}</strong> whole</td>
+              <td>${b.packaged_25kg}</td>
+              <td>${b.packaged_20kg}</td>
+              <td>${b.packaged_10kg}</td>
+              <td>${b.packaged_5kg}</td>
+              <td>${formatNumber(b.stock_kg)} kg</td>
+              <td><strong style="color:var(--primary);">${formatNumber(bVolume)} kg</strong></td>
+              <td>
+                <button class="btn btn-open-sack btn-sm" type="button" onclick="event.stopPropagation(); openViewOpenSackModal('${p.id}', '${b.batch_code}')" title="Open a sack from Batch ${b.batch_code}">
+                  Open Sack
+                </button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+
+        subTableContent = `
+          <table class="batch-subtable">
+            <thead>
+              <tr>
+                <th>Batch Code</th>
+                <th>Date Received</th>
+                <th>Stock Age</th>
+                <th>50kg Sacks</th>
+                <th>25k Half</th>
+                <th>20k Sacks</th>
+                <th>10k Packs</th>
+                <th>5k Packs</th>
+                <th>Loose Kg</th>
+                <th>Batch Volume</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${batchRowsHtml}
+            </tbody>
+          </table>
+        `;
+      }
+
+      htmlRows += `
+        <tr class="batch-drawer-row">
+          <td colspan="11">
+            <div class="batch-drawer-box">
+              <div class="batch-drawer-title-bar">
+                <h4>
+                  <span>📦 Available Batches for ${p.name}</span>
+                  <span style="font-size:12px;font-weight:600;color:var(--text-muted);">(${p.batches.length} lot(s) currently in warehouse)</span>
+                </h4>
+                <span class="batch-fifo-tag">FIFO: Oldest batches listed first for quality rotation</span>
+              </div>
+              ${subTableContent}
+            </div>
+          </td>
+        </tr>
+      `;
+    }
+  });
+
+  tbody.innerHTML = htmlRows;
 }
 
-function openViewOpenSackModal(productId = null) {
+function openViewOpenSackModal(productId = null, targetBatchCode = null) {
   const prodSelect = document.getElementById('viewOpenSackProduct');
   if (!prodSelect) return;
 
   prodSelect.innerHTML = inventoryCache.map(p => `
     <option value="${p.id}" ${p.id === productId ? 'selected' : ''}>
-      ${p.name} [${p.origin}] - Loose: ${formatNumber(p.stockKg)} kg (Sacks: ${p.packaged20kg}x 20k, ${p.packaged10kg}x 10k, ${p.packaged5kg}x 5k)
+      ${p.name} [${p.origin}] - Loose: ${formatNumber(p.stockKg)} kg (50k: ${p.stockSacks}, 25k: ${p.packaged25kg}, 20k: ${p.packaged20kg})
     </option>
   `).join('');
 
-  document.getElementById('viewOpenSackType').value = '20kg';
+  updateViewOpenSackBatches(targetBatchCode);
+
+  document.getElementById('viewOpenSackType').value = '50kg';
   document.getElementById('viewOpenSackQty').value = '1';
   document.getElementById('viewOpenSackNote').value = '';
   updateViewOpenSackPreview();
   openModal('modalOpenSackView');
 }
 
+function updateViewOpenSackBatches(selectedBatchCode = null) {
+  const prodSelect = document.getElementById('viewOpenSackProduct');
+  const batchSelect = document.getElementById('viewOpenSackBatch');
+  if (!prodSelect || !batchSelect) return;
+
+  const product = inventoryCache.find(p => p.id === prodSelect.value);
+  if (!product) return;
+
+  if (product.batches && product.batches.length > 0) {
+    batchSelect.innerHTML = product.batches.map(b => `
+      <option value="${b.batch_code}" ${(selectedBatchCode && b.batch_code === selectedBatchCode) ? 'selected' : ''}>
+        ${b.batch_code} (Recv: ${b.received_date}, ${b.days_old}d) - ${b.stock_sacks} whole sacks, ${b.packaged25kg} half
+      </option>
+    `).join('');
+  } else {
+    batchSelect.innerHTML = `<option value="${product.batchNumber}">${product.batchNumber} (Default Lot)</option>`;
+  }
+}
+
 function updateViewOpenSackPreview() {
   const prodSelect = document.getElementById('viewOpenSackProduct');
+  const batchSelect = document.getElementById('viewOpenSackBatch');
   const typeSelect = document.getElementById('viewOpenSackType');
   const qtyInput = document.getElementById('viewOpenSackQty');
   const previewText = document.getElementById('viewOpenSackPreviewText');
@@ -225,14 +380,23 @@ function updateViewOpenSackPreview() {
   const product = inventoryCache.find(p => p.id === prodId);
   const sackType = typeSelect.value;
   const qty = parseInt(qtyInput.value) || 1;
+  const batchNumber = batchSelect ? batchSelect.value : (product ? product.batchNumber : 'BATCH-001');
 
   if (!product) return;
 
-  let unitWeight = 20;
-  let currentSacks = product.packaged20kg;
-  let sackLabel = '20kg sack(s)';
+  let unitWeight = 50;
+  let currentSacks = product.stockSacks;
+  let sackLabel = 'Whole (50kg) sack(s)';
 
-  if (sackType === '10kg') {
+  if (sackType === '25kg' || sackType === 'half') {
+    unitWeight = 25;
+    currentSacks = product.packaged25kg;
+    sackLabel = '25kg Half sack(s)';
+  } else if (sackType === '20kg') {
+    unitWeight = 20;
+    currentSacks = product.packaged20kg;
+    sackLabel = '20kg sack(s)';
+  } else if (sackType === '10kg') {
     unitWeight = 10;
     currentSacks = product.packaged10kg;
     sackLabel = '10kg sack(s)';
@@ -240,72 +404,77 @@ function updateViewOpenSackPreview() {
     unitWeight = 5;
     currentSacks = product.packaged5kg;
     sackLabel = '5kg sack(s)';
-  } else if (sackType === 'sack') {
-    unitWeight = product.kgPerSack;
-    currentSacks = product.stockSacks;
-    sackLabel = `standard (${unitWeight}kg) sack(s)`;
   }
 
   const addedKg = qty * unitWeight;
-  const newLooseKg = product.stockKg + addedKg;
-  const remainingSacks = currentSacks - qty;
+  const afterLoose = product.stockKg + addedKg;
+  const afterSacks = currentSacks - qty;
 
-  let warningHtml = '';
-  if (remainingSacks < 0) {
-    warningHtml = `<div style="color:var(--danger);font-weight:700;margin-top:6px;">⚠️ Warning: You only have ${currentSacks} of this sack in inventory!</div>`;
+  let statusClass = 'color: #065f46; font-weight: 600;';
+  let warningNote = '';
+
+  if (afterSacks < 0) {
+    statusClass = 'color: #dc2626; font-weight: 700;';
+    warningNote = `<br><span style="color:#dc2626;">⚠️ Warning: Insufficient sacks in inventory (Only ${currentSacks} available).</span>`;
   }
 
   previewText.innerHTML = `
-    Product: <strong>${product.name}</strong><br>
-    Opening <strong>${qty}x ${sackLabel}</strong> will deduct <strong>${qty} sack(s)</strong> (Current: ${currentSacks} -> Remaining: ${Math.max(0, remainingSacks)})<br>
-    and deposit <strong>+${formatNumber(addedKg)} kg</strong> into Loose (Tinatakal) inventory (Current: ${formatNumber(product.stockKg)} kg -> New Loose: <strong>${formatNumber(newLooseKg)} kg</strong>).
-    ${warningHtml}
+    <div style="${statusClass}">
+      Opening <strong>${qty}x ${sackLabel}</strong> (${unitWeight} kg each) from <strong>Batch ${batchNumber}</strong>:
+      <ul style="margin: 6px 0 0 18px; padding: 0;">
+        <li>Remaining ${sackLabel}: <strong>${Math.max(0, afterSacks)}</strong> (was ${currentSacks})</li>
+        <li>Loose Inventory Gain: <strong>+${addedKg} kg</strong></li>
+        <li>New Total Loose Stock: <strong>${formatNumber(afterLoose)} kg</strong> (was ${formatNumber(product.stockKg)} kg)</li>
+      </ul>
+      ${warningNote}
+    </div>
   `;
 }
 
 async function handleViewOpenSackSubmit(e) {
   e.preventDefault();
+  const prodSelect = document.getElementById('viewOpenSackProduct');
+  const batchSelect = document.getElementById('viewOpenSackBatch');
+  const typeSelect = document.getElementById('viewOpenSackType');
+  const qtyInput = document.getElementById('viewOpenSackQty');
+  const noteInput = document.getElementById('viewOpenSackNote');
 
-  const productId = document.getElementById('viewOpenSackProduct').value;
-  const sackType = document.getElementById('viewOpenSackType').value;
-  const qty = parseInt(document.getElementById('viewOpenSackQty').value) || 1;
-  const note = document.getElementById('viewOpenSackNote').value.trim();
+  if (!prodSelect || !typeSelect || !qtyInput) return;
 
-  if (qty <= 0) {
-    showToast('Please specify a valid quantity of sacks to open.', 'warning');
-    return;
-  }
+  const productId = prodSelect.value;
+  const sackType = typeSelect.value;
+  const openQty = parseInt(qtyInput.value) || 1;
+  const batchNumber = batchSelect ? batchSelect.value : '';
+  const note = noteInput ? noteInput.value.trim() : '';
 
-  const user = JSON.parse(sessionStorage.getItem('roberice_logged_user')) || {};
-
-  showPageLoader('Opening sack and updating loose inventory stock...');
+  const loggedUser = JSON.parse(sessionStorage.getItem('roberice_logged_user') || '{}');
+  const userName = loggedUser.full_name || 'Admin User';
 
   try {
-    const res = await fetch('api/adjust_stock.php', {
+    const response = await fetch('api/adjust_stock.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         productId,
         type: 'open_sack',
         sackType,
-        qty,
+        openQty,
+        batchNumber,
         note,
-        user: user.name || 'Admin User'
+        user: userName
       })
     });
 
-    const result = await res.json();
-    if (result.success) {
-      showToast(`Opened ${qty}x ${sackType} sack for ${result.productName}! Loose stock is now ${result.stockKg} kg.`, 'success');
-      closeModal('modalOpenSackView');
-      await loadInventory();
-    } else {
-      showToast(result.message || 'Failed to open sack.', 'danger');
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.message || 'Failed to open sack.');
     }
+
+    showToast(`Successfully opened ${openQty}x ${sackType} sack for ${result.productName}. Loose inventory updated.`, 'success');
+    closeModal('modalOpenSackView');
+    await loadInventory();
   } catch (err) {
-    console.error(err);
-    showToast('Failed to process sack opening.', 'danger');
-  } finally {
-    hidePageLoader();
+    console.error('Error opening sack:', err);
+    showToast(err.message || 'Failed to open sack.', 'danger');
   }
 }

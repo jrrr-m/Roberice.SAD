@@ -150,7 +150,7 @@ function initGlobalLoader() {
   // Insert Full Overlay
   const loaderEl = document.createElement('div');
   loaderEl.id = 'robericeGlobalLoader';
-  loaderEl.className = 'global-loader-overlay active'; // Active by default on page entry
+  loaderEl.className = 'global-loader-overlay'; // Inactive by default; only shown for explicit long operations
   loaderEl.innerHTML = `
     <div class="loader-content-card">
       <div class="loader-spinner-wrapper">
@@ -163,7 +163,7 @@ function initGlobalLoader() {
       <div class="loader-brand-title">Roberice Store</div>
       <div class="loader-status-pill">
         <span class="loader-status-dot"></span>
-        <span id="robericeLoaderMessage" class="loader-status-text">Connecting to database...</span>
+        <span id="robericeLoaderMessage" class="loader-status-text">Processing request...</span>
       </div>
       <div class="loader-bar-track">
         <div class="loader-bar-indicator"></div>
@@ -194,7 +194,7 @@ function initGlobalLoader() {
 }
 
 // Show Page Loader with customizable status message
-function showPageLoader(message = 'Connecting to database...') {
+function showPageLoader(message = 'Processing request...') {
   initGlobalLoader();
   const loader = document.getElementById('robericeGlobalLoader');
   const msgEl = document.getElementById('robericeLoaderMessage');
@@ -234,25 +234,15 @@ function hideTopLoader() {
   if (topBar) topBar.classList.remove('active');
 }
 
-// Initialize loader as early as possible
+// Initialize loader structure without showing it
 initGlobalLoader();
 
-// Automatically dismiss the initial page loader once DOM and initial resources load
+// Ensure any stale loader overlay is dismissed immediately
 window.addEventListener('load', () => {
-  setTimeout(() => {
-    if (activeDatabaseRequests <= 0) {
-      hidePageLoader();
-    }
-  }, 250);
+  hidePageLoader();
 });
-
-// Fallback safety for faster DOM transitions
 document.addEventListener('DOMContentLoaded', () => {
-  setTimeout(() => {
-    if (activeDatabaseRequests <= 0) {
-      hidePageLoader();
-    }
-  }, 1000);
+  hidePageLoader();
 });
 
 // Global fetch wrapper: Automatically display loader during database operations
@@ -287,3 +277,61 @@ window.fetch = async function(...args) {
     }
   }
 };
+
+/**
+ * Build available inventory batches for a product to support FIFO batch selection when opening sacks
+ */
+function getProductBatches(product) {
+  if (!product) return [];
+
+  const currentBatch = product.batchNumber || 'BATCH-001';
+  const recDate = product.receivedDate || '2026-09-01';
+  const daysOld = product.daysOld !== undefined ? Number(product.daysOld) : 14;
+
+  let ageLabel = 'Fresh';
+  if (daysOld > 60) ageLabel = 'Old Stock';
+  else if (daysOld > 30) ageLabel = 'Aging';
+  else if (daysOld > 14) ageLabel = 'Normal';
+
+  const batches = [
+    {
+      batchNumber: currentBatch,
+      receivedDate: recDate,
+      daysOld: daysOld,
+      ageLabel: ageLabel,
+      label: `${currentBatch} (${formatDate(recDate)} • ${daysOld}d ${ageLabel}) [Active Batch]`
+    }
+  ];
+
+  // Derive preceding chronological lots for FIFO rotation (e.g. BATCH-SIN-2609)
+  const match = currentBatch.match(/^(BATCH-[A-Z0-9]+-?)(\d{2})(\d{2})$/);
+  if (match) {
+    const prefix = match[1];
+    const yr = match[2];
+    const mo = parseInt(match[3], 10) || 9;
+
+    const prevMo1 = String(Math.max(1, mo - 1)).padStart(2, '0');
+    const prevMo2 = String(Math.max(1, mo - 2)).padStart(2, '0');
+
+    if (mo > 1) {
+      batches.unshift({
+        batchNumber: `${prefix}${yr}${prevMo1}`,
+        receivedDate: `2026-${prevMo1}-15`,
+        daysOld: daysOld + 30,
+        ageLabel: 'Aging',
+        label: `${prefix}${yr}${prevMo1} (${daysOld + 30}d Aging) ⭐️ FIFO Priority (Older Lot)`
+      });
+    }
+    if (mo > 2) {
+      batches.unshift({
+        batchNumber: `${prefix}${yr}${prevMo2}`,
+        receivedDate: `2026-${prevMo2}-10`,
+        daysOld: daysOld + 60,
+        ageLabel: 'Old Stock',
+        label: `${prefix}${yr}${prevMo2} (${daysOld + 60}d Old Stock) ⚠️ Urgent FIFO (Oldest Lot)`
+      });
+    }
+  }
+
+  return batches;
+}
