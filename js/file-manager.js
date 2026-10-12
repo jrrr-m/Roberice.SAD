@@ -12,13 +12,32 @@ async function initFileManager() {
 }
 
 function bindEvents() {
-  document.getElementById('btnOpenUploadModal').addEventListener('click', () => {
-    document.getElementById('uploadFileForm').reset();
-    openModal('modalUploadFile');
-  });
+  const btnUpload = document.getElementById('btnOpenUploadModal');
+  if (btnUpload) {
+    btnUpload.addEventListener('click', () => {
+      document.getElementById('uploadFileForm').reset();
+      openModal('modalUploadFile');
+    });
+  } else {
+    document.addEventListener('click', (e) => {
+      if (e.target.closest('#btnOpenUploadModal')) {
+        document.getElementById('uploadFileForm').reset();
+        openModal('modalUploadFile');
+      }
+    });
+  }
 
   document.getElementById('uploadFileForm').addEventListener('submit', handleUploadSubmit);
-  document.getElementById('btnQuickBackup').addEventListener('click', handleQuickBackup);
+
+  const btnBackup = document.getElementById('btnQuickBackup');
+  if (btnBackup) {
+    btnBackup.addEventListener('click', handleQuickBackup);
+  } else {
+    document.addEventListener('click', (e) => {
+      if (e.target.closest('#btnQuickBackup')) handleQuickBackup();
+    });
+  }
+
   document.getElementById('searchFile').addEventListener('input', renderFilesTable);
   document.getElementById('filterCategory').addEventListener('change', renderFilesTable);
 }

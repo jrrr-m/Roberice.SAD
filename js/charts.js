@@ -110,21 +110,21 @@ function renderCategoryPieChart(containerId, transactions = [], products = []) {
     return;
   }
 
-  const colors = ['#1f4d32','#c9a227','#6f8f74','#9d7d18','#2e5f43','#d8bd5b'];
+  const colors = ['#1f4d32', '#c9a227', '#6f8f74', '#9d7d18', '#2e5f43', '#d8bd5b', '#3b6a4e', '#b89430'];
   const total = entries.reduce((sum, [, value]) => sum + value, 0);
 
   let angle = 0;
   let slices = '';
   let legend = '';
 
-  const cx = 140;
+  const cx = 110;
   const cy = 110;
-  const r = 75;
-  const innerR = 40;
+  const r = 98;
+  const innerR = 52;
 
   entries.forEach(([name, value], i) => {
     const pct = Math.round((value / total) * 100);
-    const sliceAngle = (value / total) * 360;
+    const sliceAngle = entries.length === 1 ? 359.99 : (value / total) * 360;
 
     const start = angle;
     const end = angle + sliceAngle;
@@ -144,30 +144,39 @@ function renderCategoryPieChart(containerId, transactions = [], products = []) {
 
     slices += `
       <path
+        class="pie-chart-slice"
         d="M ${ix1} ${iy1}
         L ${x1} ${y1}
         A ${r} ${r} 0 ${largeArc} 1 ${x2} ${y2}
         L ${ix2} ${iy2}
         A ${innerR} ${innerR} 0 ${largeArc} 0 ${ix1} ${iy1}
         Z"
-        fill="${colors[i % colors.length]}">
+        fill="${colors[i % colors.length]}"
+        stroke="#ffffff"
+        stroke-width="2">
+        <title>${name}: ${pct}% (${value.toLocaleString()} kg)</title>
       </path>
     `;
 
+    const displayName = name.split(' ')[0] || name;
+
     legend += `
-      <div style="display:flex;align-items:center;gap:6px;font-size:11px;margin-bottom:4px;">
-        <span style="width:10px;height:10px;background:${colors[i % colors.length]};display:inline-block;"></span>
-        <span>${name.split(' ')[0]}: <strong>${pct}%</strong></span>
+      <div class="pie-legend-item" style="display:flex;align-items:center;gap:8px;font-size:12.5px;line-height:1.35;margin-bottom:6px;">
+        <span class="pie-legend-dot" style="width:11px;height:11px;border-radius:2px;background:${colors[i % colors.length]};display:inline-block;flex-shrink:0;"></span>
+        <span class="pie-legend-text" style="color:var(--text-main);display:flex;gap:4px;">
+          <span class="pie-legend-name" style="font-weight:500;">${displayName}:</span>
+          <strong class="pie-legend-pct" style="font-weight:700;">${pct}%</strong>
+        </span>
       </div>
     `;
   });
 
   container.innerHTML = `
-    <div style="display:flex;align-items:center;">
-      <svg width="220" height="220" viewBox="0 0 280 220">
+    <div class="pie-chart-wrapper" style="display:flex;align-items:center;justify-content:center;gap:36px;width:100%;height:100%;padding:4px 12px;box-sizing:border-box;">
+      <svg class="pie-chart-svg" viewBox="0 0 220 220" style="width:220px;height:220px;max-width:100%;max-height:100%;aspect-ratio:1/1;flex-shrink:0;">
         ${slices}
       </svg>
-      <div style="padding-left:10px;">
+      <div class="pie-chart-legend" style="display:flex;flex-direction:column;justify-content:center;max-height:220px;overflow-y:auto;padding-right:4px;">
         ${legend}
       </div>
     </div>

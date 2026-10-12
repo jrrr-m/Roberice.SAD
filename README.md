@@ -48,6 +48,7 @@ Roberice.SAD/
 │   ├── get_products.php        # Fetch active products catalog
 │   ├── get_inventory.php       # Real-time aggregated inventory & active batch lots
 │   ├── adjust_stock.php        # Restocking, open sack conversion, damage & correction
+│   ├── get_adjustments.php     # Historical stock adjustments log & audit records
 │   ├── add_product.php         # Create new rice variety
 │   ├── update_product.php      # Edit rice variety details & prices
 │   ├── delete_product.php      # Deactivate or remove product
@@ -74,16 +75,44 @@ Roberice.SAD/
 | Page | File | Default Roles | Core Features |
 |---|---|---|---|
 | **Login** | [`login.html`](pages/login.html) | All | Secure authentication, credential verification, and permission-aware homepage redirect. |
-| **Dashboard** | [`dashboard.html`](pages/dashboard.html) | Admin | Key performance indicators (Total Varieties, Inventory Value, 7-Day Sales, Low Stock, Old Stock Alerts). |
+| **Dashboard** | [`dashboard.html`](pages/dashboard.html) | Admin | Key performance indicators (Total Varieties, Inventory Value, 7-Day Sales, Low Stock, Old Stock Alerts), 7-day sales trend bar chart, and **centered, sizable variety sales donut chart**. |
 | **Point of Sale** | [`pos.html`](pages/pos.html) | Admin, Cashier | Multi-packaging selector (`50Kg Whole`, `25Kg Half`, `20Kg`, `10Kg`, `5Kg`, `Tinatakal`), live stock limits, change computation, official sales receipt generator. |
-| **View Inventory** | [`view-inventory.html`](pages/view-inventory.html) | Admin, Cashier | Live variety summary, pre-packed bag counts, total volume in Kg, single-line status badges, dynamic FIFO batch lot drill-downs. |
-| **Manage Inventory** | [`inventory.html`](pages/inventory.html) | Admin | Restocking with batch codes, sack openings into loose inventory, physical inventory correction, spoilage logging. |
-| **Products & Pricing** | [`products.html`](pages/products.html) | Admin | Add/Edit rice varieties, origin (`Local` / `Imported`), wholesale sack price, retail per-Kg rate, pre-packed bag pricing, low-stock threshold. |
+| **View Inventory** | [`view-inventory.html`](pages/view-inventory.html) | Admin, Cashier | Live variety summary, pre-packed bag counts, total volume in Kg, single-line status badges, dynamic FIFO batch lot drill-downs, and direct row-level sack opening. |
+| **Manage Inventory** | [`inventory.html`](pages/inventory.html) | Admin | Streamlined per-variety inventory management: contextual row buttons for restocking, sack openings into loose inventory, physical inventory correction, and spoilage logging. |
+| **Products & Pricing** | [`products.html`](pages/products.html) | Admin | Add/Edit rice varieties, origin (`Local` / `Imported`), wholesale sack price, retail per-Kg rate, pre-packed bag pricing, low-stock threshold. Includes **top-navbar `+ Add New Rice Variety` action**. |
 | **Transaction History** | [`transactions.html`](pages/transactions.html) | Admin, Cashier | Searchable log of past sales with breakdown modal and printable receipt format. |
-| **Sales Report** | [`sales-report.html`](pages/sales-report.html) | Admin, Cashier | Multi-period reporting (**Daily**, **Weekly**, **Monthly**, **Quarterly**, **Yearly**, Custom), variety breakdown, CSV export, print-ready official statement. |
-| **File Management** | [`file-manager.html`](pages/file-manager.html) | Admin, Cashier | Upload invoices, delivery receipts, supplier documents, and store records. |
-| **Audit History** | [`audit.html`](pages/audit.html) | Admin | Audit trail tracking warehouse adjustments, restocks, sack openings, batch completions, and user actions. |
+| **Sales Report** | [`sales-report.html`](pages/sales-report.html) | Admin, Cashier | Multi-period reporting (**Daily**, **Weekly**, **Monthly**, **Quarterly**, **Yearly**, Custom), variety breakdown, with **top-navbar `Export CSV` and `Print Sales Report` actions**. |
+| **File Management** | [`file-manager.html`](pages/file-manager.html) | Admin, Cashier | Store document repository with **top-navbar `One-Click Database Backup` and `Upload New Document` actions**. |
+| **Audit History** | [`audit.html`](pages/audit.html) | Admin | Audit trail tracking warehouse adjustments, restocks, sack openings, and user actions with **top-navbar `Export CSV` and `Refresh Log` actions**. |
 | **User Management** | [`users.html`](pages/users.html) | Admin | Account creation, password hashing, role presets (`Admin`, `Cashier`, `Store Manager`, `Inventory Clerk`), and granular module permissions matrix. |
+
+---
+
+## 🎨 UI Architecture & Navigation Design
+
+The frontend user interface features an optimized, distraction-free workflow with standardized layout alignment and intuitive contextual actions:
+
+### 1. Unified Top Navigation Header (`top-nav`)
+- **Synchronized Header Height**: Standardized across the application (`min-height: 81px`, padding `24px 28px 16px`) to ensure pixel-perfect border line continuity with the sidebar brand header across all screens.
+- **Dynamic Header Action Center (`#headerActions`)**: Contextual primary and secondary actions are seamlessly injected into the top-right corner of the persistent navigation bar via [`js/auth.js`](js/auth.js):
+  - **Products & Pricing**: `+ Add New Rice Variety`
+  - **Sales Report**: `Export CSV` and `Print Sales Report`
+  - **File Management**: `One-Click Database Backup` and `Upload New Document`
+  - **Audit History**: `Export CSV` and `Refresh Log`
+- **Clear Information Hierarchy**: The left side retains dynamic page titles and descriptive subtitles, keeping main views clean and uncluttered.
+
+### 2. Relocated Sidebar User Profile & Session Controls
+- **Dedicated Profile Card (`sidebar-user-card`)**: The user profile widget (User Full Name, Role Description, and `Logout` button) is situated in the lower section of the persistent sidebar directly above the copyright footer.
+- **Uncluttered Top Bar**: Moving account management to the sidebar footer maximizes horizontal space on the top navbar for page-specific operations and navigation breadcrumbs.
+
+### 3. Contextual Row-Level Inventory Actions
+- **Elimination of Ambiguous Top Buttons**: Redundant top-level action buttons ("Open a Sack", "Restock", "Adjust / Repack") were removed from [`pages/inventory.html`](pages/inventory.html) and [`pages/view-inventory.html`](pages/view-inventory.html).
+- **Direct Row Triggers**: Operators trigger sack openings, restocks, and repack adjustments directly on the specific rice variety's table row, ensuring every warehouse action is accurately bound to the targeted product without risk of mistaken product selection.
+
+### 4. Modern Centered Dashboard Analytics Chart
+- **Centered Layout**: The **Product Categories / Variety Sales** donut chart is centered horizontally and vertically inside its card container (`gap: 36px`), resolving previous left-aligned imbalances.
+- **Sizable & Responsive SVG**: Built with a 1:1 aspect ratio (`viewBox="0 0 220 220"`, outer radius `98`, outer diameter `~196px`), utilizing the full vertical height of the 240px card.
+- **Crisp Visuals & Legend**: Styled with `#ffffff` slice border dividers, interactive hover scaling (`.pie-chart-slice`), and an adjacent vertically scrollable percentage legend.
 
 ---
 

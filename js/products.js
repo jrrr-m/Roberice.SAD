@@ -6,7 +6,16 @@ let productsCache = [];
 
 document.addEventListener('DOMContentLoaded', () => {
   renderProductsTable();
-  document.getElementById('btnOpenAddProduct').addEventListener('click', openAddProductModal);
+  const btn = document.getElementById('btnOpenAddProduct');
+  if (btn) {
+    btn.addEventListener('click', openAddProductModal);
+  } else {
+    document.addEventListener('click', (e) => {
+      if (e.target.closest('#btnOpenAddProduct')) {
+        openAddProductModal();
+      }
+    });
+  }
   document.getElementById('productForm').addEventListener('submit', handleProductSubmit);
 });
 

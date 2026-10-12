@@ -22,8 +22,10 @@ async function initInventoryPage() {
   // Modal Openers
   const btnOpenSack = document.getElementById('btnOpenOpenSackModal');
   if (btnOpenSack) btnOpenSack.addEventListener('click', () => openOpenSackModal());
-  document.getElementById('btnOpenRestockModal').addEventListener('click', () => openRestockModal());
-  document.getElementById('btnOpenAdjustModal').addEventListener('click', () => openAdjustModal());
+  const btnRestock = document.getElementById('btnOpenRestockModal');
+  if (btnRestock) btnRestock.addEventListener('click', () => openRestockModal());
+  const btnAdjust = document.getElementById('btnOpenAdjustModal');
+  if (btnAdjust) btnAdjust.addEventListener('click', () => openAdjustModal());
 
   // Form Handlers
   const formOpenSack = document.getElementById('openSackForm');

@@ -222,8 +222,23 @@ function bindFilterEvents() {
     setReportType('daily', true);
   });
 
-  document.getElementById('btnOpenPrintReport').addEventListener('click', openPrintReportModal);
-  document.getElementById('btnExportCSV').addEventListener('click', exportSalesCSV);
+  const btnPrint = document.getElementById('btnOpenPrintReport');
+  if (btnPrint) {
+    btnPrint.addEventListener('click', openPrintReportModal);
+  } else {
+    document.addEventListener('click', (e) => {
+      if (e.target.closest('#btnOpenPrintReport')) openPrintReportModal();
+    });
+  }
+
+  const btnExport = document.getElementById('btnExportCSV');
+  if (btnExport) {
+    btnExport.addEventListener('click', exportSalesCSV);
+  } else {
+    document.addEventListener('click', (e) => {
+      if (e.target.closest('#btnExportCSV')) exportSalesCSV();
+    });
+  }
 }
 
 async function loadSalesReport() {

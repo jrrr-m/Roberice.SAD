@@ -135,6 +135,7 @@ function renderAppFrame(user) {
   if (!appContainer) return;
 
   const currentPage = window.location.pathname.split('/').pop() || 'dashboard.html';
+  const userName = user.full_name || user.name || user.username || (user.role === 'admin' ? 'Admin User' : 'Cashier');
 
   // Build Sidebar HTML
   const sidebarNavHtml = NAV_ITEMS
@@ -161,13 +162,23 @@ function renderAppFrame(user) {
       <nav class="sidebar-nav">
         ${sidebarNavHtml}
       </nav>
+      <div class="sidebar-user-section">
+        <div class="sidebar-user-card">
+          <div class="profile-details">
+            <div class="user-name">${userName}</div>
+            <div class="user-role">${user.role === 'admin' ? 'Admin (Full Access)' : 'Cashier (Restricted)'}</div>
+          </div>
+          <button class="btn-logout" id="btnLogout" title="Logout">
+            <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+            Logout
+          </button>
+        </div>
+      </div>
       <div class="sidebar-footer">
         &copy; 2026 Roberice System v1.0
       </div>
     </aside>
   `;
-
-  const userName = user.full_name || user.name || user.username || (user.role === 'admin' ? 'Admin User' : 'Cashier');
 
   // Dynamic Page Header & Subtitle Mapping
   const PAGE_HEADER_MAP = {
@@ -190,7 +201,13 @@ function renderAppFrame(user) {
     },
     'products.html': {
       title: 'Products & Pricing',
-      subtitle: 'Manage rice catalog, base sack pricing, and per-kg retail rates.'
+      subtitle: 'Manage rice catalog, base sack pricing, and per-kg retail rates.',
+      actionsHtml: `
+        <button class="btn btn-primary" id="btnOpenAddProduct" style="font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
+          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+          Add New Rice Variety
+        </button>
+      `
     },
     'transactions.html': {
       title: 'Transaction History',
@@ -199,15 +216,45 @@ function renderAppFrame(user) {
     },
     'sales-report.html': {
       title: 'Sales Report & Analytics',
-      subtitle: 'Comprehensive store revenue reports, variety sales volume, and print-ready statements.'
+      subtitle: 'Comprehensive store revenue reports, variety sales volume, and print-ready statements.',
+      actionsHtml: `
+        <button class="btn btn-secondary" id="btnExportCSV" style="display: inline-flex; align-items: center; gap: 6px;">
+          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+          Export CSV
+        </button>
+        <button class="btn btn-primary" id="btnOpenPrintReport" style="display: inline-flex; align-items: center; gap: 6px;">
+          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+          Print Sales Report
+        </button>
+      `
     },
     'file-manager.html': {
       title: 'File & Document Management',
-      subtitle: 'Organize store receipts, supplier delivery invoices, audit records, and backup files.'
+      subtitle: 'Organize store receipts, supplier delivery invoices, audit records, and backup files.',
+      actionsHtml: `
+        <button class="btn btn-secondary" id="btnQuickBackup" style="display: inline-flex; align-items: center; gap: 6px;">
+          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path></svg>
+          One-Click Database Backup
+        </button>
+        <button class="btn btn-primary" id="btnOpenUploadModal" style="display: inline-flex; align-items: center; gap: 6px;">
+          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+          Upload New Document
+        </button>
+      `
     },
     'audit.html': {
       title: 'Audit History & System Trail',
-      subtitle: 'Chronological audit log tracking warehouse adjustments, sack openings, and batch depletions.'
+      subtitle: 'Chronological audit log tracking warehouse adjustments, sack openings, and batch depletions.',
+      actionsHtml: `
+        <button class="btn btn-secondary" id="btnExportAuditCsv" style="display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;">
+          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+          Export CSV
+        </button>
+        <button class="btn btn-primary" id="btnRefreshAudit" style="display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;">
+          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+          Refresh Log
+        </button>
+      `
     },
     'users.html': {
       title: 'User Management & Permissions',
@@ -229,17 +276,8 @@ function renderAppFrame(user) {
         <h2 class="top-nav-title">${pageInfo.title}</h2>
         <p class="top-nav-subtitle" ${subtitleIdAttr}>${pageInfo.subtitle}</p>
       </div>
-      <div class="header-user">
-        <div class="user-profile">
-          <div class="profile-details">
-            <div class="user-name">${userName}</div>
-            <div class="user-role">${user.role === 'admin' ? 'Admin (Full Access)' : 'Cashier (Restricted)'}</div>
-          </div>
-        </div>
-        <button class="btn-logout" id="btnLogout">
-          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
-          Logout
-        </button>
+      <div class="header-actions" id="headerActions">
+        ${pageInfo.actionsHtml || ''}
       </div>
     </header>
   `;
