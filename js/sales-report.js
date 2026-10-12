@@ -296,6 +296,171 @@ function openPrintReportModal() {
   openModal('modalPrintReport');
 }
 
+function printReportSheet() {
+  const printContainer = document.getElementById('printReportContainer');
+  if (!printContainer || !printContainer.innerHTML.trim()) {
+    openPrintReportModal();
+  }
+
+  const contentHtml = document.getElementById('printReportContainer').innerHTML;
+
+  // Use a dedicated print iframe to ensure 100% clean, unclipped print preview
+  let printFrame = document.getElementById('reportPrintFrame');
+  if (!printFrame) {
+    printFrame = document.createElement('iframe');
+    printFrame.id = 'reportPrintFrame';
+    printFrame.style.position = 'fixed';
+    printFrame.style.right = '0';
+    printFrame.style.bottom = '0';
+    printFrame.style.width = '0';
+    printFrame.style.height = '0';
+    printFrame.style.border = '0';
+    printFrame.style.visibility = 'hidden';
+    document.body.appendChild(printFrame);
+  }
+
+  const frameDoc = printFrame.contentWindow.document;
+  frameDoc.open();
+  frameDoc.write(`
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <title>Official Sales Statement - Roberice Store</title>
+      <link rel="stylesheet" href="css/styles.css">
+      <style>
+        @page {
+          size: A4 portrait;
+          margin: 15mm 12mm 15mm 12mm;
+        }
+        * {
+          box-sizing: border-box;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+        body {
+          background: #ffffff !important;
+          color: #111111 !important;
+          font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          margin: 0;
+          padding: 0;
+          font-size: 11pt;
+        }
+        .print-report-sheet {
+          padding: 0 !important;
+          background: transparent !important;
+          width: 100% !important;
+        }
+        .print-store-header {
+          text-align: center;
+          border-bottom: 2px double #1f4d32;
+          padding-bottom: 12px;
+          margin-bottom: 16px;
+        }
+        .print-store-header h1 {
+          font-size: 20pt;
+          color: #1f4d32 !important;
+          margin: 0 0 4px 0;
+          font-weight: 800;
+        }
+        .print-store-header p {
+          margin: 2px 0;
+          font-size: 9.5pt;
+          color: #4b5563;
+        }
+        .print-report-title {
+          text-align: center;
+          margin-bottom: 16px;
+        }
+        .print-report-title h2 {
+          font-size: 14pt;
+          margin: 0 0 4px 0;
+          color: #111827;
+          letter-spacing: 0.5px;
+        }
+        .print-report-title span {
+          font-size: 11pt;
+          color: #1f4d32;
+          font-weight: 700;
+        }
+        .print-summary-grid {
+          display: grid !important;
+          grid-template-columns: repeat(4, 1fr) !important;
+          gap: 10px !important;
+          background: #f9fafb !important;
+          border: 1px solid #e5e7eb !important;
+          padding: 10px 12px !important;
+          border-radius: 6px !important;
+          margin-bottom: 16px !important;
+        }
+        .print-stat-item .lbl {
+          font-size: 8.5pt;
+          text-transform: uppercase;
+          color: #6b7280;
+          font-weight: 700;
+        }
+        .print-stat-item .val {
+          font-size: 13pt;
+          font-weight: 800;
+          color: #111827;
+          margin-top: 2px;
+        }
+        table {
+          width: 100% !important;
+          border-collapse: collapse !important;
+          margin-bottom: 18px !important;
+        }
+        th, td {
+          border-bottom: 1px solid #e5e7eb !important;
+          padding: 6px 8px !important;
+        }
+        th {
+          background: #f3f4f6 !important;
+          font-weight: 700;
+          border-bottom: 2px solid #9ca3af !important;
+        }
+        .print-signatures {
+          display: grid !important;
+          grid-template-columns: 1fr 1fr !important;
+          gap: 50px !important;
+          margin-top: 30px !important;
+          padding-top: 15px !important;
+          border-top: 1px solid #e5e7eb !important;
+          page-break-inside: avoid;
+        }
+        .signature-box {
+          text-align: center;
+        }
+        .signature-line {
+          border-bottom: 1px solid #111;
+          height: 35px;
+          margin-bottom: 6px;
+        }
+        .signature-label {
+          font-size: 9.5pt;
+          font-weight: 600;
+          color: #374151;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="print-report-sheet">
+        ${contentHtml}
+      </div>
+      <script>
+        window.onload = function() {
+          setTimeout(function() {
+            window.focus();
+            window.print();
+          }, 250);
+        };
+      <\/script>
+    </body>
+    </html>
+  `);
+  frameDoc.close();
+}
+
 async function exportSalesCSV() {
   try {
     const user = JSON.parse(sessionStorage.getItem('roberice_logged_user')) || {};

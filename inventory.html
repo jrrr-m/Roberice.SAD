@@ -18,13 +18,17 @@
             <p>Admin control panel for restocking, physical count corrections, and damage reporting.</p>
           </div>
 
-          <div style="display:flex;gap:8px;">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn btn-warning" id="btnOpenOpenSackModal" style="background:var(--brand-gold); color:#111; font-weight:700;">
+              📦 Open a Sack
+            </button>
+
             <button class="btn btn-primary" id="btnOpenRestockModal">
               + Restock
             </button>
 
             <button class="btn btn-secondary" id="btnOpenAdjustModal">
-              Adjust Stock
+              Adjust / Repack
             </button>
           </div>
         </div>
@@ -130,6 +134,64 @@
     </main>
   </div>
 
+
+  <!-- OPEN SACK MODAL -->
+  <div class="modal-overlay" id="modalOpenSack">
+    <div class="modal-card" style="max-width: 530px;">
+      <div class="modal-header">
+        <h3>Open Sack into Loose Inventory</h3>
+        <button class="modal-close" onclick="closeModal('modalOpenSack')">&times;</button>
+      </div>
+
+      <form id="openSackForm">
+        <div class="modal-body">
+          <p style="font-size:13px; color:var(--text-muted); margin-bottom:14px;">
+            Open an unopened rice sack (20kg, 10kg, 5kg) to convert it into loose (tinatakal) rice for custom-kilo selling.
+          </p>
+
+          <div class="form-group">
+            <label for="openSackProductSelect">Select Rice Variety</label>
+            <select id="openSackProductSelect" class="form-select" required></select>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="openSackTypeSelect">Sack Size to Open</label>
+              <select id="openSackTypeSelect" class="form-select" required>
+                <option value="20kg">20 Kilos Sack (+20.00 kg loose)</option>
+                <option value="10kg">10 Kilos Sack (+10.00 kg loose)</option>
+                <option value="5kg">5 Kilos Sack (+5.00 kg loose)</option>
+                <option value="sack">Standard Whole Sack</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="openSackQty">Number of Sacks to Open</label>
+              <input type="number" id="openSackQty" class="form-control" value="1" min="1" max="100" required>
+            </div>
+          </div>
+
+          <!-- Dynamic Live Conversion Preview Box -->
+          <div id="openSackPreviewBox" style="background:var(--primary-light); border:1px solid var(--primary-border); border-radius:var(--radius-md); padding:12px; margin-top:12px;">
+            <div style="font-size:12px; font-weight:700; color:var(--primary); margin-bottom:4px;">INVENTORY SYNC PREVIEW</div>
+            <div id="openSackPreviewText" style="font-size:13px; color:var(--text-main);">
+              Opening 1x 20kg sack will deduct <strong>1 sack</strong> from 20kg stock and add <strong>+20.00 kg</strong> into Loose (Tinatakal) inventory.
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-top: 14px;">
+            <label for="openSackNote">Reason / Note (Optional)</label>
+            <input type="text" id="openSackNote" class="form-control" placeholder="e.g. Opened 1x 20kg sack for retail loose selling">
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('modalOpenSack')">Cancel</button>
+          <button type="submit" class="btn btn-primary">Confirm & Open Sack</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <!-- RESTOCK MODAL -->
   <div class="modal-overlay" id="modalRestock">

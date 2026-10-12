@@ -12,6 +12,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('filterRiceType').addEventListener('change', renderInventoryTable);
   document.getElementById('filterStockAge').addEventListener('change', renderInventoryTable);
   document.getElementById('filterStatus').addEventListener('change', renderInventoryTable);
+
+  const btnViewOpenSack = document.getElementById('btnViewOpenSack');
+  if (btnViewOpenSack) btnViewOpenSack.addEventListener('click', () => openViewOpenSackModal());
+  const formViewOpenSack = document.getElementById('viewOpenSackForm');
+  if (formViewOpenSack) formViewOpenSack.addEventListener('submit', handleViewOpenSackSubmit);
+  const selViewProd = document.getElementById('viewOpenSackProduct');
+  const selViewType = document.getElementById('viewOpenSackType');
+  const inpViewQty = document.getElementById('viewOpenSackQty');
+  if (selViewProd) selViewProd.addEventListener('change', updateViewOpenSackPreview);
+  if (selViewType) selViewType.addEventListener('change', updateViewOpenSackPreview);
+  if (inpViewQty) inpViewQty.addEventListener('input', updateViewOpenSackPreview);
 });
 
 async function loadInventory() {
@@ -175,7 +186,126 @@ function renderInventoryTable() {
           </div>
         </td>
         <td>${statusBadge}</td>
+        <td>
+          <button class="btn btn-warning btn-sm" style="background:var(--brand-gold);color:#111;font-weight:700;" onclick="openViewOpenSackModal('${p.id}')">
+            📦 Open Sack
+          </button>
+        </td>
       </tr>
     `;
   }).join('');
+}
+
+function openViewOpenSackModal(productId = null) {
+  const prodSelect = document.getElementById('viewOpenSackProduct');
+  if (!prodSelect) return;
+
+  prodSelect.innerHTML = inventoryCache.map(p => `
+    <option value="${p.id}" ${p.id === productId ? 'selected' : ''}>
+      ${p.name} [${p.origin}] - Loose: ${formatNumber(p.stockKg)} kg (Sacks: ${p.packaged20kg}x 20k, ${p.packaged10kg}x 10k, ${p.packaged5kg}x 5k)
+    </option>
+  `).join('');
+
+  document.getElementById('viewOpenSackType').value = '20kg';
+  document.getElementById('viewOpenSackQty').value = '1';
+  document.getElementById('viewOpenSackNote').value = '';
+  updateViewOpenSackPreview();
+  openModal('modalOpenSackView');
+}
+
+function updateViewOpenSackPreview() {
+  const prodSelect = document.getElementById('viewOpenSackProduct');
+  const typeSelect = document.getElementById('viewOpenSackType');
+  const qtyInput = document.getElementById('viewOpenSackQty');
+  const previewText = document.getElementById('viewOpenSackPreviewText');
+
+  if (!prodSelect || !typeSelect || !qtyInput || !previewText) return;
+
+  const prodId = prodSelect.value;
+  const product = inventoryCache.find(p => p.id === prodId);
+  const sackType = typeSelect.value;
+  const qty = parseInt(qtyInput.value) || 1;
+
+  if (!product) return;
+
+  let unitWeight = 20;
+  let currentSacks = product.packaged20kg;
+  let sackLabel = '20kg sack(s)';
+
+  if (sackType === '10kg') {
+    unitWeight = 10;
+    currentSacks = product.packaged10kg;
+    sackLabel = '10kg sack(s)';
+  } else if (sackType === '5kg') {
+    unitWeight = 5;
+    currentSacks = product.packaged5kg;
+    sackLabel = '5kg sack(s)';
+  } else if (sackType === 'sack') {
+    unitWeight = product.kgPerSack;
+    currentSacks = product.stockSacks;
+    sackLabel = `standard (${unitWeight}kg) sack(s)`;
+  }
+
+  const addedKg = qty * unitWeight;
+  const newLooseKg = product.stockKg + addedKg;
+  const remainingSacks = currentSacks - qty;
+
+  let warningHtml = '';
+  if (remainingSacks < 0) {
+    warningHtml = `<div style="color:var(--danger);font-weight:700;margin-top:6px;">⚠️ Warning: You only have ${currentSacks} of this sack in inventory!</div>`;
+  }
+
+  previewText.innerHTML = `
+    Product: <strong>${product.name}</strong><br>
+    Opening <strong>${qty}x ${sackLabel}</strong> will deduct <strong>${qty} sack(s)</strong> (Current: ${currentSacks} -> Remaining: ${Math.max(0, remainingSacks)})<br>
+    and deposit <strong>+${formatNumber(addedKg)} kg</strong> into Loose (Tinatakal) inventory (Current: ${formatNumber(product.stockKg)} kg -> New Loose: <strong>${formatNumber(newLooseKg)} kg</strong>).
+    ${warningHtml}
+  `;
+}
+
+async function handleViewOpenSackSubmit(e) {
+  e.preventDefault();
+
+  const productId = document.getElementById('viewOpenSackProduct').value;
+  const sackType = document.getElementById('viewOpenSackType').value;
+  const qty = parseInt(document.getElementById('viewOpenSackQty').value) || 1;
+  const note = document.getElementById('viewOpenSackNote').value.trim();
+
+  if (qty <= 0) {
+    showToast('Please specify a valid quantity of sacks to open.', 'warning');
+    return;
+  }
+
+  const user = JSON.parse(sessionStorage.getItem('roberice_logged_user')) || {};
+
+  showPageLoader('Opening sack and updating loose inventory stock...');
+
+  try {
+    const res = await fetch('api/adjust_stock.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        productId,
+        type: 'open_sack',
+        sackType,
+        qty,
+        note,
+        user: user.name || 'Admin User'
+      })
+    });
+
+    const result = await res.json();
+    if (result.success) {
+      showToast(`Opened ${qty}x ${sackType} sack for ${result.productName}! Loose stock is now ${result.stockKg} kg.`, 'success');
+      closeModal('modalOpenSackView');
+      await loadInventory();
+    } else {
+      showToast(result.message || 'Failed to open sack.', 'danger');
+    }
+  } catch (err) {
+    console.error(err);
+    showToast('Failed to process sack opening.', 'danger');
+  } finally {
+    hidePageLoader();
+  }
 }

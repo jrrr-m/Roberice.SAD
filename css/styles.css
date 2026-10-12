@@ -1297,25 +1297,131 @@ body {
   object-fit: cover;
 }
 
-/* Print Utilities */
+/* Print Utilities & Document Reset */
 @media print {
+  /* Hide non-printable app UI elements */
+  .no-print,
+  .sidebar,
+  .top-header,
+  .page-header,
+  .filter-bar,
+  .stats-grid,
+  .card,
+  .modal-header,
+  .modal-footer,
+  .modal-close,
+  #toast-container,
+  .top-bar-loader,
+  .page-loader-overlay {
+    display: none !important;
+  }
+
+  /* Reset document background & overflow */
+  html, body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    font-size: 12pt;
+  }
+
+  .app-container,
+  .main-wrapper,
+  .page-container {
+    display: block !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  /* Reset Modal Overlay so it renders as normal page flow without dark background or fixed clipping */
+  .modal-overlay {
+    position: static !important;
+    display: block !important;
+    background: transparent !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    z-index: auto !important;
+  }
+
+  .modal-card {
+    position: static !important;
+    display: block !important;
+    background: #ffffff !important;
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    transform: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .modal-body {
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
+  }
+
+  /* Show only printable area elements */
   body * {
     visibility: hidden;
   }
-  .printable-area, .printable-area * {
-    visibility: visible;
+
+  .printable-area,
+  .printable-area * {
+    visibility: visible !important;
   }
+
   .printable-area {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-    background: #fff !important;
-    color: #000 !important;
-    padding: 20px;
+    position: static !important;
+    display: block !important;
+    left: auto !important;
+    top: auto !important;
+    width: 100% !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
   }
-  .no-print {
-    display: none !important;
+
+  .print-report-sheet {
+    display: block !important;
+    width: 100% !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  .receipt-box {
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 auto !important;
+    width: 80mm !important;
+  }
+
+  /* Colors and contrast */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 }
 

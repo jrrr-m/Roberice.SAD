@@ -15,7 +15,12 @@
         <div class="page-header">
           <div class="page-title">
             <h2>Available Inventory</h2>
-            <p>Read-only current stock levels of all rice varieties in sacks and kilograms.</p>
+            <p>Current stock levels of all rice varieties in sacks and kilograms.</p>
+          </div>
+          <div>
+            <button class="btn btn-warning" id="btnViewOpenSack" style="background:var(--brand-gold);color:#111;font-weight:700;">
+              📦 Open a Sack
+            </button>
           </div>
         </div>
 
@@ -74,6 +79,7 @@
                   <th>Total Volume</th>
                   <th>Stock Age & Batch</th>
                   <th>Status</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody id="inventoryTableBody">
@@ -85,6 +91,63 @@
 
       </div>
     </main>
+  </div>
+
+  <!-- Open Sack Modal for View Inventory -->
+  <div class="modal-overlay" id="modalOpenSackView">
+    <div class="modal-card" style="max-width: 520px;">
+      <div class="modal-header">
+        <h3>Open Sack into Loose Inventory</h3>
+        <button class="modal-close" onclick="closeModal('modalOpenSackView')">&times;</button>
+      </div>
+      <form id="viewOpenSackForm">
+        <div class="modal-body">
+          <p style="font-size:13px; color:var(--text-muted); margin-bottom:12px;">
+            Open an unopened sack (20kg, 10kg, 5kg) to convert into loose rice.
+          </p>
+
+          <div class="form-group">
+            <label for="viewOpenSackProduct">Rice Variety</label>
+            <select id="viewOpenSackProduct" class="form-select" required></select>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="viewOpenSackType">Sack Size to Open</label>
+              <select id="viewOpenSackType" class="form-select" required>
+                <option value="20kg">20 Kilos Sack (+20.00 kg loose)</option>
+                <option value="10kg">10 Kilos Sack (+10.00 kg loose)</option>
+                <option value="5kg">5 Kilos Sack (+5.00 kg loose)</option>
+                <option value="sack">Standard Whole Sack</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="viewOpenSackQty">Number of Sacks</label>
+              <input type="number" id="viewOpenSackQty" class="form-control" value="1" min="1" max="100" required>
+            </div>
+          </div>
+
+          <!-- Live Preview -->
+          <div id="viewOpenSackPreviewBox" style="background:var(--primary-light); border:1px solid var(--primary-border); border-radius:var(--radius-md); padding:12px; margin-top:10px;">
+            <div style="font-size:12px; font-weight:700; color:var(--primary); margin-bottom:4px;">INVENTORY SYNC PREVIEW</div>
+            <div id="viewOpenSackPreviewText" style="font-size:13px; color:var(--text-main);">
+              <!-- Rendered via JS -->
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-top: 12px;">
+            <label for="viewOpenSackNote">Note (Optional)</label>
+            <input type="text" id="viewOpenSackNote" class="form-control" placeholder="e.g. Opened 1x 20kg sack">
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('modalOpenSackView')">Cancel</button>
+          <button type="submit" class="btn btn-primary">Confirm & Open Sack</button>
+        </div>
+      </form>
+    </div>
   </div>
 
   <!-- Scripts -->

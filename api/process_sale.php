@@ -162,22 +162,86 @@ try {
         } else {
             // "tinatakal" or "kg" (loose retail per kg)
             $unitPrice = (float)$product["price_kg"];
-            $totalAvailableKg = ($stockSacks * $kgPerSack) + $stockKg + ($p5 * 5) + ($p10 * 10) + ($p20 * 20);
+            $openSackType = !empty($item["openSackType"]) ? strtolower(trim($item["openSackType"])) : null;
+
+            $totalAvailableKg = ($p20 * 20) + ($p10 * 10) + ($p5 * 5) + ($stockSacks * $kgPerSack) + $stockKg;
 
             if ($qty > $totalAvailableKg) {
-                throw new Exception("Insufficient loose kg stock for " . $product["product_name"] . ".");
+                throw new Exception("Insufficient stock for " . $product["product_name"] . ". Total available is " . number_format($totalAvailableKg, 2) . " kg.");
             }
 
-            if ($stockKg >= $qty) {
+            if ($stockKg >= $qty && empty($openSackType)) {
+                // Stock already has enough loose kg
                 $stockKg -= $qty;
             } else {
-                $neededKg = $qty - $stockKg;
-                $sacksToOpen = (int)ceil($neededKg / $kgPerSack);
-                if ($sacksToOpen > $stockSacks) {
-                    throw new Exception("Insufficient stock for " . $product["product_name"] . ".");
+                // Need to open a sack (or cashier explicitly chose to open a sack)
+                $neededKg = max(0, $qty - $stockKg);
+                $openedSackDesc = "";
+
+                if ($openSackType === "20kg" || (empty($openSackType) && $p20 > 0)) {
+                    $sacksToOpen = max(1, (int)ceil($neededKg / 20.0));
+                    if ($p20 < $sacksToOpen) {
+                        throw new Exception("Insufficient 20kg sacks in stock for " . $product["product_name"] . ".");
+                    }
+                    $p20 -= $sacksToOpen;
+                    $addedKg = $sacksToOpen * 20.0;
+                    $stockKg += $addedKg;
+                    $openedSackDesc = "{$sacksToOpen}x 20kg sack";
+                    $openedSacksCount = $sacksToOpen;
+                    $openedKgAmount = $addedKg;
+                } elseif ($openSackType === "10kg" || (empty($openSackType) && $p10 > 0)) {
+                    $sacksToOpen = max(1, (int)ceil($neededKg / 10.0));
+                    if ($p10 < $sacksToOpen) {
+                        throw new Exception("Insufficient 10kg sacks in stock for " . $product["product_name"] . ".");
+                    }
+                    $p10 -= $sacksToOpen;
+                    $addedKg = $sacksToOpen * 10.0;
+                    $stockKg += $addedKg;
+                    $openedSackDesc = "{$sacksToOpen}x 10kg sack";
+                    $openedSacksCount = $sacksToOpen;
+                    $openedKgAmount = $addedKg;
+                } elseif ($openSackType === "5kg" || (empty($openSackType) && $p5 > 0)) {
+                    $sacksToOpen = max(1, (int)ceil($neededKg / 5.0));
+                    if ($p5 < $sacksToOpen) {
+                        throw new Exception("Insufficient 5kg sacks in stock for " . $product["product_name"] . ".");
+                    }
+                    $p5 -= $sacksToOpen;
+                    $addedKg = $sacksToOpen * 5.0;
+                    $stockKg += $addedKg;
+                    $openedSackDesc = "{$sacksToOpen}x 5kg sack";
+                    $openedSacksCount = $sacksToOpen;
+                    $openedKgAmount = $addedKg;
+                } elseif ($stockSacks > 0) {
+                    $sacksToOpen = max(1, (int)ceil($neededKg / $kgPerSack));
+                    if ($stockSacks < $sacksToOpen) {
+                        throw new Exception("Insufficient sacks in stock for " . $product["product_name"] . ".");
+                    }
+                    $stockSacks -= $sacksToOpen;
+                    $addedKg = $sacksToOpen * $kgPerSack;
+                    $stockKg += $addedKg;
+                    $openedSackDesc = "{$sacksToOpen}x standard sack";
+                    $openedSacksCount = $sacksToOpen;
+                    $openedKgAmount = $addedKg;
+                } else {
+                    throw new Exception("No sacks available to open for " . $product["product_name"] . ".");
                 }
-                $stockSacks -= $sacksToOpen;
-                $stockKg = ($stockKg + ($sacksToOpen * $kgPerSack)) - $qty;
+
+                // Deduct sold quantity from the newly opened loose stock
+                $stockKg -= $qty;
+
+                // Log the opened sack in inventory adjustment log
+                $adjStmt = $conn->prepare("
+                    INSERT INTO inventory_adjustment
+                    (product_id, adjustment_type, sacks, kg, note, performed_by)
+                    VALUES (?, 'open_sack', ?, ?, ?, ?)
+                ");
+                $adjStmt->execute([
+                    $productId,
+                    $openedSacksCount,
+                    $openedKgAmount,
+                    "Opened {$openedSackDesc} for {$qty} kg sale ({$stockKg} kg stored in loose inventory)",
+                    $user["full_name"]
+                ]);
             }
         }
 

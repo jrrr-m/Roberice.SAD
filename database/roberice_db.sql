@@ -1,4 +1,4 @@
-﻿-- MariaDB dump 10.19  Distrib 10.4.32-MariaDB, for Win64 (AMD64)
+-- MariaDB dump 10.19  Distrib 10.4.32-MariaDB, for Win64 (AMD64)
 --
 -- Host: localhost    Database: roberice_db
 -- ------------------------------------------------------
@@ -101,7 +101,7 @@ CREATE TABLE `inventory_adjustment` (
   `adjustment_id` int(11) NOT NULL AUTO_INCREMENT,
   `product_id` int(11) NOT NULL,
   `adjustment_date` datetime DEFAULT current_timestamp(),
-  `adjustment_type` enum('restock','spoilage','correction') NOT NULL,
+  `adjustment_type` enum('restock','spoilage','correction','open_sack','repack') NOT NULL,
   `sacks` int(11) DEFAULT 0,
   `kg` decimal(10,2) DEFAULT 0.00,
   `note` text DEFAULT NULL,
