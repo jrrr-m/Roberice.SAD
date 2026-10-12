@@ -1,0 +1,18 @@
+# OS Generated Files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Editor / IDE Files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Uploaded Files & Temp
+uploads/*
+!uploads/.gitkeep
