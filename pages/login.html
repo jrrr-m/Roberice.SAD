@@ -87,6 +87,20 @@
           setTimeout(() => {
             if (result.user.role === 'admin') {
               window.location.href = 'dashboard.html';
+            } else if (Array.isArray(result.user.permissions) && result.user.permissions.length > 0) {
+              const permPages = {
+                'pos': 'pos.html',
+                'dashboard': 'dashboard.html',
+                'view-inventory': 'view-inventory.html',
+                'inventory': 'inventory.html',
+                'products': 'products.html',
+                'transactions': 'transactions.html',
+                'sales-report': 'sales-report.html',
+                'file-manager': 'file-manager.html',
+                'audit': 'audit.html'
+              };
+              const firstPerm = result.user.permissions.find(p => permPages[p]);
+              window.location.href = firstPerm ? permPages[firstPerm] : 'pos.html';
             } else {
               window.location.href = 'pos.html';
             }

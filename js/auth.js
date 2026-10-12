@@ -66,8 +66,26 @@ const NAV_ITEMS = [
     url: 'audit.html',
     icon: `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>`,
     roles: ['admin']
+  },
+  {
+    id: 'users',
+    label: 'User Management',
+    url: 'users.html',
+    icon: `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>`,
+    roles: ['admin']
   }
 ];
+
+// Check if user has permission to view a nav item or module
+function hasPermission(user, item) {
+  if (!user) return false;
+  const role = (user.role || '').toLowerCase();
+  if (role === 'admin') return true;
+  if (Array.isArray(user.permissions) && user.permissions.length > 0) {
+    return user.permissions.includes(item.id);
+  }
+  return item.roles && item.roles.map(r => r.toLowerCase()).includes(role);
+}
 
 // Verify Authentication & Role Access Control
 function checkAuth() {
@@ -88,7 +106,8 @@ function checkAuth() {
     if (user.role === 'admin') {
       window.location.href = 'dashboard.html';
     } else {
-      window.location.href = 'pos.html';
+      const firstAllowed = NAV_ITEMS.find(item => hasPermission(user, item));
+      window.location.href = firstAllowed ? firstAllowed.url : 'pos.html';
     }
     return user;
   }
@@ -97,14 +116,11 @@ function checkAuth() {
   const currentPage = window.location.pathname.split('/').pop() || 'index.html';
   const navItem = NAV_ITEMS.find(item => item.url === currentPage);
 
-  if (navItem && !navItem.roles.includes(user.role)) {
+  if (navItem && !hasPermission(user, navItem)) {
     // Unauthorized access attempt
     showToast('Access Restricted: You do not have permission to view that page.', 'danger');
-    if (user.role === 'admin') {
-      window.location.href = 'dashboard.html';
-    } else {
-      window.location.href = 'pos.html';
-    }
+    const firstAllowed = NAV_ITEMS.find(item => hasPermission(user, item));
+    window.location.href = firstAllowed ? firstAllowed.url : 'login.html';
     return null;
   }
 
@@ -122,7 +138,7 @@ function renderAppFrame(user) {
 
   // Build Sidebar HTML
   const sidebarNavHtml = NAV_ITEMS
-    .filter(item => item.roles.includes(user.role))
+    .filter(item => hasPermission(user, item))
     .map(item => {
       const isActive = currentPage === item.url ? 'active' : '';
       return `
@@ -192,6 +208,10 @@ function renderAppFrame(user) {
     'audit.html': {
       title: 'Audit History & System Trail',
       subtitle: 'Chronological audit log tracking warehouse adjustments, sack openings, and batch depletions.'
+    },
+    'users.html': {
+      title: 'User Management & Permissions',
+      subtitle: 'Add system users, assign roles, and configure granular module permissions.'
     }
   };
 

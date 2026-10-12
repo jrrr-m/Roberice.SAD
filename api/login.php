@@ -17,7 +17,7 @@ if ($username === "" || $password === "") {
 
 try {
     $stmt = $conn->prepare("
-        SELECT user_id, username, password, full_name, role, account_status
+        SELECT user_id, username, password, full_name, role, account_status, permissions
         FROM users
         WHERE username = ?
         LIMIT 1
@@ -71,6 +71,21 @@ try {
         exit;
     }
 
+    $perms = [];
+    if (!empty($user["permissions"])) {
+        $decoded = json_decode($user["permissions"], true);
+        if (is_array($decoded)) {
+            $perms = $decoded;
+        }
+    }
+    if (empty($perms)) {
+        if (strtolower($user["role"]) === 'admin') {
+            $perms = ['dashboard', 'pos', 'view-inventory', 'inventory', 'products', 'transactions', 'sales-report', 'file-manager', 'audit', 'users'];
+        } else {
+            $perms = ['pos', 'view-inventory', 'transactions', 'sales-report'];
+        }
+    }
+
     echo json_encode([
         "success" => true,
         "user" => [
@@ -78,7 +93,8 @@ try {
             "username" => $user["username"],
             "name" => $user["full_name"],
             "role" => strtolower($user["role"]),
-            "status" => strtolower($user["account_status"])
+            "status" => strtolower($user["account_status"]),
+            "permissions" => $perms
         ]
     ]);
 

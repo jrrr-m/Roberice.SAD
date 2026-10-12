@@ -236,8 +236,9 @@ CREATE TABLE `users` (
   `username` varchar(50) NOT NULL,
   `password` varchar(255) NOT NULL,
   `full_name` varchar(100) NOT NULL,
-  `role` enum('Admin','Cashier') NOT NULL,
+  `role` varchar(50) NOT NULL DEFAULT 'Cashier',
   `account_status` enum('Active','Inactive') DEFAULT 'Active',
+  `permissions` text DEFAULT NULL,
   PRIMARY KEY (`user_id`),
   UNIQUE KEY `username` (`username`)
 ) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
@@ -249,7 +250,7 @@ CREATE TABLE `users` (
 
 LOCK TABLES `users` WRITE;
 /*!40000 ALTER TABLE `users` DISABLE KEYS */;
-INSERT INTO `users` VALUES (1,'admin','$2y$10$H1Gvo388mvZGq3XOSsepCeX2xMSwf0kR5rKJJJqcSJ3fGu5whyPO6','Admin User','Admin','Active'),(2,'cashier1','$2y$10$RuTRrM9eyIIIw0hqlF50wuHl2aHq3iQGC7SvprF/zJlCo78DRBkYi','Maria Santos','Cashier','Active'),(3,'cashier2','$2y$10$QbscdAndZI4wzJgp3qtrwepvww.I058rK4BWq3NJ0pS5lworkEkjK','Juan Dela Cruz','Cashier','Active');
+INSERT INTO `users` VALUES (1,'admin','$2y$10$H1Gvo388mvZGq3XOSsepCeX2xMSwf0kR5rKJJJqcSJ3fGu5whyPO6','Admin User','Admin','Active','[\"dashboard\",\"pos\",\"view-inventory\",\"inventory\",\"products\",\"transactions\",\"sales-report\",\"file-manager\",\"audit\",\"users\"]'),(2,'cashier1','$2y$10$RuTRrM9eyIIIw0hqlF50wuHl2aHq3iQGC7SvprF/zJlCo78DRBkYi','Maria Santos','Cashier','Active','[\"pos\",\"view-inventory\",\"transactions\",\"sales-report\"]'),(3,'cashier2','$2y$10$QbscdAndZI4wzJgp3qtrwepvww.I058rK4BWq3NJ0pS5lworkEkjK','Juan Dela Cruz','Cashier','Active','[\"pos\",\"view-inventory\",\"transactions\",\"sales-report\"]');
 /*!40000 ALTER TABLE `users` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
