@@ -23,10 +23,9 @@ OPTION A: AUTOMATIC SETUP (FASTEST - RECOMMENDED)
    - Generate all 8 tables (users, product, inventory, inventory_batch, 
      inventory_adjustment, sales_transaction, transaction_item, file_records)
    - Seed all default admin & cashier accounts
-   - Seed all 12 rice product varieties, stocks, packaging tiers, and historical sales
-   - Validate and display real-time table record counts
+   - Once created, it immediately and automatically loads the login page!
 
-3. Click "Launch Login Page" or open:
+3. You will be automatically redirected to:
    http://localhost/Roberice.SAD/pages/login.html
 
 --------------------------------------------------------------------------------

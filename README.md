@@ -199,8 +199,7 @@ The Sales Report module ([`pages/sales-report.html`](pages/sales-report.html)) p
    - Create the `roberice_db` database
    - Build all 8 tables (`users`, `product`, `inventory`, `inventory_batch`, `inventory_adjustment`, `sales_transaction`, `transaction_item`, `file_records`)
    - Seed default admin & cashier accounts
-   - Populate catalog varieties, stock, batch lots, and historical sales transactions
-   - Display a verified visual confirmation dashboard with direct login links
+   - Automatically redirect and load the login page immediately upon completion!
 
    ### 📁 Option B: Manual phpMyAdmin Import
    - Navigate to [http://localhost/phpmyadmin](http://localhost/phpmyadmin).
