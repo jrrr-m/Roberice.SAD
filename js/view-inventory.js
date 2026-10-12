@@ -20,11 +20,14 @@ async function loadInventory() {
     if (!response.ok) throw new Error('Failed to load inventory.');
 
     const data = await response.json();
+    if (!Array.isArray(data)) {
+      throw new Error(data.error || 'Invalid data returned from server.');
+    }
 
     inventoryCache = data.map(p => ({
       id: String(p.product_id),
       name: p.product_name,
-      category: p.category,
+      category: p.category || '',
       origin: p.origin || 'Local',
       riceType: p.rice_type || p.category || 'White Rice',
       priceSack: Number(p.price_sack || 0),
@@ -37,7 +40,7 @@ async function loadInventory() {
       packaged20kg: Number(p.packaged_20kg || 0),
       receivedDate: p.received_date || '2026-09-01',
       batchNumber: p.batch_number || 'BATCH-001',
-      daysOld: Number(p.days_old !== undefined ? p.days_old : 0),
+      daysOld: Number(p.days_old !== undefined && p.days_old !== null ? p.days_old : 0),
       thresholdKg: Number(p.reorder_level_kg || 0),
       status: p.product_status
     }));
@@ -45,10 +48,10 @@ async function loadInventory() {
     populateRiceTypeFilter();
     renderInventoryTable();
   } catch (error) {
-    console.error(error);
+    console.error('View inventory error:', error);
     const tbody = document.getElementById('inventoryTableBody');
     if (tbody) {
-      tbody.innerHTML = `<tr><td colspan="10" class="empty-state">Failed to load inventory.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="10" class="empty-state">Failed to load inventory: ${error && error.message ? error.message : error}</td></tr>`;
     }
   }
 }

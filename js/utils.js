@@ -11,6 +11,24 @@ function formatCurrency(amount) {
   });
 }
 
+// Format raw number with comma separators (e.g. 1,250 or 1,250.50)
+function formatNumber(val, decimals = 2) {
+  if (val === null || val === undefined || isNaN(val)) return '0';
+  const num = parseFloat(val) || 0;
+  return num.toLocaleString('en-US', {
+    minimumFractionDigits: Number.isInteger(num) ? 0 : Math.min(decimals, 2),
+    maximumFractionDigits: 2
+  });
+}
+
+// Format short date (YYYY-MM-DD -> Sep 28, 2026)
+function formatDate(dateStr) {
+  if (!dateStr) return 'N/A';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
 // Format Sack & Kg stock into clean readable text: "15 Sacks + 20 Kg" (Total: 770 Kg)
 function formatStock(sacks, kg, kgPerSack = 50) {
   const s = parseInt(sacks) || 0;
@@ -238,7 +256,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Global fetch wrapper: Automatically display loader during database operations
-const _originalFetch = window.fetch;
+const _originalFetch = window.fetch ? window.fetch.bind(window) : null;
 window.fetch = async function(...args) {
   const url = typeof args[0] === 'string' ? args[0] : (args[0] && args[0].url) || '';
   const isApi = url.includes('api/');
@@ -254,7 +272,7 @@ window.fetch = async function(...args) {
   }
 
   try {
-    return await _originalFetch.apply(this, args);
+    return await _originalFetch(...args);
   } finally {
     if (isApi) {
       activeDatabaseRequests = Math.max(0, activeDatabaseRequests - 1);
