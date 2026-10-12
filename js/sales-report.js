@@ -515,7 +515,7 @@ async function exportSalesCSV() {
     if (data.success) {
       showToast(`Exported sales to ${data.file}! Available in File Management.`, 'success');
       // Trigger download
-      window.open(`uploads/${data.file}`, '_blank');
+      window.open(`../uploads/${data.file}`, '_blank');
     } else {
       showToast(data.message || 'Export failed.', 'warning');
     }

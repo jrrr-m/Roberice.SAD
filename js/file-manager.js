@@ -103,7 +103,7 @@ function renderFilesTable() {
         <td>${formatDateTime(f.uploaded_at)}</td>
         <td>
           <div style="display:flex;gap:6px;">
-            <a href="${f.file_path}" target="_blank" download class="btn btn-primary btn-sm" style="text-decoration:none;">
+            <a href="../${f.file_path}" target="_blank" download class="btn btn-primary btn-sm" style="text-decoration:none;">
               Download
             </a>
             <button class="btn btn-danger btn-sm" onclick="deleteFileRecord(${f.file_id}, '${f.original_name}')">

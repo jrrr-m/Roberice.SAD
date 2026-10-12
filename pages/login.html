@@ -4,14 +4,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Login - Roberice POS & Inventory System</title>
-  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="../css/styles.css">
 </head>
 <body class="login-screen">
 
   <div class="login-card">
     <div class="login-brand">
       <div class="brand-icon brand-logo">
-        <img src="assets/roberice-logo.png" alt="RBR Rice Retailing logo">
+        <img src="../assets/roberice-logo.png" alt="RBR Rice Retailing logo">
       </div>
       <h2 style="font-size:22px;font-weight:700;margin-top:10px;">Roberice Store</h2>
       <p style="font-size:13px;color:var(--text-muted);">POS & Inventory Management System</p>
@@ -38,7 +38,7 @@
     </form>
   </div>
 
-  <script src="js/utils.js"></script>
+  <script src="../js/utils.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       const loginForm = document.getElementById('loginForm');
@@ -57,7 +57,7 @@
         showPageLoader('Verifying account credentials...');
 
         try {
-          const response = await fetch('api/login.php', {
+          const response = await fetch('../api/login.php', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json'

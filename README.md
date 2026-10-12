@@ -10,8 +10,8 @@ Below is a map of the repository files, their roles, and linked scripts:
 
 ```
 Roberice.SAD/
-├── 📄 HTML Pages (User Interface)
-│   ├── index.html              # Entry point: redirects based on login session & role
+├── index.html                  # Root entry point: redirects based on login session & role
+├── 📁 pages/                   # User Interface Pages
 │   ├── login.html              # User authentication (Admin / Cashier)
 │   ├── dashboard.html          # Executive store dashboard & sales analytics
 │   ├── pos.html                # Point of Sale terminal with packaging & stock limits
@@ -70,16 +70,16 @@ Roberice.SAD/
 
 | Page | File | Roles | Core Features |
 |---|---|---|---|
-| **Login** | [`login.html`](login.html) | All | Role-based authentication (`admin` / `cashier`). |
-| **Dashboard** | [`dashboard.html`](dashboard.html) | Admin | Key performance indicators (Total Varieties, Inventory Value, 7-Day Sales, Low Stock, Old Stock Alerts). |
-| **Point of Sale** | [`pos.html`](pos.html) | Admin, Cashier | Modal packaging selector (`50Kg Whole`, `25Kg Half`, `20Kg`, `10Kg`, `5Kg`, `Tinatakal`), strict stock capping, automatic change computation, official sales receipt generator. |
-| **View Inventory** | [`view-inventory.html`](view-inventory.html) | Admin, Cashier | Live variety summary, pre-packed bag counts, total volume in Kg, single-line status badges, dynamic FIFO batch lot drill-down. |
-| **Manage Inventory** | [`inventory.html`](inventory.html) | Admin | Stock restocking with batch codes, open sack into loose inventory, physical inventory correction, spoilage logging. |
-| **Products & Pricing** | [`products.html`](products.html) | Admin | Add/Edit rice varieties, origin (`Local` / `Imported`), wholesale sack price, retail per-Kg rate, pre-packed bag pricing, low-stock threshold. |
-| **Transaction History** | [`transactions.html`](transactions.html) | Admin, Cashier | Searchable log of past sales with breakdown modal and printable receipt format. |
-| **Sales Report** | [`sales-report.html`](sales-report.html) | Admin, Cashier | Date filtering (today, 7 days, 30 days, custom), variety volume & revenue breakdown, CSV export, print-ready formal report statement. |
-| **File Management** | [`file-manager.html`](file-manager.html) | Admin, Cashier | Upload invoices, delivery receipts, supplier documents, and store records. |
-| **Audit History** | [`audit.html`](audit.html) | Admin | Audit trail tracking warehouse adjustments, restocks, sack openings, batch completions, and user actions. |
+| **Login** | [`login.html`](pages/login.html) | All | Role-based authentication (`admin` / `cashier`). |
+| **Dashboard** | [`dashboard.html`](pages/dashboard.html) | Admin | Key performance indicators (Total Varieties, Inventory Value, 7-Day Sales, Low Stock, Old Stock Alerts). |
+| **Point of Sale** | [`pos.html`](pages/pos.html) | Admin, Cashier | Modal packaging selector (`50Kg Whole`, `25Kg Half`, `20Kg`, `10Kg`, `5Kg`, `Tinatakal`), strict stock capping, automatic change computation, official sales receipt generator. |
+| **View Inventory** | [`view-inventory.html`](pages/view-inventory.html) | Admin, Cashier | Live variety summary, pre-packed bag counts, total volume in Kg, single-line status badges, dynamic FIFO batch lot drill-down. |
+| **Manage Inventory** | [`inventory.html`](pages/inventory.html) | Admin | Stock restocking with batch codes, open sack into loose inventory, physical inventory correction, spoilage logging. |
+| **Products & Pricing** | [`products.html`](pages/products.html) | Admin | Add/Edit rice varieties, origin (`Local` / `Imported`), wholesale sack price, retail per-Kg rate, pre-packed bag pricing, low-stock threshold. |
+| **Transaction History** | [`transactions.html`](pages/transactions.html) | Admin, Cashier | Searchable log of past sales with breakdown modal and printable receipt format. |
+| **Sales Report** | [`sales-report.html`](pages/sales-report.html) | Admin, Cashier | Date filtering (today, 7 days, 30 days, custom), variety volume & revenue breakdown, CSV export, print-ready formal report statement. |
+| **File Management** | [`file-manager.html`](pages/file-manager.html) | Admin, Cashier | Upload invoices, delivery receipts, supplier documents, and store records. |
+| **Audit History** | [`audit.html`](pages/audit.html) | Admin | Audit trail tracking warehouse adjustments, restocks, sack openings, batch completions, and user actions. |
 
 ---
 

@@ -136,7 +136,7 @@ function renderAppFrame(user) {
   const sidebarHtml = `
     <aside class="sidebar">
       <div class="sidebar-header">
-        <div class="brand-icon brand-logo"><img src="assets/roberice-logo.png" alt="RBR Rice Retailing logo"></div>
+        <div class="brand-icon brand-logo"><img src="../assets/roberice-logo.png" alt="RBR Rice Retailing logo"></div>
         <div class="brand-info">
           <h1>Roberice POS</h1>
           <span>Sales & Inventory System</span>

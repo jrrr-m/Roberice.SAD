@@ -11,12 +11,12 @@
     if (userJson) {
       const user = JSON.parse(userJson);
       if (user.role === 'admin') {
-        window.location.href = 'dashboard.html';
+        window.location.href = 'pages/dashboard.html';
       } else {
-        window.location.href = 'pos.html';
+        window.location.href = 'pages/pos.html';
       }
     } else {
-      window.location.href = 'login.html';
+      window.location.href = 'pages/login.html';
     }
   </script>
 </body>

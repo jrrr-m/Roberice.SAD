@@ -157,7 +157,7 @@ function initGlobalLoader() {
         <div class="loader-ring-outer"></div>
         <div class="loader-ring-inner"></div>
         <div class="loader-logo-center">
-          <img src="assets/roberice-logo.png" alt="Roberice Logo" onerror="this.style.display='none';this.parentElement.innerText='🌾';">
+          <img src="../assets/roberice-logo.png" alt="Roberice Logo" onerror="if(this.src.indexOf('../')!==-1){this.src='assets/roberice-logo.png';}else{this.style.display='none';this.parentElement.innerText='🌾';}">
         </div>
       </div>
       <div class="loader-brand-title">Roberice Store</div>
@@ -248,6 +248,13 @@ document.addEventListener('DOMContentLoaded', () => {
 // Global fetch wrapper: Automatically display loader during database operations
 const _originalFetch = window.fetch ? window.fetch.bind(window) : null;
 window.fetch = async function(...args) {
+  if (typeof args[0] === 'string') {
+    if (args[0].startsWith('api/')) {
+      args[0] = '../' + args[0];
+    } else if (args[0].startsWith('uploads/')) {
+      args[0] = '../' + args[0];
+    }
+  }
   const url = typeof args[0] === 'string' ? args[0] : (args[0] && args[0].url) || '';
   const isApi = url.includes('api/');
   const isMutation = args[1] && ['POST', 'PUT', 'DELETE'].includes(args[1].method);
