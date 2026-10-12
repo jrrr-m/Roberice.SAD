@@ -111,6 +111,51 @@ try {
                 $p['packaged_5kg'] = $sum5;
                 $p['stock_kg'] = round($sumKg, 2);
                 $p['days_old'] = $maxDaysOld; // Oldest batch age for FIFO vigilance
+            } else {
+                // If NO active batch row was found in inventory_batch, but product has physical stock in inventory table
+                $totalInvKg = ((int)$p['stock_sacks'] * 50) + ((int)$p['packaged_25kg'] * 25) + ((int)$p['packaged_20kg'] * 20) + ((int)$p['packaged_10kg'] * 10) + ((int)$p['packaged_5kg'] * 5) + (float)$p['stock_kg'];
+                if ($totalInvKg > 0) {
+                    $batchCode = !empty($p['batch_number']) ? $p['batch_number'] : ('BATCH-' . str_pad($pid, 3, '0', STR_PAD_LEFT));
+                    $recDate = !empty($p['received_date']) ? $p['received_date'] : date('Y-m-d');
+
+                    $chk = $conn->prepare("SELECT batch_id FROM inventory_batch WHERE product_id = ? AND batch_code = ? LIMIT 1");
+                    $chk->execute([$pid, $batchCode]);
+                    $existingB = $chk->fetch(PDO::FETCH_ASSOC);
+
+                    if ($existingB) {
+                        $updB = $conn->prepare("
+                            UPDATE inventory_batch 
+                            SET stock_sacks = ?, packaged_25kg = ?, packaged_20kg = ?, packaged_10kg = ?, packaged_5kg = ?, stock_kg = ?, status = 'Active', updated_at = NOW()
+                            WHERE batch_id = ?
+                        ");
+                        $updB->execute([$p['stock_sacks'], $p['packaged_25kg'], $p['packaged_20kg'], $p['packaged_10kg'], $p['packaged_5kg'], $p['stock_kg'], $existingB['batch_id']]);
+                        $batchId = $existingB['batch_id'];
+                    } else {
+                        $insB = $conn->prepare("
+                            INSERT INTO inventory_batch 
+                            (product_id, batch_code, received_date, stock_sacks, packaged_25kg, packaged_20kg, packaged_10kg, packaged_5kg, stock_kg, status, created_at, updated_at)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Active', NOW(), NOW())
+                        ");
+                        $insB->execute([$pid, $batchCode, $recDate, $p['stock_sacks'], $p['packaged_25kg'], $p['packaged_20kg'], $p['packaged_10kg'], $p['packaged_5kg'], $p['stock_kg']]);
+                        $batchId = $conn->lastInsertId();
+                    }
+
+                    $p['batches'] = [[
+                        'batch_id' => $batchId,
+                        'product_id' => $pid,
+                        'batch_code' => $batchCode,
+                        'received_date' => $recDate,
+                        'days_old' => (int)($p['days_old'] ?? 0),
+                        'stock_sacks' => (int)$p['stock_sacks'],
+                        'packaged_25kg' => (int)$p['packaged_25kg'],
+                        'packaged_20kg' => (int)$p['packaged_20kg'],
+                        'packaged_10kg' => (int)$p['packaged_10kg'],
+                        'packaged_5kg' => (int)$p['packaged_5kg'],
+                        'stock_kg' => (float)$p['stock_kg'],
+                        'total_kg' => $totalInvKg,
+                        'status' => 'Active'
+                    ]];
+                }
             }
         }
         unset($p);

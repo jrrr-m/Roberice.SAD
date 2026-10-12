@@ -1,15 +1,19 @@
 /**
  * Roberice POS & Inventory System - Point of Sale Script
  * Multi-Packaging & Tinatakal Retail Support
+ * Strict Stock Validation: Prevents Cashier from Adding Items Beyond Inventory Stock
  */
 
 let cart = [];
 let productsCache = [];
+let activeModalProduct = null;
+let activeModalUnit = 'sack';
 
 document.addEventListener('DOMContentLoaded', () => initPOS());
 
 async function initPOS() {
   await loadProducts();
+
   document.getElementById('searchProduct').addEventListener('input', renderProductGrid);
   document.getElementById('filterOrigin').addEventListener('change', renderProductGrid);
   document.getElementById('filterCategory').addEventListener('change', renderProductGrid);
@@ -21,9 +25,15 @@ async function initPOS() {
   document.getElementById('btnCompleteSale').addEventListener('click', processSale);
 
   const pkgKgInp = document.getElementById('pkgCustomKgInput');
-  if (pkgKgInp) pkgKgInp.addEventListener('input', updateModalSubtotal);
+  if (pkgKgInp) {
+    pkgKgInp.addEventListener('input', handleModalCustomKgInput);
+    pkgKgInp.addEventListener('change', handleModalCustomKgInput);
+  }
   const pkgQtyInp = document.getElementById('pkgModalQtyInput');
-  if (pkgQtyInp) pkgQtyInp.addEventListener('input', updateModalSubtotal);
+  if (pkgQtyInp) {
+    pkgQtyInp.addEventListener('input', handleModalQtyInput);
+    pkgQtyInp.addEventListener('change', handleModalQtyInput);
+  }
 
   const btnPosOpenSack = document.getElementById('btnPosOpenSack');
   if (btnPosOpenSack) btnPosOpenSack.addEventListener('click', () => openPosOpenSackModal());
@@ -46,32 +56,52 @@ async function initPOS() {
 
 async function loadProducts() {
   try {
-    const response = await fetch('api/get_products.php');
-    const data = await response.json();
+    let data;
+    try {
+      const response = await fetch('api/get_inventory.php');
+      data = await response.json();
+      if (!Array.isArray(data)) throw new Error('Inventory endpoint returned invalid format');
+    } catch (e) {
+      const response = await fetch('api/get_products.php');
+      data = await response.json();
+    }
 
-    productsCache = data.map(p => ({
-      id: String(p.product_id),
-      name: p.product_name,
-      category: p.category,
-      origin: p.origin || 'Local',
-      riceType: p.rice_type || p.category || 'White Rice',
-      priceSack: Number(p.price_sack || 0),
-      price25kg: Number(p.price_25kg || (p.price_sack ? p.price_sack / 2 : p.price_kg * 25)),
-      priceKg: Number(p.price_kg || 0),
-      price5kg: Number(p.price_5kg || (p.price_kg * 5)),
-      price10kg: Number(p.price_10kg || (p.price_kg * 10)),
-      price20kg: Number(p.price_20kg || (p.price_kg * 20)),
-      kgPerSack: 50,
-      stockSacks: Number(p.stock_sacks || 0),
-      packaged25kg: Number(p.packaged_25kg || 0),
-      stockKg: Number(p.stock_kg || 0),
-      packaged5kg: Number(p.packaged_5kg || 0),
-      packaged10kg: Number(p.packaged_10kg || 0),
-      packaged20kg: Number(p.packaged_20kg || 0),
-      thresholdKg: Number(p.reorder_level_kg || 0),
-      daysOld: Number(p.days_old !== undefined ? p.days_old : 0),
-      status: p.product_status
-    }));
+    if (!Array.isArray(data)) {
+      throw new Error('Unable to parse product inventory list.');
+    }
+
+    productsCache = data.map(p => {
+      const activeBatches = Array.isArray(p.batches)
+        ? p.batches.filter(b => b.status === 'Active' && Number(b.total_kg || 0) > 0)
+        : [];
+
+      return {
+        id: String(p.product_id),
+        name: p.product_name,
+        category: p.category,
+        origin: p.origin || 'Local',
+        riceType: p.rice_type || p.category || 'White Rice',
+        priceSack: Number(p.price_sack || 0),
+        price25kg: Number(p.price_25kg || (p.price_sack ? p.price_sack / 2 : p.price_kg * 25)),
+        priceKg: Number(p.price_kg || 0),
+        price5kg: Number(p.price_5kg || (p.price_kg * 5)),
+        price10kg: Number(p.price_10kg || (p.price_kg * 10)),
+        price20kg: Number(p.price_20kg || (p.price_kg * 20)),
+        kgPerSack: 50,
+        stockSacks: Number(p.stock_sacks || 0),
+        packaged25kg: Number(p.packaged_25kg || 0),
+        stockKg: Number(p.stock_kg || 0),
+        packaged5kg: Number(p.packaged_5kg || 0),
+        packaged10kg: Number(p.packaged_10kg || 0),
+        packaged20kg: Number(p.packaged_20kg || 0),
+        thresholdKg: Number(p.reorder_level_kg || 0),
+        receivedDate: p.received_date || '2026-09-01',
+        batchNumber: p.batch_number || 'BATCH-001',
+        daysOld: Number(p.days_old !== undefined ? p.days_old : 0),
+        status: p.product_status,
+        batches: activeBatches
+      };
+    });
 
     populateCategoryFilter();
     renderProductGrid();
@@ -80,6 +110,115 @@ async function loadProducts() {
     showToast('Unable to load products.', 'danger');
   }
 }
+
+// ==========================================
+// Unit & Stock Helper Utilities
+// ==========================================
+
+function getUnitWeightKg(unit) {
+  if (unit === 'sack' || unit === '50kg') return 50;
+  if (unit === '25kg' || unit === 'half') return 25;
+  if (unit === '20kg') return 20;
+  if (unit === '10kg') return 10;
+  if (unit === '5kg') return 5;
+  return 1; // tinatakal / loose kg
+}
+
+function normalizeUnit(unit) {
+  if (unit === '50kg') return 'sack';
+  if (unit === 'half') return '25kg';
+  if (unit === 'kg') return 'tinatakal';
+  return unit;
+}
+
+function isUnitMatch(unitA, unitB) {
+  return normalizeUnit(unitA) === normalizeUnit(unitB);
+}
+
+function getStockForUnit(product, unit) {
+  if (!product) return 0;
+  const u = normalizeUnit(unit);
+  if (u === 'sack') return Number(product.stockSacks || 0);
+  if (u === '25kg') return Number(product.packaged25kg || 0);
+  if (u === '20kg') return Number(product.packaged20kg || 0);
+  if (u === '10kg') return Number(product.packaged10kg || 0);
+  if (u === '5kg') return Number(product.packaged5kg || 0);
+  // Total physical volume for tinatakal (loose kg + all unopened sacks/packs that can auto-open)
+  return ((Number(product.stockSacks || 0) * 50) +
+          (Number(product.packaged25kg || 0) * 25) +
+          (Number(product.packaged20kg || 0) * 20) +
+          (Number(product.packaged10kg || 0) * 10) +
+          (Number(product.packaged5kg || 0) * 5) +
+          Number(product.stockKg || 0));
+}
+
+function getCartQuantity(productId, unit, excludeIndex = -1) {
+  return cart.reduce((sum, item, idx) => {
+    if (idx !== excludeIndex && item.productId === productId && isUnitMatch(item.unit, unit)) {
+      return sum + Number(item.qty || 0);
+    }
+    return sum;
+  }, 0);
+}
+
+function getCartReservedWeightKg(productId, excludeIndex = -1) {
+  return cart.reduce((sum, item, idx) => {
+    if (idx !== excludeIndex && item.productId === productId) {
+      return sum + (getUnitWeightKg(item.unit) * Number(item.qty || 0));
+    }
+    return sum;
+  }, 0);
+}
+
+function getMaxAllowedQuantity(product, unit, excludeIndex = -1) {
+  if (!product) return 0;
+  const u = normalizeUnit(unit);
+  const isTinatakal = (u === 'tinatakal');
+
+  if (isTinatakal) {
+    const totalVolumeKg = getStockForUnit(product, 'tinatakal');
+    const reservedKg = getCartReservedWeightKg(product.id, excludeIndex);
+    return Math.max(0, Math.round((totalVolumeKg - reservedKg) * 100) / 100);
+  } else {
+    const availableSacks = getStockForUnit(product, u);
+    const inCartSacks = getCartQuantity(product.id, u, excludeIndex);
+    const remainingSacks = Math.max(0, availableSacks - inCartSacks);
+
+    // Also check total remaining volume capacity across store
+    const totalVolumeKg = getStockForUnit(product, 'tinatakal');
+    const reservedKg = getCartReservedWeightKg(product.id, excludeIndex);
+    const remainingKg = Math.max(0, totalVolumeKg - reservedKg);
+    const unitWeight = getUnitWeightKg(u);
+    const maxByWeight = Math.floor(remainingKg / unitWeight);
+
+    return Math.min(remainingSacks, maxByWeight);
+  }
+}
+
+function getPosProductBatches(product) {
+  if (!product) return [];
+  if (Array.isArray(product.batches) && product.batches.length > 0) {
+    return product.batches.map(b => {
+      const days = Number(b.days_old || 0);
+      let ageLabel = 'Fresh';
+      if (days > 60) ageLabel = 'Old Stock';
+      else if (days > 30) ageLabel = 'Aging';
+      else if (days > 14) ageLabel = 'Normal';
+      return {
+        batchNumber: b.batch_code,
+        label: `${b.batch_code} (${formatDate(b.received_date)} • ${days}d ${ageLabel}) [Total: ${formatNumber(b.total_kg)}kg]`
+      };
+    });
+  }
+  if (typeof getProductBatches === 'function') {
+    return getProductBatches(product);
+  }
+  return [{ batchNumber: product.batchNumber || 'BATCH-001', label: product.batchNumber || 'BATCH-001' }];
+}
+
+// ==========================================
+// POS Product Grid Rendering
+// ==========================================
 
 function populateCategoryFilter() {
   const select = document.getElementById('filterCategory');
@@ -161,15 +300,15 @@ function renderProductGrid() {
   }).join('');
 }
 
-let activeModalProduct = null;
-let activeModalUnit = 'sack';
+// ==========================================
+// Packaging Modal & Stock Validation
+// ==========================================
 
 function openPackagingModal(productId) {
   const product = productsCache.find(p => p.id === productId);
   if (!product) return;
 
   activeModalProduct = product;
-  activeModalUnit = 'sack';
 
   document.getElementById('modalPkgProductName').textContent = product.name;
   document.getElementById('modalPkgRiceType').textContent = product.riceType || 'Rice';
@@ -182,76 +321,87 @@ function openPackagingModal(productId) {
 
   const batchSelect = document.getElementById('modalPkgBatchSelect');
   if (batchSelect) {
-    const batches = getProductBatches(product);
+    const batches = getPosProductBatches(product);
     batchSelect.innerHTML = batches.map(b => `
       <option value="${b.batchNumber}">${b.label}</option>
     `).join('');
   }
 
-  const totalVolume = (product.stockSacks * 50) + (product.packaged25kg * 25) + (product.packaged20kg * 20) + (product.packaged10kg * 10) + (product.packaged5kg * 5) + product.stockKg;
+  const totalVolume = getStockForUnit(product, 'tinatakal');
   const statusEl = document.getElementById('modalPkgStockStatus');
   if (statusEl) {
     statusEl.textContent = totalVolume > 0 ? '● Available' : '● Out of Stock';
     statusEl.className = totalVolume > 0 ? 'badge badge-success' : 'badge badge-danger';
   }
 
+  // Calculate stock and cart capacities for all packaging types
+  const unitsDef = [
+    { key: 'sack', title: 'Whole Sack (50 Kilos)', price: product.priceSack, isSack: true },
+    { key: '25kg', title: 'Half Sack (25 Kilos)', price: product.price25kg, isSack: true },
+    { key: '20kg', title: '20 Kilos Sack', price: product.price20kg, isSack: true },
+    { key: '10kg', title: '10 Kilos Sack', price: product.price10kg, isSack: true },
+    { key: '5kg', title: '5 Kilos Sack', price: product.price5kg, isSack: true },
+    { key: 'tinatakal', title: 'Specified Kilos (Loose Rice)', price: product.priceKg, isSack: false }
+  ];
+
   const optionsGrid = document.getElementById('modalPkgOptionsGrid');
   if (optionsGrid) {
-    optionsGrid.innerHTML = `
-      <!-- Whole Sack 50kg -->
-      <div class="pkg-option-card active" id="pkgOpt_sack" onclick="selectModalUnit('sack')">
-        <div class="pkg-option-title">Whole Sack (50 Kilos)</div>
-        <div class="pkg-option-price">${formatCurrency(product.priceSack)}</div>
-        <div class="pkg-option-stock">Stock: <strong>${product.stockSacks}</strong> sacks</div>
-      </div>
+    optionsGrid.innerHTML = unitsDef.map(u => {
+      const availStock = getStockForUnit(product, u.key);
+      const inCart = u.isSack ? getCartQuantity(product.id, u.key) : 0;
+      const maxAllowed = getMaxAllowedQuantity(product, u.key);
 
-      <!-- Half Sack 25kg -->
-      <div class="pkg-option-card" id="pkgOpt_25kg" onclick="selectModalUnit('25kg')">
-        <div class="pkg-option-title">Half Sack (25 Kilos)</div>
-        <div class="pkg-option-price">${formatCurrency(product.price25kg)}</div>
-        <div class="pkg-option-stock">Stock: <strong>${product.packaged25kg}</strong> half sacks</div>
-      </div>
+      let cardClass = 'pkg-option-card';
+      let clickAttr = `onclick="selectModalUnit('${u.key}')"`;
+      let stockHtml = '';
 
-      <!-- 20kg Sack -->
-      <div class="pkg-option-card" id="pkgOpt_20kg" onclick="selectModalUnit('20kg')">
-        <div class="pkg-option-title">20 Kilos Sack</div>
-        <div class="pkg-option-price">${formatCurrency(product.price20kg)}</div>
-        <div class="pkg-option-stock">Stock: <strong>${product.packaged20kg}</strong> sacks</div>
-      </div>
+      if (u.isSack) {
+        if (availStock <= 0) {
+          cardClass += ' disabled';
+          clickAttr = `title="Out of stock in inventory"`;
+          stockHtml = `<div class="pkg-option-stock" style="color:var(--danger);font-weight:600;">Stock: 0 sacks (Out of stock)</div>`;
+        } else if (maxAllowed <= 0) {
+          cardClass += ' disabled';
+          clickAttr = `title="Maximum stock (${availStock} sacks) already in cart"`;
+          stockHtml = `<div class="pkg-option-stock" style="color:#d97706;font-weight:600;">Stock: ${availStock} (All in cart)</div>`;
+        } else {
+          const inCartNote = inCart > 0 ? ` <span style="color:#b45309;">(${maxAllowed} left to add)</span>` : '';
+          stockHtml = `<div class="pkg-option-stock">Stock: <strong>${availStock}</strong> sacks${inCartNote}</div>`;
+        }
+      } else {
+        // Tinatakal / loose kilos
+        if (totalVolume <= 0) {
+          cardClass += ' disabled';
+          clickAttr = `title="No rice available in store"`;
+          stockHtml = `<div class="pkg-option-stock" style="color:var(--danger);font-weight:600;">No rice stock available</div>`;
+        } else if (maxAllowed <= 0) {
+          cardClass += ' disabled';
+          clickAttr = `title="All available store volume reserved in cart"`;
+          stockHtml = `<div class="pkg-option-stock" style="color:#d97706;font-weight:600;">Max store volume in cart</div>`;
+        } else {
+          stockHtml = `<div class="pkg-option-stock">Max available: <strong>${formatNumber(maxAllowed)}</strong> kg (Loose: ${formatNumber(product.stockKg)}kg)</div>`;
+        }
+      }
 
-      <!-- 10kg Sack -->
-      <div class="pkg-option-card" id="pkgOpt_10kg" onclick="selectModalUnit('10kg')">
-        <div class="pkg-option-title">10 Kilos Sack</div>
-        <div class="pkg-option-price">${formatCurrency(product.price10kg)}</div>
-        <div class="pkg-option-stock">Stock: <strong>${product.packaged10kg}</strong> sacks</div>
-      </div>
+      const priceDisplay = u.isSack
+        ? formatCurrency(u.price)
+        : `${formatCurrency(u.price)} <span style="font-size:11px;font-weight:500;">/ kg</span>`;
 
-      <!-- 5kg Sack -->
-      <div class="pkg-option-card" id="pkgOpt_5kg" onclick="selectModalUnit('5kg')">
-        <div class="pkg-option-title">5 Kilos Sack</div>
-        <div class="pkg-option-price">${formatCurrency(product.price5kg)}</div>
-        <div class="pkg-option-stock">Stock: <strong>${product.packaged5kg}</strong> sacks</div>
-      </div>
-
-      <!-- Specified Kilos (Loose Rice / Tinatakal) -->
-      <div class="pkg-option-card" id="pkgOpt_tinatakal" onclick="selectModalUnit('tinatakal')">
-        <div class="pkg-option-title">Specified Kilos (Loose Rice)</div>
-        <div class="pkg-option-price">${formatCurrency(product.priceKg)} <span style="font-size:11px;font-weight:500;">/ kg</span></div>
-        <div class="pkg-option-stock">Loose Stock: <strong>${formatNumber(product.stockKg)}</strong> kg</div>
-      </div>
-    `;
+      return `
+        <div class="${cardClass}" id="pkgOpt_${u.key}" ${clickAttr}>
+          <div class="pkg-option-title">${u.title}</div>
+          <div class="pkg-option-price">${priceDisplay}</div>
+          ${stockHtml}
+        </div>
+      `;
+    }).join('');
   }
 
-  const qtyInput = document.getElementById('pkgModalQtyInput');
-  if (qtyInput) qtyInput.value = '1';
+  // Find first selectable unit with available stock
+  const candidateUnit = unitsDef.find(u => getMaxAllowedQuantity(product, u.key) > 0);
+  const defaultUnit = candidateUnit ? candidateUnit.key : 'sack';
 
-  const kgInput = document.getElementById('pkgCustomKgInput');
-  if (kgInput) kgInput.value = '1';
-
-  const looseInfo = document.getElementById('pkgLooseStockInfo');
-  if (looseInfo) looseInfo.textContent = `Loose Stock: ${formatNumber(product.stockKg)} kg`;
-
-  selectModalUnit('sack');
+  selectModalUnit(defaultUnit);
   openModal('modalProductPackaging');
 }
 
@@ -268,33 +418,141 @@ function selectModalUnit(unit) {
 
   const customSec = document.getElementById('pkgCustomKgSection');
   const sackSec = document.getElementById('pkgSackQtySection');
+  const btnConfirm = document.getElementById('btnConfirmAddToOrder');
+
+  const maxAllowed = activeModalProduct ? getMaxAllowedQuantity(activeModalProduct, unit) : 0;
 
   if (unit === 'tinatakal') {
     if (customSec) customSec.style.display = 'block';
     if (sackSec) sackSec.style.display = 'none';
+
+    const kgInput = document.getElementById('pkgCustomKgInput');
+    if (kgInput) {
+      kgInput.max = maxAllowed;
+      kgInput.min = maxAllowed > 0 ? 0.1 : 0;
+      kgInput.value = maxAllowed > 0 ? (maxAllowed >= 1 ? '1' : String(maxAllowed)) : '0';
+    }
+
+    const looseInfo = document.getElementById('pkgLooseStockInfo');
+    if (looseInfo && activeModalProduct) {
+      looseInfo.textContent = `Loose: ${formatNumber(activeModalProduct.stockKg)} kg • Max available: ${formatNumber(maxAllowed)} kg`;
+    }
   } else {
     if (customSec) customSec.style.display = 'none';
     if (sackSec) sackSec.style.display = 'flex';
+
+    const qtyInput = document.getElementById('pkgModalQtyInput');
+    if (qtyInput) {
+      qtyInput.max = maxAllowed;
+      qtyInput.min = maxAllowed > 0 ? 1 : 0;
+      qtyInput.value = maxAllowed > 0 ? '1' : '0';
+    }
+
+    const sackLabel = document.getElementById('pkgSackQtyLabel');
+    if (sackLabel && activeModalProduct) {
+      const avail = getStockForUnit(activeModalProduct, unit);
+      const inCart = getCartQuantity(activeModalProduct.id, unit);
+      if (inCart > 0) {
+        sackLabel.innerHTML = `Stock: <strong>${avail}</strong> (${inCart} in cart) • <span style="color:var(--primary);font-weight:700;">Max you can add: ${maxAllowed}</span>`;
+      } else {
+        sackLabel.innerHTML = `Available in inventory: <strong>${avail}</strong> sack(s)`;
+      }
+    }
+  }
+
+  if (btnConfirm) {
+    btnConfirm.disabled = (maxAllowed <= 0);
+  }
+
+  updateModalSubtotal();
+}
+
+function handleModalQtyInput() {
+  if (!activeModalProduct) return;
+  const input = document.getElementById('pkgModalQtyInput');
+  if (!input) return;
+
+  const maxAllowed = getMaxAllowedQuantity(activeModalProduct, activeModalUnit);
+  let val = parseInt(input.value);
+
+  if (isNaN(val) || val < 1) {
+    if (maxAllowed > 0 && input.value !== '') input.value = '1';
+    updateModalSubtotal();
+    return;
+  }
+
+  if (val > maxAllowed) {
+    input.value = maxAllowed;
+    const availStock = getStockForUnit(activeModalProduct, activeModalUnit);
+    showToast(`Cannot add beyond stock! Maximum available to add is ${maxAllowed} sack(s) (${availStock} total in stock).`, 'warning');
+  }
+
+  updateModalSubtotal();
+}
+
+function handleModalCustomKgInput() {
+  if (!activeModalProduct) return;
+  const input = document.getElementById('pkgCustomKgInput');
+  if (!input) return;
+
+  const maxAllowed = getMaxAllowedQuantity(activeModalProduct, 'tinatakal');
+  let val = parseFloat(input.value);
+
+  if (isNaN(val) || val < 0.1) {
+    if (maxAllowed > 0 && input.value !== '') input.value = maxAllowed >= 1 ? '1' : String(maxAllowed);
+    updateModalSubtotal();
+    return;
+  }
+
+  if (val > maxAllowed) {
+    input.value = maxAllowed;
+    showToast(`Cannot exceed stock! Maximum available loose rice volume is ${formatNumber(maxAllowed)} kg.`, 'warning');
   }
 
   updateModalSubtotal();
 }
 
 function setModalCustomKg(kg) {
+  if (!activeModalProduct) return;
   const input = document.getElementById('pkgCustomKgInput');
-  if (input) {
-    input.value = kg;
-    updateModalSubtotal();
+  if (!input) return;
+
+  const maxAllowed = getMaxAllowedQuantity(activeModalProduct, 'tinatakal');
+  if (maxAllowed <= 0) {
+    showToast('No stock available for loose rice selling.', 'warning');
+    return;
   }
+
+  if (kg > maxAllowed) {
+    input.value = maxAllowed;
+    showToast(`Capped at maximum available stock: ${formatNumber(maxAllowed)} kg.`, 'warning');
+  } else {
+    input.value = kg;
+  }
+
+  updateModalSubtotal();
 }
 
 function stepModalQty(delta) {
+  if (!activeModalProduct) return;
   const input = document.getElementById('pkgModalQtyInput');
-  if (input) {
-    const current = parseInt(input.value) || 1;
-    input.value = Math.max(1, current + delta);
-    updateModalSubtotal();
+  if (!input) return;
+
+  const maxAllowed = getMaxAllowedQuantity(activeModalProduct, activeModalUnit);
+  if (maxAllowed <= 0) {
+    input.value = '0';
+    showToast('This packaging unit is out of stock or max quantity is already in cart.', 'warning');
+    return;
   }
+
+  const current = parseInt(input.value) || 1;
+  if (delta > 0 && current >= maxAllowed) {
+    showToast(`Cannot add more. Maximum available stock to add is ${maxAllowed} sack(s).`, 'warning');
+    return;
+  }
+
+  input.value = Math.max(1, Math.min(maxAllowed, current + delta));
+  updateModalSubtotal();
 }
 
 function updateModalSubtotal() {
@@ -303,6 +561,9 @@ function updateModalSubtotal() {
   const subtotalEl = document.getElementById('modalPkgSubtotal');
   const labelEl = document.getElementById('modalPkgSelectedLabel');
   const autoNote = document.getElementById('pkgAutoOpenNote');
+  const btnConfirm = document.getElementById('btnConfirmAddToOrder');
+
+  const maxAllowed = getMaxAllowedQuantity(activeModalProduct, activeModalUnit);
 
   let price = 0;
   let qty = 1;
@@ -310,20 +571,33 @@ function updateModalSubtotal() {
 
   if (activeModalUnit === 'tinatakal') {
     const kgInput = document.getElementById('pkgCustomKgInput');
-    qty = parseFloat(kgInput ? kgInput.value : 1) || 1;
+    qty = parseFloat(kgInput ? kgInput.value : 0) || 0;
+
+    if (qty > maxAllowed) {
+      qty = maxAllowed;
+      if (kgInput) kgInput.value = maxAllowed;
+    }
+
     price = activeModalProduct.priceKg * qty;
-    label = `Specified Kilos (${qty} kg @ ${formatCurrency(activeModalProduct.priceKg)}/kg)`;
+    label = `Specified Kilos (${formatNumber(qty)} kg @ ${formatCurrency(activeModalProduct.priceKg)}/kg)`;
 
     if (autoNote) {
-      if (qty > activeModalProduct.stockKg) {
+      if (qty > activeModalProduct.stockKg && qty <= maxAllowed) {
         autoNote.style.display = 'block';
       } else {
         autoNote.style.display = 'none';
       }
     }
+
+    if (btnConfirm) btnConfirm.disabled = (qty <= 0 || qty > maxAllowed);
   } else {
     const qtyInput = document.getElementById('pkgModalQtyInput');
-    qty = parseInt(qtyInput ? qtyInput.value : 1) || 1;
+    qty = parseInt(qtyInput ? qtyInput.value : 0) || 0;
+
+    if (qty > maxAllowed) {
+      qty = maxAllowed;
+      if (qtyInput) qtyInput.value = maxAllowed;
+    }
 
     let unitPrice = activeModalProduct.priceSack;
     let unitName = 'Whole Sack (50kg)';
@@ -345,6 +619,8 @@ function updateModalSubtotal() {
     price = unitPrice * qty;
     label = `${unitName} x ${qty}`;
     if (autoNote) autoNote.style.display = 'none';
+
+    if (btnConfirm) btnConfirm.disabled = (qty <= 0 || qty > maxAllowed);
   }
 
   if (subtotalEl) subtotalEl.textContent = formatCurrency(price);
@@ -354,19 +630,37 @@ function updateModalSubtotal() {
 function confirmModalAddToCart() {
   if (!activeModalProduct) return;
 
+  const maxAllowed = getMaxAllowedQuantity(activeModalProduct, activeModalUnit);
+  if (maxAllowed <= 0) {
+    showToast('Cannot add to order: Out of stock or already at maximum stock limit in cart.', 'danger');
+    return;
+  }
+
   let qty = 1;
   if (activeModalUnit === 'tinatakal') {
     const kgInput = document.getElementById('pkgCustomKgInput');
-    qty = parseFloat(kgInput ? kgInput.value : 1) || 1;
+    qty = parseFloat(kgInput ? kgInput.value : 0) || 0;
     if (qty <= 0) {
       showToast('Please enter a valid kilo amount.', 'warning');
       return;
     }
+    if (qty > maxAllowed) {
+      showToast(`Cannot add ${qty} kg. Only ${formatNumber(maxAllowed)} kg available in stock!`, 'danger');
+      if (kgInput) kgInput.value = maxAllowed;
+      updateModalSubtotal();
+      return;
+    }
   } else {
     const qtyInput = document.getElementById('pkgModalQtyInput');
-    qty = parseInt(qtyInput ? qtyInput.value : 1) || 1;
+    qty = parseInt(qtyInput ? qtyInput.value : 0) || 0;
     if (qty <= 0) {
       showToast('Please enter a valid quantity.', 'warning');
+      return;
+    }
+    if (qty > maxAllowed) {
+      showToast(`Cannot add ${qty} sack(s). Only ${maxAllowed} available in stock!`, 'danger');
+      if (qtyInput) qtyInput.value = maxAllowed;
+      updateModalSubtotal();
       return;
     }
   }
@@ -382,11 +676,30 @@ function addToCart(productId, unit = 'sack', initialQty = 1, batchNumber = null)
   const product = productsCache.find(p => p.id === productId);
   if (!product) return;
 
+  const maxAllowed = getMaxAllowedQuantity(product, unit);
+  if (maxAllowed <= 0) {
+    showToast(`No stock available to add for ${product.name} (${formatUnitLabel(unit)}).`, 'warning');
+    return;
+  }
+
+  if (initialQty > maxAllowed) {
+    initialQty = maxAllowed;
+    showToast(`Quantity adjusted to maximum available stock (${maxAllowed}).`, 'warning');
+  }
+
   const itemBatch = batchNumber || product.batchNumber || 'BATCH-001';
   const existing = cart.find(item => item.productId === productId && item.unit === unit && item.batchNumber === itemBatch);
 
   if (existing) {
-    existing.qty += initialQty;
+    const itemIndex = cart.indexOf(existing);
+    const maxForItem = getMaxAllowedQuantity(product, unit, itemIndex) + existing.qty;
+    const newQty = existing.qty + initialQty;
+    if (newQty > maxForItem) {
+      existing.qty = maxForItem;
+      showToast(`Capped ${product.name} to maximum available stock (${maxForItem}).`, 'warning');
+    } else {
+      existing.qty = newQty;
+    }
   } else {
     cart.push({
       productId: product.id,
@@ -427,6 +740,10 @@ function getItemUnitPrice(item) {
   return item.priceKg; // tinatakal / loose kg
 }
 
+// ==========================================
+// POS Cart Rendering & Quantity Enforcement
+// ==========================================
+
 function renderCart() {
   const container = document.getElementById('cartItemsList');
   if (!container) return;
@@ -442,9 +759,22 @@ function renderCart() {
   }
 
   container.innerHTML = cart.map((item, index) => {
+    const prod = productsCache.find(p => p.id === item.productId);
+    const maxAllowed = prod ? getMaxAllowedQuantity(prod, item.unit, index) : item.qty;
+    const isTinatakal = item.unit === 'tinatakal' || item.unit === 'kg';
+    const isMaxReached = item.qty >= maxAllowed;
+
     const unitPrice = getItemUnitPrice(item);
     const subtotal = unitPrice * item.qty;
-    const isTinatakal = item.unit === 'tinatakal' || item.unit === 'kg';
+    const totalUnitStock = prod ? getStockForUnit(prod, item.unit) : 0;
+
+    // Determine availability of each unit pill for this item
+    const pillSackDisabled = prod && getStockForUnit(prod, 'sack') <= 0;
+    const pill25Disabled = prod && getStockForUnit(prod, '25kg') <= 0;
+    const pill20Disabled = prod && getStockForUnit(prod, '20kg') <= 0;
+    const pill10Disabled = prod && getStockForUnit(prod, '10kg') <= 0;
+    const pill5Disabled = prod && getStockForUnit(prod, '5kg') <= 0;
+    const pillLooseDisabled = prod && getStockForUnit(prod, 'tinatakal') <= 0;
 
     return `
       <div class="cart-item">
@@ -459,27 +789,34 @@ function renderCart() {
 
         <!-- Packaging Selection Pills -->
         <div class="pos-unit-group" style="margin:4px 0 6px;">
-          <button class="pos-unit-btn ${item.unit === 'sack' ? 'active' : ''}" onclick="toggleUnit(${index}, 'sack')">50k Whole</button>
-          <button class="pos-unit-btn ${item.unit === '25kg' ? 'active' : ''}" onclick="toggleUnit(${index}, '25kg')">25k Half</button>
-          <button class="pos-unit-btn ${item.unit === '20kg' ? 'active' : ''}" onclick="toggleUnit(${index}, '20kg')">20kg</button>
-          <button class="pos-unit-btn ${item.unit === '10kg' ? 'active' : ''}" onclick="toggleUnit(${index}, '10kg')">10kg</button>
-          <button class="pos-unit-btn ${item.unit === '5kg' ? 'active' : ''}" onclick="toggleUnit(${index}, '5kg')">5kg</button>
-          <button class="pos-unit-btn ${isTinatakal ? 'active' : ''}" onclick="toggleUnit(${index}, 'tinatakal')">Tinatakal</button>
+          <button class="pos-unit-btn ${item.unit === 'sack' ? 'active' : ''} ${pillSackDisabled ? 'disabled' : ''}" onclick="toggleUnit(${index}, 'sack')" title="${pillSackDisabled ? 'Out of stock' : '50Kg Whole Sack'}">50Kg Whole</button>
+          <button class="pos-unit-btn ${item.unit === '25kg' ? 'active' : ''} ${pill25Disabled ? 'disabled' : ''}" onclick="toggleUnit(${index}, '25kg')" title="${pill25Disabled ? 'Out of stock' : '25Kg Half Sack'}">25Kg Half</button>
+          <button class="pos-unit-btn ${item.unit === '20kg' ? 'active' : ''} ${pill20Disabled ? 'disabled' : ''}" onclick="toggleUnit(${index}, '20kg')" title="${pill20Disabled ? 'Out of stock' : '20Kg Pack'}">20Kg</button>
+          <button class="pos-unit-btn ${item.unit === '10kg' ? 'active' : ''} ${pill10Disabled ? 'disabled' : ''}" onclick="toggleUnit(${index}, '10kg')" title="${pill10Disabled ? 'Out of stock' : '10Kg Pack'}">10Kg</button>
+          <button class="pos-unit-btn ${item.unit === '5kg' ? 'active' : ''} ${pill5Disabled ? 'disabled' : ''}" onclick="toggleUnit(${index}, '5kg')" title="${pill5Disabled ? 'Out of stock' : '5Kg Pack'}">5Kg</button>
+          <button class="pos-unit-btn ${isTinatakal ? 'active' : ''} ${pillLooseDisabled ? 'disabled' : ''}" onclick="toggleUnit(${index}, 'tinatakal')" title="${pillLooseDisabled ? 'Out of stock' : 'Tinatakal (Loose Kg)'}">Tinatakal</button>
         </div>
 
         <div class="cart-item-controls">
           <div class="qty-control">
-            <button class="qty-btn" onclick="updateQty(${index}, ${item.qty - (isTinatakal ? 0.5 : 1)})">-</button>
+            <button class="qty-btn" onclick="stepCartQty(${index}, -${isTinatakal ? 0.5 : 1})">-</button>
             <input
               type="number"
               class="qty-input"
               value="${item.qty}"
-              min="0.1"
+              min="${isTinatakal ? 0.1 : 1}"
+              max="${maxAllowed}"
               step="${isTinatakal ? '0.1' : '1'}"
               style="width: 70px;"
+              oninput="validateCartQtyInput(${index}, this)"
               onchange="updateQty(${index}, parseFloat(this.value))"
             >
-            <button class="qty-btn" onclick="updateQty(${index}, ${item.qty + (isTinatakal ? 0.5 : 1)})">+</button>
+            <button
+              class="qty-btn ${isMaxReached ? 'disabled' : ''}"
+              ${isMaxReached ? 'disabled' : ''}
+              onclick="stepCartQty(${index}, ${isTinatakal ? 0.5 : 1})"
+              title="${isMaxReached ? 'Maximum available stock reached' : 'Add one'}"
+            >+</button>
           </div>
 
           <div style="text-align:right;">
@@ -488,8 +825,13 @@ function renderCart() {
           </div>
         </div>
 
+        <!-- Stock Limit Indicator -->
+        <div style="font-size:10.5px; color:${isMaxReached ? '#b91c1c' : 'var(--text-muted)'}; margin-top:3px; text-align:left;">
+          ${isMaxReached ? '⚠️ Max stock reached' : 'Stock limit'}: <strong>${item.qty} / ${maxAllowed}</strong> ${isTinatakal ? 'kg' : 'sacks'} available (Total inventory: ${totalUnitStock})
+        </div>
+
         ${isTinatakal ? `
-          <div class="tinatakal-chips-bar">
+          <div class="tinatakal-chips-bar" style="margin-top:6px;">
             <span style="font-size:10px;color:var(--text-muted);">Quick scoop:</span>
             <button type="button" class="tinatakal-chip" onclick="setTinatakalQty(${index}, 0.5)">+0.5kg</button>
             <button type="button" class="tinatakal-chip" onclick="setTinatakalQty(${index}, 1.0)">+1kg</button>
@@ -498,7 +840,6 @@ function renderCart() {
             <button type="button" class="tinatakal-chip" onclick="setTinatakalQty(${index}, 5.0)">+5kg</button>
           </div>
           ${(() => {
-            const prod = productsCache.find(p => p.id === item.productId);
             const availLoose = prod ? prod.stockKg : 0;
             if (prod && availLoose < item.qty) {
               return `
@@ -524,23 +865,58 @@ function renderCart() {
   updateTotals();
 }
 
-function toggleUnit(index, unit) {
+function stepCartQty(index, delta) {
   if (!cart[index]) return;
-  cart[index].unit = unit;
-  if (unit !== 'tinatakal' && unit !== 'kg') {
-    cart[index].qty = Math.max(1, Math.floor(cart[index].qty));
+  const item = cart[index];
+  const prod = productsCache.find(p => p.id === item.productId);
+  const maxAllowed = prod ? getMaxAllowedQuantity(prod, item.unit, index) : 9999;
+  const isTinatakal = item.unit === 'tinatakal' || item.unit === 'kg';
+
+  if (delta > 0 && item.qty >= maxAllowed) {
+    showToast(`Cannot add more. Maximum available stock for ${item.productName} (${formatUnitLabel(item.unit)}) is ${maxAllowed}.`, 'warning');
+    return;
   }
+
+  const targetQty = isTinatakal
+    ? Math.round((item.qty + delta) * 100) / 100
+    : Math.floor(item.qty + delta);
+
+  if (targetQty <= 0) {
+    removeFromCart(index);
+    return;
+  }
+
+  if (targetQty > maxAllowed) {
+    item.qty = maxAllowed;
+    showToast(`Quantity capped at maximum available stock (${maxAllowed}).`, 'warning');
+  } else {
+    item.qty = targetQty;
+  }
+
   renderCart();
 }
 
-function setTinatakalQty(index, addKg) {
+function validateCartQtyInput(index, input) {
   if (!cart[index]) return;
-  cart[index].qty = Math.round((cart[index].qty + addKg) * 100) / 100;
-  renderCart();
+  const item = cart[index];
+  const prod = productsCache.find(p => p.id === item.productId);
+  const maxAllowed = prod ? getMaxAllowedQuantity(prod, item.unit, index) : 9999;
+  const val = parseFloat(input.value);
+
+  if (!isNaN(val) && val > maxAllowed) {
+    input.value = maxAllowed;
+    cart[index].qty = maxAllowed;
+    showToast(`Cannot input beyond stock! Maximum available is ${maxAllowed} for ${formatUnitLabel(item.unit)}.`, 'warning');
+    updateTotals();
+  }
 }
 
 function updateQty(index, qty) {
   if (!cart[index]) return;
+  const item = cart[index];
+  const prod = productsCache.find(p => p.id === item.productId);
+  const maxAllowed = prod ? getMaxAllowedQuantity(prod, item.unit, index) : 9999;
+  const isTinatakal = item.unit === 'tinatakal' || item.unit === 'kg';
 
   qty = Number(qty);
   if (!qty || qty <= 0) {
@@ -548,11 +924,64 @@ function updateQty(index, qty) {
     return;
   }
 
-  if (cart[index].unit !== 'tinatakal' && cart[index].unit !== 'kg') {
+  if (!isTinatakal) {
     qty = Math.floor(qty);
+  } else {
+    qty = Math.round(qty * 100) / 100;
   }
 
-  cart[index].qty = Math.round(qty * 100) / 100;
+  if (qty > maxAllowed) {
+    cart[index].qty = maxAllowed;
+    showToast(`Cannot input beyond stock! Maximum available is ${maxAllowed} for ${formatUnitLabel(item.unit)}.`, 'warning');
+  } else {
+    cart[index].qty = qty;
+  }
+
+  renderCart();
+}
+
+function setTinatakalQty(index, addKg) {
+  if (!cart[index]) return;
+  const item = cart[index];
+  const prod = productsCache.find(p => p.id === item.productId);
+  const maxAllowed = prod ? getMaxAllowedQuantity(prod, 'tinatakal', index) : 9999;
+
+  const targetQty = Math.round((item.qty + addKg) * 100) / 100;
+  if (targetQty > maxAllowed) {
+    cart[index].qty = maxAllowed;
+    showToast(`Capped at maximum available loose stock capacity (${formatNumber(maxAllowed)} kg).`, 'warning');
+  } else {
+    cart[index].qty = targetQty;
+  }
+
+  renderCart();
+}
+
+function toggleUnit(index, unit) {
+  if (!cart[index]) return;
+  const item = cart[index];
+  const prod = productsCache.find(p => p.id === item.productId);
+  if (!prod) return;
+
+  const availStock = getStockForUnit(prod, unit);
+  if (availStock <= 0) {
+    showToast(`Cannot switch to ${formatUnitLabel(unit)}: 0 available in inventory for ${prod.name}!`, 'warning');
+    return;
+  }
+
+  const maxAllowed = getMaxAllowedQuantity(prod, unit, index);
+  if (maxAllowed <= 0) {
+    showToast(`Cannot switch to ${formatUnitLabel(unit)}: Maximum available stock is already allocated in cart.`, 'warning');
+    return;
+  }
+
+  cart[index].unit = unit;
+  if (unit !== 'tinatakal' && unit !== 'kg') {
+    cart[index].qty = Math.max(1, Math.min(maxAllowed, Math.floor(cart[index].qty)));
+  } else {
+    cart[index].qty = Math.min(maxAllowed, Math.max(0.5, cart[index].qty));
+  }
+
   renderCart();
 }
 
@@ -593,8 +1022,26 @@ function calculateChange() {
   }
 }
 
+// ==========================================
+// Checkout & Sale Processing
+// ==========================================
+
 async function processSale() {
   if (!cart.length) return;
+
+  // Final pre-flight validation scan against live inventory limits
+  for (let i = 0; i < cart.length; i++) {
+    const item = cart[i];
+    const prod = productsCache.find(p => p.id === item.productId);
+    if (prod) {
+      const maxAllowed = getMaxAllowedQuantity(prod, item.unit, i);
+      if (item.qty > maxAllowed) {
+        showToast(`Cannot checkout: ${item.productName} (${item.qty} ${formatUnitLabel(item.unit)}) exceeds available stock (${maxAllowed}). Please adjust your order.`, 'danger');
+        renderCart();
+        return;
+      }
+    }
+  }
 
   const paymentReceived = parseFloat(document.getElementById('inputPaymentReceived').value) || 0;
   const paymentMethod = document.getElementById('paymentMethod').value;
@@ -652,6 +1099,8 @@ async function processSale() {
   } catch (error) {
     console.error(error);
     showToast('Unable to complete sale.', 'danger');
+  } finally {
+    hidePageLoader();
   }
 }
 
@@ -705,13 +1154,17 @@ function renderReceiptModal(txn) {
   openModal('modalReceipt');
 }
 
+// ==========================================
+// Open Sack Modal in POS
+// ==========================================
+
 function openPosOpenSackModal(productId = null) {
   const prodSelect = document.getElementById('posOpenSackProduct');
   if (!prodSelect) return;
 
   prodSelect.innerHTML = productsCache.map(p => `
     <option value="${p.id}" ${p.id === productId ? 'selected' : ''}>
-      ${p.name} [${p.origin}] - Loose: ${formatNumber(p.stockKg)} kg (50k: ${p.stockSacks}, 25k: ${p.packaged25kg}, 20k: ${p.packaged20kg})
+      ${p.name} [${p.origin}] - Loose: ${formatNumber(p.stockKg)} kg (50Kg: ${p.stockSacks}, 25Kg: ${p.packaged25kg}, 20Kg: ${p.packaged20kg})
     </option>
   `).join('');
 
@@ -732,7 +1185,7 @@ function updatePosOpenSackBatches() {
   const product = productsCache.find(p => p.id === prodSelect.value);
   if (!product) return;
 
-  const batches = getProductBatches(product);
+  const batches = getPosProductBatches(product);
   batchSelect.innerHTML = batches.map(b => `
     <option value="${b.batchNumber}">${b.label}</option>
   `).join('');
@@ -783,7 +1236,12 @@ function updatePosOpenSackPreview() {
 
   let warningHtml = '';
   if (remainingSacks < 0) {
-    warningHtml = `<div style="color:var(--danger);font-weight:700;margin-top:6px;">⚠️ Warning: You only have ${currentSacks} of this sack in inventory!</div>`;
+    warningHtml = `<div style="color:var(--danger);font-weight:700;margin-top:6px;">⚠️ Warning: You only have ${currentSacks} of this sack in inventory! Cannot open beyond available stock.</div>`;
+  }
+
+  const btnSubmit = document.querySelector('#posOpenSackForm button[type="submit"]');
+  if (btnSubmit) {
+    btnSubmit.disabled = (remainingSacks < 0 || currentSacks <= 0);
   }
 
   previewText.innerHTML = `
@@ -803,8 +1261,22 @@ async function handlePosOpenSackSubmit(e) {
   const batchNumber = document.getElementById('posOpenSackBatch').value;
   const note = document.getElementById('posOpenSackNote').value.trim();
 
+  const product = productsCache.find(p => p.id === productId);
+  if (!product) return;
+
+  let currentSacks = product.stockSacks;
+  if (sackType === '25kg' || sackType === 'half') currentSacks = product.packaged25kg;
+  else if (sackType === '20kg') currentSacks = product.packaged20kg;
+  else if (sackType === '10kg') currentSacks = product.packaged10kg;
+  else if (sackType === '5kg') currentSacks = product.packaged5kg;
+
   if (qty <= 0) {
     showToast('Please specify a valid quantity of sacks to open.', 'warning');
+    return;
+  }
+
+  if (qty > currentSacks) {
+    showToast(`Cannot open ${qty} sack(s). Only ${currentSacks} available in inventory!`, 'danger');
     return;
   }
 

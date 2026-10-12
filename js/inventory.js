@@ -216,14 +216,14 @@ function applyInventoryFilters() {
           </div>
         </td>
 
-        <td><strong>${p.stockSacks} sacks (50k)</strong></td>
+        <td><strong>${p.stockSacks} sacks (50Kg)</strong></td>
 
         <td>
           <div class="pack-chips-group">
-            <span class="pack-chip" style="background:#e0e7ff;color:#3730a3;">25k Half: <strong>${p.packaged25kg}</strong></span>
-            <span class="pack-chip">20kg: <strong>${p.packaged20kg}</strong></span>
-            <span class="pack-chip">10kg: <strong>${p.packaged10kg}</strong></span>
-            <span class="pack-chip">5kg: <strong>${p.packaged5kg}</strong></span>
+            <span class="pack-chip" style="background:#e0e7ff;color:#3730a3;">25Kg Half: <strong>${p.packaged25kg}</strong></span>
+            <span class="pack-chip">20Kg: <strong>${p.packaged20kg}</strong></span>
+            <span class="pack-chip">10Kg: <strong>${p.packaged10kg}</strong></span>
+            <span class="pack-chip">5Kg: <strong>${p.packaged5kg}</strong></span>
           </div>
         </td>
 
@@ -301,7 +301,7 @@ function populateProductSelect(selectId, productId = null) {
   const select = document.getElementById(selectId);
   select.innerHTML = inventoryCache.map(p => `
     <option value="${p.id}" ${p.id === productId ? 'selected' : ''}>
-      ${p.name} [${p.origin}] - Current: ${p.stockSacks} sacks, ${p.stockKg} kg (Packs: ${p.packaged5kg}x 5k, ${p.packaged10kg}x 10k, ${p.packaged20kg}x 20k)
+      ${p.name} [${p.origin}] - Current: ${p.stockSacks} sacks, ${p.stockKg} kg (Packs: ${p.packaged5kg}x 5Kg, ${p.packaged10kg}x 10Kg, ${p.packaged20kg}x 20Kg)
     </option>
   `).join('');
 }

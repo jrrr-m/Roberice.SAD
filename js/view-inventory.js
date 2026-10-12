@@ -159,7 +159,7 @@ function renderInventoryTable() {
     else if (ageFilter === 'old') matchesAge = p.daysOld > 60;
 
     const totalVolume = (p.stockSacks * 50) + (p.packaged25kg * 25) + (p.packaged20kg * 20) + (p.packaged10kg * 10) + (p.packaged5kg * 5) + p.stockKg;
-    const isOut = totalVolume <= 0 || p.batches.length === 0;
+    const isOut = totalVolume <= 0;
     const isLow = !isOut && totalVolume <= p.thresholdKg;
 
     let matchesStatus = true;
@@ -180,7 +180,7 @@ function renderInventoryTable() {
   filtered.forEach(p => {
     const isExpanded = expandedVarietyIds.has(p.id);
     const totalVolume = (p.stockSacks * 50) + (p.packaged25kg * 25) + (p.packaged20kg * 20) + (p.packaged10kg * 10) + (p.packaged5kg * 5) + p.stockKg;
-    const isOut = totalVolume <= 0 || p.batches.length === 0;
+    const isOut = totalVolume <= 0;
     const isLow = !isOut && totalVolume <= p.thresholdKg;
 
     // Single-line Status Badge
@@ -200,6 +200,13 @@ function renderInventoryTable() {
       batchPillHtml = `
         <button class="batch-toggle-pill" type="button" onclick="event.stopPropagation(); toggleBatchDrawer('${p.id}')" title="Click to view all available batches">
           <span>${batchCount} Batch${batchCount > 1 ? 'es' : ''}</span>
+          <span class="chevron-icon">${isExpanded ? '▲' : '▼'}</span>
+        </button>
+      `;
+    } else if (totalVolume > 0) {
+      batchPillHtml = `
+        <button class="batch-toggle-pill" type="button" onclick="event.stopPropagation(); toggleBatchDrawer('${p.id}')" title="Click to view active lot">
+          <span>1 Batch (Active)</span>
           <span class="chevron-icon">${isExpanded ? '▲' : '▼'}</span>
         </button>
       `;
@@ -226,13 +233,13 @@ function renderInventoryTable() {
         </td>
         <td><strong>${formatCurrency(p.priceSack)}</strong></td>
         <td><strong>${formatCurrency(p.priceKg)}</strong></td>
-        <td><strong>${p.stockSacks}</strong> sacks (50k)</td>
+        <td><strong>${p.stockSacks}</strong> sacks (50Kg)</td>
         <td>
           <div class="pack-chips-group">
-            <span class="pack-chip" style="background:#e0e7ff;color:#3730a3;">25k: <strong>${p.packaged25kg}</strong></span>
-            <span class="pack-chip">20k: <strong>${p.packaged20kg}</strong></span>
-            <span class="pack-chip">10k: <strong>${p.packaged10kg}</strong></span>
-            <span class="pack-chip">5k: <strong>${p.packaged5kg}</strong></span>
+            <span class="pack-chip" style="background:#e0e7ff;color:#3730a3;">25Kg: <strong>${p.packaged25kg}</strong></span>
+            <span class="pack-chip">20Kg: <strong>${p.packaged20kg}</strong></span>
+            <span class="pack-chip">10Kg: <strong>${p.packaged10kg}</strong></span>
+            <span class="pack-chip">5Kg: <strong>${p.packaged5kg}</strong></span>
           </div>
         </td>
         <td><strong>${formatNumber(p.stockKg)}</strong> kg</td>
@@ -251,15 +258,28 @@ function renderInventoryTable() {
     if (isExpanded) {
       let subTableContent = '';
 
-      if (p.batches.length === 0) {
+      if (p.batches.length === 0 && totalVolume <= 0) {
         subTableContent = `
           <div style="padding:14px;text-align:center;color:var(--text-muted);font-style:italic;">
             All previous batches for <strong>${p.name}</strong> have run out and been archived to the audit log. Restock new inventory to create an active batch.
           </div>
         `;
       } else {
-        const batchRowsHtml = p.batches.map(b => {
-          const bVolume = Number(b.total_kg || 0);
+        const displayBatches = p.batches.length > 0 ? p.batches : [{
+          batch_code: p.batchNumber || 'ACTIVE-LOT',
+          received_date: p.receivedDate || '2026-10-12',
+          days_old: p.daysOld || 0,
+          stock_sacks: p.stockSacks,
+          packaged_25kg: p.packaged25kg,
+          packaged_20kg: p.packaged20kg,
+          packaged_10kg: p.packaged10kg,
+          packaged_5kg: p.packaged5kg,
+          stock_kg: p.stockKg,
+          total_kg: totalVolume
+        }];
+
+        const batchRowsHtml = displayBatches.map(b => {
+          const bVolume = Number(b.total_kg !== undefined ? b.total_kg : ((b.stock_sacks * 50) + (b.packaged_25kg * 25) + (b.packaged_20kg * 20) + (b.packaged_10kg * 10) + (b.packaged_5kg * 5) + b.stock_kg));
           const bAgeBadge = getAgeBadge(b.days_old);
 
           return `
@@ -290,11 +310,11 @@ function renderInventoryTable() {
                 <th>Batch Code</th>
                 <th>Date Received</th>
                 <th>Stock Age</th>
-                <th>50kg Sacks</th>
-                <th>25k Half</th>
-                <th>20k Sacks</th>
-                <th>10k Packs</th>
-                <th>5k Packs</th>
+                <th>50Kg Sacks</th>
+                <th>25Kg Half</th>
+                <th>20Kg Sacks</th>
+                <th>10Kg Packs</th>
+                <th>5Kg Packs</th>
                 <th>Loose Kg</th>
                 <th>Batch Volume</th>
                 <th>Actions</th>
@@ -335,7 +355,7 @@ function openViewOpenSackModal(productId = null, targetBatchCode = null) {
 
   prodSelect.innerHTML = inventoryCache.map(p => `
     <option value="${p.id}" ${p.id === productId ? 'selected' : ''}>
-      ${p.name} [${p.origin}] - Loose: ${formatNumber(p.stockKg)} kg (50k: ${p.stockSacks}, 25k: ${p.packaged25kg}, 20k: ${p.packaged20kg})
+      ${p.name} [${p.origin}] - Loose: ${formatNumber(p.stockKg)} kg (50Kg: ${p.stockSacks}, 25Kg: ${p.packaged25kg}, 20Kg: ${p.packaged20kg})
     </option>
   `).join('');
 

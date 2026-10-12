@@ -12,11 +12,7 @@
     <main class="main-wrapper">
       <div class="page-container">
         
-        <div class="page-header">
-          <div class="page-title">
-            <h2>Products & Pricing Management</h2>
-            <p>Add, edit, or configure rice varieties, wholesale sack prices, retail kg prices, and low-stock thresholds.</p>
-          </div>
+        <div class="page-header" style="justify-content: flex-end; margin-bottom: 16px;">
           <button class="btn btn-primary" id="btnOpenAddProduct">
             <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
             Add New Rice Variety
@@ -135,11 +131,11 @@
             </div>
             <div class="form-row" style="grid-template-columns: repeat(3, 1fr);">
               <div class="form-group">
-                <label for="prodInitialSacks">Initial Whole Sacks (50k)</label>
+                <label for="prodInitialSacks">Initial Whole Sacks (50Kg)</label>
                 <input type="number" id="prodInitialSacks" class="form-control" value="10" min="0">
               </div>
               <div class="form-group">
-                <label for="prodInitial25kg">Initial Half Sacks (25k)</label>
+                <label for="prodInitial25kg">Initial Half Sacks (25Kg)</label>
                 <input type="number" id="prodInitial25kg" class="form-control" value="0" min="0">
               </div>
               <div class="form-group">

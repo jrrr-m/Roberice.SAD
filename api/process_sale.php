@@ -86,7 +86,7 @@ try {
 
         if ($unitLower === "sack" || $unitLower === "50kg") {
             if ($qty > $stockSacks) {
-                throw new Exception("Insufficient 50kg sack stock for " . $product["product_name"] . ".");
+                throw new Exception("Cannot process sale: Insufficient whole sacks in stock for " . $product["product_name"] . ". Only " . $stockSacks . " sacks available.");
             }
             $stockSacks -= (int)$qty;
             $unitPrice = (float)$product["price_sack"];
@@ -96,96 +96,40 @@ try {
                 : ((float)$product["price_sack"] / 2);
 
             $neededPacks = (int)$qty;
-            if ($p25 >= $neededPacks) {
-                $p25 -= $neededPacks;
-            } else {
-                $deficitPacks = $neededPacks - $p25;
-                $p25 = 0;
-                $neededKg = $deficitPacks * 25.0;
-                if ($stockKg >= $neededKg) {
-                    $stockKg -= $neededKg;
-                } else {
-                    $looseShort = $neededKg - $stockKg;
-                    $sacksToOpen = (int)ceil($looseShort / 50.0);
-                    if ($sacksToOpen > $stockSacks) {
-                        throw new Exception("Insufficient 25kg half sack stock for " . $product["product_name"] . ".");
-                    }
-                    $stockSacks -= $sacksToOpen;
-                    $stockKg = ($stockKg + ($sacksToOpen * 50.0)) - $neededKg;
-                }
+            if ($neededPacks > $p25) {
+                throw new Exception("Cannot process sale: Insufficient 25kg half sacks in stock for " . $product["product_name"] . ". Only " . $p25 . " available.");
             }
+            $p25 -= $neededPacks;
         } elseif ($unitLower === "5kg") {
             $unitPrice = !empty($product["price_5kg"]) && (float)$product["price_5kg"] > 0
                 ? (float)$product["price_5kg"]
                 : ((float)$product["price_kg"] * 5);
 
             $neededPacks = (int)$qty;
-            if ($p5 >= $neededPacks) {
-                $p5 -= $neededPacks;
-            } else {
-                $deficitPacks = $neededPacks - $p5;
-                $p5 = 0;
-                $neededKg = $deficitPacks * 5;
-                if ($stockKg >= $neededKg) {
-                    $stockKg -= $neededKg;
-                } else {
-                    $looseShort = $neededKg - $stockKg;
-                    $sacksToOpen = (int)ceil($looseShort / 50.0);
-                    if ($sacksToOpen > $stockSacks) {
-                        throw new Exception("Insufficient 5kg stock for " . $product["product_name"] . ".");
-                    }
-                    $stockSacks -= $sacksToOpen;
-                    $stockKg = ($stockKg + ($sacksToOpen * 50.0)) - $neededKg;
-                }
+            if ($neededPacks > $p5) {
+                throw new Exception("Cannot process sale: Insufficient 5kg sacks in stock for " . $product["product_name"] . ". Only " . $p5 . " available.");
             }
+            $p5 -= $neededPacks;
         } elseif ($unitLower === "10kg") {
             $unitPrice = !empty($product["price_10kg"]) && (float)$product["price_10kg"] > 0
                 ? (float)$product["price_10kg"]
                 : ((float)$product["price_kg"] * 10);
 
             $neededPacks = (int)$qty;
-            if ($p10 >= $neededPacks) {
-                $p10 -= $neededPacks;
-            } else {
-                $deficitPacks = $neededPacks - $p10;
-                $p10 = 0;
-                $neededKg = $deficitPacks * 10;
-                if ($stockKg >= $neededKg) {
-                    $stockKg -= $neededKg;
-                } else {
-                    $looseShort = $neededKg - $stockKg;
-                    $sacksToOpen = (int)ceil($looseShort / 50.0);
-                    if ($sacksToOpen > $stockSacks) {
-                        throw new Exception("Insufficient 10kg stock for " . $product["product_name"] . ".");
-                    }
-                    $stockSacks -= $sacksToOpen;
-                    $stockKg = ($stockKg + ($sacksToOpen * 50.0)) - $neededKg;
-                }
+            if ($neededPacks > $p10) {
+                throw new Exception("Cannot process sale: Insufficient 10kg sacks in stock for " . $product["product_name"] . ". Only " . $p10 . " available.");
             }
+            $p10 -= $neededPacks;
         } elseif ($unitLower === "20kg") {
             $unitPrice = !empty($product["price_20kg"]) && (float)$product["price_20kg"] > 0
                 ? (float)$product["price_20kg"]
                 : ((float)$product["price_kg"] * 20);
 
             $neededPacks = (int)$qty;
-            if ($p20 >= $neededPacks) {
-                $p20 -= $neededPacks;
-            } else {
-                $deficitPacks = $neededPacks - $p20;
-                $p20 = 0;
-                $neededKg = $deficitPacks * 20;
-                if ($stockKg >= $neededKg) {
-                    $stockKg -= $neededKg;
-                } else {
-                    $looseShort = $neededKg - $stockKg;
-                    $sacksToOpen = (int)ceil($looseShort / 50.0);
-                    if ($sacksToOpen > $stockSacks) {
-                        throw new Exception("Insufficient 20kg stock for " . $product["product_name"] . ".");
-                    }
-                    $stockSacks -= $sacksToOpen;
-                    $stockKg = ($stockKg + ($sacksToOpen * 50.0)) - $neededKg;
-                }
+            if ($neededPacks > $p20) {
+                throw new Exception("Cannot process sale: Insufficient 20kg sacks in stock for " . $product["product_name"] . ". Only " . $p20 . " available.");
             }
+            $p20 -= $neededPacks;
         } else {
             // "tinatakal" or "kg" (loose retail per kg)
             $unitPrice = (float)$product["price_kg"];

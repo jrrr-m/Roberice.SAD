@@ -151,16 +151,68 @@ function renderAppFrame(user) {
     </aside>
   `;
 
+  const userName = user.full_name || user.name || user.username || (user.role === 'admin' ? 'Admin User' : 'Cashier');
+
+  // Dynamic Page Header & Subtitle Mapping
+  const PAGE_HEADER_MAP = {
+    'dashboard.html': {
+      title: 'Dashboard',
+      subtitle: `Welcome back, ${userName}! Here's your store overview.`,
+      subtitleId: 'welcomeSubtitle'
+    },
+    'pos.html': {
+      title: 'Point of Sale (POS)',
+      subtitle: 'Process customer rice transactions and automatically update inventory stock.'
+    },
+    'view-inventory.html': {
+      title: 'Available Inventory',
+      subtitle: 'Current stock levels of all rice varieties in sacks and kilograms.'
+    },
+    'inventory.html': {
+      title: 'Manage Inventory',
+      subtitle: 'Admin control panel for restocking, physical count corrections, and damage reporting.'
+    },
+    'products.html': {
+      title: 'Products & Pricing',
+      subtitle: 'Manage rice catalog, base sack pricing, and per-kg retail rates.'
+    },
+    'transactions.html': {
+      title: 'Transaction History',
+      subtitle: 'View sales records and customer transaction details.',
+      subtitleId: 'txnPageSubtitle'
+    },
+    'sales-report.html': {
+      title: 'Sales Report & Analytics',
+      subtitle: 'Comprehensive store revenue reports, variety sales volume, and print-ready statements.'
+    },
+    'file-manager.html': {
+      title: 'File & Document Management',
+      subtitle: 'Organize store receipts, supplier delivery invoices, audit records, and backup files.'
+    },
+    'audit.html': {
+      title: 'Audit History & System Trail',
+      subtitle: 'Chronological audit log tracking warehouse adjustments, sack openings, and batch depletions.'
+    }
+  };
+
+  const pageInfo = PAGE_HEADER_MAP[currentPage] || {
+    title: 'Roberice POS',
+    subtitle: `Welcome back, ${userName}!`
+  };
+
+  const subtitleIdAttr = pageInfo.subtitleId ? `id="${pageInfo.subtitleId}"` : '';
+
   // Build Top Header HTML
   const headerHtml = `
     <header class="top-header">
       <div class="header-title-area">
-        <!-- Dynamic Page Title is set per page JS -->
+        <h2 class="top-nav-title">${pageInfo.title}</h2>
+        <p class="top-nav-subtitle" ${subtitleIdAttr}>${pageInfo.subtitle}</p>
       </div>
       <div class="header-user">
         <div class="user-profile">
           <div class="profile-details">
-            <div class="user-name">${user.name || user.username}</div>
+            <div class="user-name">${userName}</div>
             <div class="user-role">${user.role === 'admin' ? 'Admin (Full Access)' : 'Cashier (Restricted)'}</div>
           </div>
         </div>

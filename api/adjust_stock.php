@@ -245,6 +245,25 @@ try {
                     $user
                 ]);
             }
+        } else {
+            // If batch record does not exist yet, create a new active batch row in inventory_batch
+            if ($type === 'restock' || $type === 'correction') {
+                $bSacks = abs($sacks);
+                $b25 = abs($p25);
+                $b20 = abs($p20);
+                $b10 = abs($p10);
+                $b5 = abs($p5);
+                $bKg = abs($kg);
+                $bVol = ($bSacks * 50) + ($b25 * 25) + ($b20 * 20) + ($b10 * 10) + ($b5 * 5) + $bKg;
+                $newStatus = ($bVol <= 0) ? 'Depleted' : 'Active';
+
+                $insBatch = $conn->prepare("
+                    INSERT INTO inventory_batch 
+                    (product_id, batch_code, received_date, stock_sacks, packaged_25kg, packaged_20kg, packaged_10kg, packaged_5kg, stock_kg, status, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+                ");
+                $insBatch->execute([$productId, $batchNumber, $receivedDate, $bSacks, $b25, $b20, $b10, $b5, $bKg, $newStatus]);
+            }
         }
     }
 

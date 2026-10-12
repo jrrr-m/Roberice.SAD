@@ -261,9 +261,9 @@ function openPrintReportModal() {
       <thead>
         <tr style="background:#f3f4f6;">
           <th style="padding:6px 8px;text-align:left;border-bottom:2px solid #9ca3af;">Rice Variety</th>
-          <th style="padding:6px 8px;text-align:center;border-bottom:2px solid #9ca3af;">50kg Sacks</th>
-          <th style="padding:6px 8px;text-align:center;border-bottom:2px solid #9ca3af;">25kg Half</th>
-          <th style="padding:6px 8px;text-align:center;border-bottom:2px solid #9ca3af;">Packs (20k/10k/5k)</th>
+          <th style="padding:6px 8px;text-align:center;border-bottom:2px solid #9ca3af;">50Kg Sacks</th>
+          <th style="padding:6px 8px;text-align:center;border-bottom:2px solid #9ca3af;">25Kg Half</th>
+          <th style="padding:6px 8px;text-align:center;border-bottom:2px solid #9ca3af;">Packs (20Kg/10Kg/5Kg)</th>
           <th style="padding:6px 8px;text-align:center;border-bottom:2px solid #9ca3af;">Tinatakal</th>
           <th style="padding:6px 8px;text-align:right;border-bottom:2px solid #9ca3af;">Total Volume</th>
           <th style="padding:6px 8px;text-align:right;border-bottom:2px solid #9ca3af;">Revenue</th>
