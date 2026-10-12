@@ -29,19 +29,73 @@
           </div>
         </div>
 
+        <!-- Old Stock Alert Banner -->
+        <div id="oldStockAlertBanner" class="old-stock-alert-banner" style="display:none;">
+          <div class="alert-text">
+            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+            <div>
+              <span id="oldStockAlertCount">Attention: 2 rice varieties</span> contain old stock (>60 days in warehouse).
+              <div class="alert-sub">Prioritize these batches for first-in, first-out (FIFO) sale or repacking to prevent deterioration.</div>
+            </div>
+          </div>
+          <button class="btn btn-secondary btn-sm" onclick="filterByOldStockOnly()">View Old Stocks</button>
+        </div>
+
         <div class="card" style="margin-bottom:24px;">
-          <div class="card-title">Current Rice Stock Levels</div>
+          <!-- Filter Controls Bar -->
+          <div class="filter-bar" style="flex-wrap: wrap; gap: 10px; margin-bottom: 16px;">
+            <div class="search-box" style="flex: 1; min-width: 220px;">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+              <input type="text" id="searchInventory" class="form-control" placeholder="Search variety, origin, or rice type...">
+            </div>
+
+            <div class="filter-actions" style="display:flex; flex-wrap:wrap; gap:8px;">
+              <!-- Origin Filter -->
+              <select id="filterOrigin" class="form-select" style="width: 140px;">
+                <option value="all">All Origins</option>
+                <option value="Local">Local Rice</option>
+                <option value="Imported">Imported Rice</option>
+              </select>
+
+              <!-- Rice Type Filter -->
+              <select id="filterRiceType" class="form-select" style="width: 160px;">
+                <option value="all">All Rice Types</option>
+              </select>
+
+              <!-- Stock Age Filter -->
+              <select id="filterStockAge" class="form-select" style="width: 180px;">
+                <option value="all">All Stock Ages</option>
+                <option value="fresh">Fresh (&lt; 15 days)</option>
+                <option value="normal">Normal (15 - 30 days)</option>
+                <option value="aging">Aging (31 - 60 days)</option>
+                <option value="old">Old Stock (&gt; 60 days)</option>
+              </select>
+
+              <!-- Stock Status Filter -->
+              <select id="filterStatus" class="form-select" style="width: 140px;">
+                <option value="all">All Statuses</option>
+                <option value="instock">In Stock</option>
+                <option value="lowstock">Low Stock</option>
+                <option value="outofstock">Out of Stock</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="card-title">Current Rice Stock Levels & Aging</div>
 
           <div class="table-responsive">
             <table class="data-table">
               <thead>
                 <tr>
-                  <th>Variety Name</th>
+                  <th>Rice Variety</th>
+                  <th>Origin & Type</th>
                   <th>Sacks Stock</th>
-                  <th>Loose Kg</th>
-                  <th>Total Stock</th>
-                  <th>Low-Stock Alert Threshold</th>
-                  <th>Stock Status</th>
+                  <th>Pre-Packed (5k / 10k / 20k)</th>
+                  <th>Loose / Tinatakal</th>
+                  <th>Total Equivalent</th>
+                  <th>Stock Age & Batch</th>
+                  <th>Low-Stock Alert</th>
+                  <th>Status</th>
                   <th>Actions</th>
                 </tr>
               </thead>
@@ -52,7 +106,7 @@
         </div>
 
         <div class="card">
-          <div class="card-title">Stock Adjustment History</div>
+          <div class="card-title">Stock Adjustment & Repack History</div>
 
           <div class="table-responsive">
             <table class="data-table">
@@ -79,10 +133,10 @@
 
   <!-- RESTOCK MODAL -->
   <div class="modal-overlay" id="modalRestock">
-    <div class="modal-card">
+    <div class="modal-card" style="max-width: 550px;">
 
       <div class="modal-header">
-        <h3>Restock Inventory</h3>
+        <h3>Restock Rice Inventory</h3>
         <button class="modal-close" onclick="closeModal('modalRestock')">&times;</button>
       </div>
 
@@ -96,45 +150,55 @@
           </div>
 
           <div class="form-row">
-
             <div class="form-group">
-              <label for="restockSacks">Sacks Amount</label>
-              <input
-                type="number"
-                id="restockSacks"
-                class="form-control"
-                value="0"
-                min="0"
-              >
+              <label for="restockSacks">Whole Sacks to Add</label>
+              <input type="number" id="restockSacks" class="form-control" value="0" min="0">
             </div>
 
             <div class="form-group">
-              <label for="restockKg">Kilograms (Kg) Amount</label>
-              <input
-                type="number"
-                id="restockKg"
-                class="form-control"
-                value="0"
-                min="0"
-                step="0.1"
-              >
+              <label for="restockKg">Loose Tinatakal (Kg)</label>
+              <input type="number" id="restockKg" class="form-control" value="0" min="0" step="0.1">
+            </div>
+          </div>
+
+          <div style="margin-top: 10px; font-weight:600; font-size:12px; color:var(--text-muted); text-transform:uppercase;">
+            Pre-Packaged Stock Bags to Add
+          </div>
+
+          <div class="form-row" style="grid-template-columns: repeat(3, 1fr); margin-top: 6px;">
+            <div class="form-group">
+              <label for="restock5kg">5kg Bags</label>
+              <input type="number" id="restock5kg" class="form-control" value="0" min="0">
             </div>
 
+            <div class="form-group">
+              <label for="restock10kg">10kg Bags</label>
+              <input type="number" id="restock10kg" class="form-control" value="0" min="0">
+            </div>
+
+            <div class="form-group">
+              <label for="restock20kg">20kg Bags</label>
+              <input type="number" id="restock20kg" class="form-control" value="0" min="0">
+            </div>
+          </div>
+
+          <div class="form-row" style="margin-top: 10px;">
+            <div class="form-group">
+              <label for="restockDate">Date Received (Resets Age)</label>
+              <input type="date" id="restockDate" class="form-control">
+            </div>
+
+            <div class="form-group">
+              <label for="restockBatch">Batch Number / Lot</label>
+              <input type="text" id="restockBatch" class="form-control" placeholder="e.g. BATCH-2610-01">
+            </div>
           </div>
 
         </div>
 
         <div class="modal-footer">
-          <button
-            type="button"
-            class="btn btn-secondary"
-            onclick="closeModal('modalRestock')">
-            Cancel
-          </button>
-
-          <button type="submit" class="btn btn-primary">
-            Save Restock
-          </button>
+          <button type="button" class="btn btn-secondary" onclick="closeModal('modalRestock')">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Restock</button>
         </div>
 
       </form>
@@ -142,12 +206,12 @@
   </div>
 
 
-  <!-- ADJUSTMENT MODAL -->
+  <!-- ADJUSTMENT / REPACK MODAL -->
   <div class="modal-overlay" id="modalStockAdjust">
-    <div class="modal-card">
+    <div class="modal-card" style="max-width: 550px;">
 
       <div class="modal-header">
-        <h3>Adjust Inventory Stock</h3>
+        <h3>Adjust or Repack Inventory Stock</h3>
         <button class="modal-close" onclick="closeModal('modalStockAdjust')">&times;</button>
       </div>
 
@@ -161,71 +225,57 @@
           </div>
 
           <div class="form-group">
-            <label for="adjustType">Adjustment Type</label>
-
+            <label for="adjustType">Action / Adjustment Type</label>
             <select id="adjustType" class="form-select" required>
-              <option value="correction">
-                Inventory Correction (Set / Adjust Count)
-              </option>
-
-              <option value="spoilage">
-                Damage / Spoilage (Remove Damaged Stock)
-              </option>
+              <option value="correction">Inventory Correction (Set / Adjust Physical Count)</option>
+              <option value="repack">Repack into 5kg / 10kg / 20kg Packages (Deducts from bulk/loose)</option>
+              <option value="spoilage">Damage / Spoilage (Remove Damaged / Infested Stock)</option>
             </select>
           </div>
 
           <div class="form-row">
-
             <div class="form-group">
               <label for="adjustSacks">Sacks Amount</label>
-              <input
-                type="number"
-                id="adjustSacks"
-                class="form-control"
-                value="0"
-                min="0"
-              >
+              <input type="number" id="adjustSacks" class="form-control" value="0" min="0">
             </div>
 
             <div class="form-group">
-              <label for="adjustKg">Kilograms (Kg) Amount</label>
-              <input
-                type="number"
-                id="adjustKg"
-                class="form-control"
-                value="0"
-                min="0"
-                step="0.1"
-              >
+              <label for="adjustKg">Loose Tinatakal (Kg)</label>
+              <input type="number" id="adjustKg" class="form-control" value="0" min="0" step="0.1">
             </div>
-
           </div>
 
-          <div class="form-group">
-            <label for="adjustNote">Reason / Notes</label>
+          <div style="margin-top: 10px; font-weight:600; font-size:12px; color:var(--text-muted); text-transform:uppercase;">
+            Package Bags (5kg, 10kg, 20kg) Count
+          </div>
 
-            <textarea
-              id="adjustNote"
-              class="form-control"
-              rows="3"
-              placeholder="Enter reason for inventory correction or damaged stock..."
-              required>
-            </textarea>
+          <div class="form-row" style="grid-template-columns: repeat(3, 1fr); margin-top: 6px;">
+            <div class="form-group">
+              <label for="adjust5kg">5kg Bags</label>
+              <input type="number" id="adjust5kg" class="form-control" value="0" min="0">
+            </div>
+
+            <div class="form-group">
+              <label for="adjust10kg">10kg Bags</label>
+              <input type="number" id="adjust10kg" class="form-control" value="0" min="0">
+            </div>
+
+            <div class="form-group">
+              <label for="adjust20kg">20kg Bags</label>
+              <input type="number" id="adjust20kg" class="form-control" value="0" min="0">
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-top: 10px;">
+            <label for="adjustNote">Reason / Notes</label>
+            <textarea id="adjustNote" class="form-control" rows="3" placeholder="Enter reason (e.g. repacked 1 sack into 10x 5kg bags; or physical count recount)..." required></textarea>
           </div>
 
         </div>
 
         <div class="modal-footer">
-          <button
-            type="button"
-            class="btn btn-secondary"
-            onclick="closeModal('modalStockAdjust')">
-            Cancel
-          </button>
-
-          <button type="submit" class="btn btn-primary">
-            Save Adjustment
-          </button>
+          <button type="button" class="btn btn-secondary" onclick="closeModal('modalStockAdjust')">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Adjustment</button>
         </div>
 
       </form>

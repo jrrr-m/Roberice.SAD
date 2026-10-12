@@ -24,48 +24,76 @@ async function renderProductsTable() {
       id: String(p.product_id),
       name: p.product_name,
       category: p.category,
-      priceSack: Number(p.price_sack),
-      priceKg: Number(p.price_kg),
-      kgPerSack: Number(p.kg_per_sack),
-      stockSacks: Number(p.stock_sacks),
-      stockKg: Number(p.stock_kg),
-      thresholdKg: Number(p.reorder_level_kg),
+      origin: p.origin || 'Local',
+      riceType: p.rice_type || p.category || 'White Rice',
+      priceSack: Number(p.price_sack || 0),
+      priceKg: Number(p.price_kg || 0),
+      price5kg: Number(p.price_5kg || (p.price_kg * 5)),
+      price10kg: Number(p.price_10kg || (p.price_kg * 10)),
+      price20kg: Number(p.price_20kg || (p.price_kg * 20)),
+      kgPerSack: Number(p.kg_per_sack || 50),
+      stockSacks: Number(p.stock_sacks || 0),
+      stockKg: Number(p.stock_kg || 0),
+      packaged5kg: Number(p.packaged_5kg || 0),
+      packaged10kg: Number(p.packaged_10kg || 0),
+      packaged20kg: Number(p.packaged_20kg || 0),
+      thresholdKg: Number(p.reorder_level_kg || 0),
       status: p.product_status
     }));
 
     if (productsCache.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="9" class="empty-state">No rice varieties configured yet.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="12" class="empty-state">No rice varieties configured yet.</td></tr>`;
       return;
     }
 
     tbody.innerHTML = productsCache.map(p => {
-      const stockInfo = formatStock(p.stockSacks, p.stockKg, p.kgPerSack);
-      const lowStock = isLowStock(p);
+      const totalVolume = (p.stockSacks * p.kgPerSack) + p.stockKg + (p.packaged5kg * 5) + (p.packaged10kg * 10) + (p.packaged20kg * 20);
+      const isOut = totalVolume <= 0;
+      const lowStock = !isOut && totalVolume <= p.thresholdKg;
+
+      const originBadge = p.origin === 'Imported'
+        ? `<span class="badge badge-imported">Imported</span>`
+        : `<span class="badge badge-local">Local</span>`;
 
       return `
         <tr>
-          <td><strong>${p.name}</strong></td>
-          <td>${p.category}</td>
-          <td>${formatCurrency(p.priceSack)}</td>
-          <td>${formatCurrency(p.priceKg)}</td>
-          <td>${p.kgPerSack} kg</td>
-          <td><strong>${stockInfo.display}</strong></td>
+          <td>
+            <strong>${p.name}</strong>
+            <div style="font-size:11px;color:var(--text-muted);">${p.category}</div>
+          </td>
+          <td>${originBadge}</td>
+          <td><span style="font-weight:600;font-size:12px;">${p.riceType}</span></td>
+          <td><strong>${formatCurrency(p.priceSack)}</strong></td>
+          <td><strong>${formatCurrency(p.priceKg)}</strong></td>
+          <td>${formatCurrency(p.price5kg)}</td>
+          <td>${formatCurrency(p.price10kg)}</td>
+          <td>${formatCurrency(p.price20kg)}</td>
+          <td>
+            <div><strong>${p.stockSacks} sacks</strong>, ${p.stockKg} kg</div>
+            <div class="pack-chips-group" style="margin-top:2px;">
+              <span class="pack-chip">5k: <strong>${p.packaged5kg}</strong></span>
+              <span class="pack-chip">10k: <strong>${p.packaged10kg}</strong></span>
+              <span class="pack-chip">20k: <strong>${p.packaged20kg}</strong></span>
+            </div>
+          </td>
           <td>${p.thresholdKg} kg</td>
           <td>
-            <span class="badge ${lowStock ? 'badge-warning' : 'badge-success'}">
-              ${lowStock ? 'Low Stock' : 'Active'}
+            <span class="badge ${isOut ? 'badge-danger' : (lowStock ? 'badge-warning' : 'badge-success')}">
+              ${isOut ? 'Out of Stock' : (lowStock ? 'Low Stock' : 'Active')}
             </span>
           </td>
           <td>
-            <button class="btn btn-secondary btn-sm" onclick="openEditProductModal('${p.id}')">Edit</button>
-            <button class="btn btn-danger btn-sm" onclick="deleteProduct('${p.id}')">Delete</button>
+            <div style="display:flex;gap:6px;">
+              <button class="btn btn-secondary btn-sm" onclick="openEditProductModal('${p.id}')">Edit</button>
+              <button class="btn btn-danger btn-sm" onclick="deleteProduct('${p.id}')">Delete</button>
+            </div>
           </td>
         </tr>
       `;
     }).join('');
   } catch (error) {
     console.error('Error loading products:', error);
-    tbody.innerHTML = `<tr><td colspan="9" class="empty-state">Failed to load products.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="12" class="empty-state">Failed to load products.</td></tr>`;
   }
 }
 
@@ -73,14 +101,22 @@ function openAddProductModal() {
   document.getElementById('productModalTitle').textContent = 'Add New Rice Variety';
   document.getElementById('prodEditId').value = '';
   document.getElementById('prodName').value = '';
-  document.getElementById('prodCategory').value = '';
+  document.getElementById('prodOrigin').value = 'Local';
+  document.getElementById('prodRiceType').value = '';
+  document.getElementById('prodCategory').value = 'Regular Milled';
   document.getElementById('prodPriceSack').value = '';
   document.getElementById('prodPriceKg').value = '';
+  document.getElementById('prodPrice5kg').value = '';
+  document.getElementById('prodPrice10kg').value = '';
+  document.getElementById('prodPrice20kg').value = '';
   document.getElementById('prodKgPerSack').value = '50';
   document.getElementById('prodThresholdKg').value = '200';
-  document.getElementById('initialStockRow').style.display = 'grid';
+  document.getElementById('initialStockRow').style.display = 'block';
   document.getElementById('prodInitialSacks').value = '10';
   document.getElementById('prodInitialKg').value = '0';
+  document.getElementById('prodInitial5kg').value = '5';
+  document.getElementById('prodInitial10kg').value = '3';
+  document.getElementById('prodInitial20kg').value = '1';
   openModal('modalProductForm');
 }
 
@@ -91,9 +127,14 @@ function openEditProductModal(productId) {
   document.getElementById('productModalTitle').textContent = 'Edit Rice Variety';
   document.getElementById('prodEditId').value = p.id;
   document.getElementById('prodName').value = p.name;
+  document.getElementById('prodOrigin').value = p.origin;
+  document.getElementById('prodRiceType').value = p.riceType;
   document.getElementById('prodCategory').value = p.category;
   document.getElementById('prodPriceSack').value = p.priceSack;
   document.getElementById('prodPriceKg').value = p.priceKg;
+  document.getElementById('prodPrice5kg').value = p.price5kg;
+  document.getElementById('prodPrice10kg').value = p.price10kg;
+  document.getElementById('prodPrice20kg').value = p.price20kg;
   document.getElementById('prodKgPerSack').value = p.kgPerSack;
   document.getElementById('prodThresholdKg').value = p.thresholdKg;
   document.getElementById('initialStockRow').style.display = 'none';
@@ -106,9 +147,14 @@ async function handleProductSubmit(e) {
 
   const editId = document.getElementById('prodEditId').value;
   const name = document.getElementById('prodName').value.trim();
+  const origin = document.getElementById('prodOrigin').value;
+  const riceType = document.getElementById('prodRiceType').value.trim();
   const category = document.getElementById('prodCategory').value.trim();
   const priceSack = parseFloat(document.getElementById('prodPriceSack').value);
   const priceKg = parseFloat(document.getElementById('prodPriceKg').value);
+  const price5kg = parseFloat(document.getElementById('prodPrice5kg').value) || (priceKg * 5);
+  const price10kg = parseFloat(document.getElementById('prodPrice10kg').value) || (priceKg * 10);
+  const price20kg = parseFloat(document.getElementById('prodPrice20kg').value) || (priceKg * 20);
   const kgPerSack = parseInt(document.getElementById('prodKgPerSack').value) || 50;
   const thresholdKg = parseFloat(document.getElementById('prodThresholdKg').value) || 200;
 
@@ -131,9 +177,14 @@ async function handleProductSubmit(e) {
       body = {
         productId: editId,
         name,
+        origin,
+        riceType,
         category,
         priceSack,
         priceKg,
+        price5kg,
+        price10kg,
+        price20kg,
         kgPerSack,
         thresholdKg
       };
@@ -142,16 +193,27 @@ async function handleProductSubmit(e) {
 
       const initialSacks = parseInt(document.getElementById('prodInitialSacks').value) || 0;
       const initialKg = parseFloat(document.getElementById('prodInitialKg').value) || 0;
+      const packaged5kg = parseInt(document.getElementById('prodInitial5kg').value) || 0;
+      const packaged10kg = parseInt(document.getElementById('prodInitial10kg').value) || 0;
+      const packaged20kg = parseInt(document.getElementById('prodInitial20kg').value) || 0;
 
       body = {
         name,
+        origin,
+        riceType,
         category,
         priceSack,
         priceKg,
+        price5kg,
+        price10kg,
+        price20kg,
         kgPerSack,
         thresholdKg,
         initialSacks,
-        initialKg
+        initialKg,
+        packaged5kg,
+        packaged10kg,
+        packaged20kg
       };
     }
 

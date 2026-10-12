@@ -24,13 +24,18 @@
           
           <!-- Left: Product Selection Panel -->
           <div class="pos-products-panel">
-            <div class="pos-header-bar">
-              <div class="search-box">
+            <div class="pos-header-bar" style="flex-wrap:wrap; gap:8px;">
+              <div class="search-box" style="flex:1; min-width:180px;">
                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-                <input type="text" id="searchProduct" class="form-control" placeholder="Search rice variety or category...">
+                <input type="text" id="searchProduct" class="form-control" placeholder="Search rice variety, origin, or type...">
               </div>
-              <select id="filterCategory" class="form-select" style="width: 180px;">
-                <option value="all">All Categories</option>
+              <select id="filterOrigin" class="form-select" style="width: 130px;">
+                <option value="all">All Origins</option>
+                <option value="Local">Local</option>
+                <option value="Imported">Imported</option>
+              </select>
+              <select id="filterCategory" class="form-select" style="width: 150px;">
+                <option value="all">All Rice Types</option>
               </select>
             </div>
 

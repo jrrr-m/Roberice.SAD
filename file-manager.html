@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>File Management - Roberice POS & Inventory System</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <div class="app-container">
+    <main class="main-wrapper">
+      <div class="page-container">
+        
+        <!-- Page Header -->
+        <div class="page-header">
+          <div class="page-title">
+            <h2>File & Document Management</h2>
+            <p>Organize store receipts, supplier delivery invoices, audit records, and database backup files.</p>
+          </div>
+          <div style="display:flex; gap:10px;">
+            <button class="btn btn-secondary" id="btnQuickBackup">
+              <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path></svg>
+              One-Click Database Backup
+            </button>
+            <button class="btn btn-primary" id="btnOpenUploadModal">
+              <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+              Upload New Document
+            </button>
+          </div>
+        </div>
+
+        <!-- Storage Summary Cards -->
+        <div class="stats-grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 24px;">
+          <div class="stat-card">
+            <div class="stat-info">
+              <span class="stat-label">Stored Documents</span>
+              <span class="stat-value" id="statFileCount">0 files</span>
+              <span class="stat-subtext">Active archive records</span>
+            </div>
+            <div class="stat-icon-box blue">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-info">
+              <span class="stat-label">Total Storage Used</span>
+              <span class="stat-value" id="statStorageUsed">0 KB</span>
+              <span class="stat-subtext">In /uploads folder</span>
+            </div>
+            <div class="stat-icon-box green">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"></path></svg>
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-info">
+              <span class="stat-label">Latest Database Backup</span>
+              <span class="stat-value" id="statLatestBackup" style="font-size: 15px;">None</span>
+              <span class="stat-subtext">Automated snapshot</span>
+            </div>
+            <div class="stat-icon-box purple">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg>
+            </div>
+          </div>
+        </div>
+
+        <!-- Files List Card -->
+        <div class="card">
+          <!-- Filter Controls -->
+          <div class="filter-bar">
+            <div class="search-box">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+              <input type="text" id="searchFile" class="form-control" placeholder="Search file name, notes, or category...">
+            </div>
+
+            <div class="filter-actions">
+              <select id="filterCategory" class="form-select" style="width: 220px;">
+                <option value="all">All File Categories</option>
+                <option value="Supplier Invoice">Supplier Invoices & DR</option>
+                <option value="Sales Report">Sales Reports & Exports</option>
+                <option value="Inventory Audit">Inventory Audits & Counts</option>
+                <option value="Product Document">Product Documents & Certs</option>
+                <option value="Database Backup">Database Backups (.sql)</option>
+                <option value="General">General Documents</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Files Table -->
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>File Name</th>
+                  <th>Category</th>
+                  <th>Size</th>
+                  <th>Description / Notes</th>
+                  <th>Uploaded By</th>
+                  <th>Date & Time</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="filesTableBody">
+                <!-- Rendered via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- Upload Modal -->
+  <div class="modal-overlay" id="modalUploadFile">
+    <div class="modal-card" style="max-width: 520px;">
+      <div class="modal-header">
+        <h3>Upload Store Document</h3>
+        <button class="modal-close" onclick="closeModal('modalUploadFile')">&times;</button>
+      </div>
+      <form id="uploadFileForm">
+        <div class="modal-body">
+          
+          <div class="form-group">
+            <label for="inputFile">Select File to Upload</label>
+            <input type="file" id="inputFile" class="form-control" required>
+            <span style="font-size:11px;color:var(--text-muted);">Supported formats: PDF, CSV, Excel, TXT, DOCX, PNG, JPG, SQL (Max 25MB).</span>
+          </div>
+
+          <div class="form-group">
+            <label for="inputCategory">Document Category</label>
+            <select id="inputCategory" class="form-select" required>
+              <option value="Supplier Invoice">Supplier Invoice & Delivery Receipt (DR)</option>
+              <option value="Sales Report">Sales Report & Monthly Statement</option>
+              <option value="Inventory Audit">Inventory Audit & Spoilage Incident</option>
+              <option value="Product Document">Rice Quality Certification / Guide</option>
+              <option value="Database Backup">Database Backup & Export</option>
+              <option value="General">General Store Document</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="inputDescription">Description / Note</label>
+            <textarea id="inputDescription" class="form-control" rows="3" placeholder="Enter details or supplier reference (e.g. Rice shipment from Nueva Ecija, 100 sacks)..."></textarea>
+          </div>
+
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('modalUploadFile')">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="btnSubmitUpload">Upload File</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="js/data.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/file-manager.js"></script>
+</body>
+</html>

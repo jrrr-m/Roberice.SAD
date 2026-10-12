@@ -8,10 +8,25 @@ try {
             p.product_id,
             p.product_name,
             p.category,
+            p.origin,
+            p.rice_type,
             p.kg_per_sack,
+            p.price_sack,
+            p.price_kg,
+            p.price_5kg,
+            p.price_10kg,
+            p.price_20kg,
+            i.inventory_id,
             i.stock_sacks,
             i.stock_kg,
-            i.reorder_level_kg
+            i.packaged_5kg,
+            i.packaged_10kg,
+            i.packaged_20kg,
+            i.received_date,
+            i.batch_number,
+            DATEDIFF(CURRENT_DATE, COALESCE(i.received_date, CURRENT_DATE)) AS days_old,
+            i.reorder_level_kg,
+            i.last_updated
         FROM product p
         LEFT JOIN inventory i ON p.product_id = i.product_id
         WHERE p.product_status = 'Active'

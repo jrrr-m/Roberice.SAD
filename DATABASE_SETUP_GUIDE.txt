@@ -1,0 +1,24 @@
+See DATABASE_SETUP_GUIDE.txt for the complete guide.
+================================================================================
+ROBERICE POS & INVENTORY MANAGEMENT SYSTEM
+XAMPP DATABASE SETUP & INSTALLATION GUIDE
+================================================================================
+
+PROJECT NAME: Roberice POS & Inventory System
+DATABASE NAME: roberice_db
+SQL DUMP FILE: database/roberice_db.sql
+CONFIGURATION: api/db.php
+
+--------------------------------------------------------------------------------
+1. QUICK START IN 3 STEPS
+--------------------------------------------------------------------------------
+1. Start XAMPP Control Panel -> Click Start on Apache and MySQL.
+2. Open Browser -> Go to http://localhost/phpmyadmin
+   - Click "New", enter database name: roberice_db (Collation: utf8mb4_general_ci), click "Create".
+   - Click "Import", choose "database/roberice_db.sql", and click "Import".
+3. Open http://localhost/Roberice%20-%20SAD/login.html
+   - Login as Admin: admin / admin123
+   - Login as Cashier: cashier1 / cashier123
+
+For the full detailed documentation, troubleshooting steps, and professor comment feature references, please open:
+DATABASE_SETUP_GUIDE.txt

@@ -21,14 +21,36 @@
 
         <div class="card">
           <!-- Filter Controls -->
-          <div class="filter-bar">
-            <div class="search-box">
+          <div class="filter-bar" style="flex-wrap:wrap; gap:10px;">
+            <div class="search-box" style="flex:1; min-width:200px;">
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-              <input type="text" id="searchInventory" class="form-control" placeholder="Search by variety name or category...">
+              <input type="text" id="searchInventory" class="form-control" placeholder="Search variety, origin, or type...">
             </div>
 
-            <div class="filter-actions">
-              <select id="filterStatus" class="form-select" style="width: 160px;">
+            <div class="filter-actions" style="display:flex; flex-wrap:wrap; gap:8px;">
+              <!-- Origin Filter -->
+              <select id="filterOrigin" class="form-select" style="width: 140px;">
+                <option value="all">All Origins</option>
+                <option value="Local">Local Rice</option>
+                <option value="Imported">Imported Rice</option>
+              </select>
+
+              <!-- Rice Type Filter -->
+              <select id="filterRiceType" class="form-select" style="width: 160px;">
+                <option value="all">All Rice Types</option>
+              </select>
+
+              <!-- Stock Age Filter -->
+              <select id="filterStockAge" class="form-select" style="width: 170px;">
+                <option value="all">All Stock Ages</option>
+                <option value="fresh">Fresh (&lt; 15 days)</option>
+                <option value="normal">Normal (15 - 30 days)</option>
+                <option value="aging">Aging (31 - 60 days)</option>
+                <option value="old">Old Stock (&gt; 60 days)</option>
+              </select>
+
+              <!-- Status Filter -->
+              <select id="filterStatus" class="form-select" style="width: 140px;">
                 <option value="all">All Statuses</option>
                 <option value="instock">In Stock</option>
                 <option value="lowstock">Low Stock</option>
@@ -43,12 +65,14 @@
               <thead>
                 <tr>
                   <th>Rice Variety</th>
-                  <th>Category</th>
+                  <th>Origin & Grain</th>
                   <th>Sack Price</th>
-                  <th>Kg Price</th>
+                  <th>Per Kg (Tinatakal)</th>
                   <th>Sacks Left</th>
-                  <th>Kg Left</th>
-                  <th>Formatted Stock</th>
+                  <th>Packs (5k / 10k / 20k)</th>
+                  <th>Loose / Tinatakal</th>
+                  <th>Total Volume</th>
+                  <th>Stock Age & Batch</th>
                   <th>Status</th>
                 </tr>
               </thead>

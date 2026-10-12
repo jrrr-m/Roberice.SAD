@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sales Report - Roberice POS & Inventory System</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <div class="app-container">
+    <main class="main-wrapper">
+      <div class="page-container">
+        
+        <!-- Page Header -->
+        <div class="page-header">
+          <div class="page-title">
+            <h2>Sales Performance & Reports</h2>
+            <p>Comprehensive store revenue reports, variety sales volume, and print-ready statements.</p>
+          </div>
+          <div style="display:flex;gap:10px;">
+            <button class="btn btn-secondary" id="btnExportCSV">
+              <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+              Export CSV
+            </button>
+            <button class="btn btn-primary" id="btnOpenPrintReport">
+              <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+              Print Sales Report
+            </button>
+          </div>
+        </div>
+
+        <!-- Filter Controls Card -->
+        <div class="card" style="margin-bottom: 24px;">
+          <div class="card-title" style="margin-bottom: 14px;">
+            <span>Report Filters & Period Selection</span>
+            <span class="period-tag" id="currentPeriodDisplay" style="font-size: 13px; color: var(--primary); font-weight: 700;">
+              Period: September 2026
+            </span>
+          </div>
+
+          <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end;">
+            <!-- Quick Preset Dropdown -->
+            <div class="form-group" style="margin-bottom:0; min-width: 170px;">
+              <label for="filterPeriodPreset">Quick Preset Period</label>
+              <select id="filterPeriodPreset" class="form-select">
+                <option value="september_2026" selected>September 2026 (Class Demo)</option>
+                <option value="this_month">Current Month</option>
+                <option value="all_time">All Recorded History</option>
+                <option value="today">Today Only</option>
+                <option value="custom">Custom Date Range...</option>
+              </select>
+            </div>
+
+            <!-- Specific Month Selector -->
+            <div class="form-group" id="monthPickerGroup" style="margin-bottom:0; min-width: 150px;">
+              <label for="filterMonthInput">Target Month</label>
+              <input type="month" id="filterMonthInput" class="form-control" value="2026-09">
+            </div>
+
+            <!-- Custom Date Range -->
+            <div class="form-group" id="customStartGroup" style="margin-bottom:0; display:none;">
+              <label for="filterStartDate">Start Date</label>
+              <input type="date" id="filterStartDate" class="form-control">
+            </div>
+
+            <div class="form-group" id="customEndGroup" style="margin-bottom:0; display:none;">
+              <label for="filterEndDate">End Date</label>
+              <input type="date" id="filterEndDate" class="form-control">
+            </div>
+
+            <!-- Origin Filter -->
+            <div class="form-group" style="margin-bottom:0; min-width: 140px;">
+              <label for="filterOrigin">Rice Origin</label>
+              <select id="filterOrigin" class="form-select">
+                <option value="all">All Origins</option>
+                <option value="Local">Local Rice</option>
+                <option value="Imported">Imported Rice</option>
+              </select>
+            </div>
+
+            <!-- Cashier Filter -->
+            <div class="form-group" style="margin-bottom:0; min-width: 150px;">
+              <label for="filterCashier">Cashier</label>
+              <select id="filterCashier" class="form-select">
+                <option value="all">All Cashiers</option>
+              </select>
+            </div>
+
+            <!-- Payment Method -->
+            <div class="form-group" style="margin-bottom:0; min-width: 140px;">
+              <label for="filterPayment">Payment</label>
+              <select id="filterPayment" class="form-select">
+                <option value="all">All Methods</option>
+                <option value="Cash">Cash</option>
+                <option value="GCash">GCash</option>
+                <option value="Bank Transfer">Bank Transfer</option>
+              </select>
+            </div>
+
+            <div style="display:flex; gap:8px;">
+              <button class="btn btn-primary" id="btnApplyFilter">Apply Filter</button>
+              <button class="btn btn-secondary" id="btnResetFilter">Reset</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Metric KPI Cards -->
+        <div class="stats-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 24px;">
+          <div class="stat-card">
+            <div class="stat-info">
+              <span class="stat-label">Total Gross Sales</span>
+              <span class="stat-value" id="kpiTotalRevenue" style="color: var(--primary);">₱0.00</span>
+              <span class="stat-subtext" id="kpiRevenueSub">100% Cash & Electronic</span>
+            </div>
+            <div class="stat-icon-box green">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-info">
+              <span class="stat-label">Transactions Count</span>
+              <span class="stat-value" id="kpiTxnCount">0</span>
+              <span class="stat-subtext" id="kpiAvgTxn">Avg: ₱0.00 / txn</span>
+            </div>
+            <div class="stat-icon-box blue">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-info">
+              <span class="stat-label">Sacks & Volume Sold</span>
+              <span class="stat-value" id="kpiSacksSold">0 sacks</span>
+              <span class="stat-subtext" id="kpiTotalKgSold">0 kg total equivalent</span>
+            </div>
+            <div class="stat-icon-box purple">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
+            </div>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-info">
+              <span class="stat-label">Packaging Breakdown</span>
+              <span class="stat-value" id="kpiPacksSold">0 packs</span>
+              <span class="stat-subtext" id="kpiTinatakalKg">0 kg tinatakal</span>
+            </div>
+            <div class="stat-icon-box amber">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+            </div>
+          </div>
+        </div>
+
+        <!-- Variety Breakdown Table Card -->
+        <div class="card" style="margin-bottom: 24px;">
+          <div class="card-title">Sales Volume & Revenue by Rice Variety</div>
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Rice Variety</th>
+                  <th>Origin</th>
+                  <th>Grain Type</th>
+                  <th>Sacks</th>
+                  <th>5kg Packs</th>
+                  <th>10kg Packs</th>
+                  <th>20kg Packs</th>
+                  <th>Tinatakal (Kg)</th>
+                  <th>Total Volume</th>
+                  <th>Total Revenue</th>
+                  <th>% Share</th>
+                </tr>
+              </thead>
+              <tbody id="varietyReportTableBody">
+                <!-- Rendered via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Transactions Log Table Card -->
+        <div class="card">
+          <div class="card-title">Completed Transaction Details</div>
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Txn ID</th>
+                  <th>Date / Time</th>
+                  <th>Cashier</th>
+                  <th>Items & Units</th>
+                  <th>Payment</th>
+                  <th>Total Amount</th>
+                </tr>
+              </thead>
+              <tbody id="txnReportTableBody">
+                <!-- Rendered via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- Printable Official Sales Report Modal -->
+  <div class="modal-overlay" id="modalPrintReport">
+    <div class="modal-card" style="max-width: 800px; width: 90%;">
+      <div class="modal-header no-print">
+        <h3>Print Official Sales Report</h3>
+        <button class="modal-close" onclick="closeModal('modalPrintReport')">&times;</button>
+      </div>
+
+      <div class="modal-body printable-area">
+        <div class="print-report-sheet" id="printReportContainer">
+          <!-- Dynamically populated for printing -->
+        </div>
+      </div>
+
+      <div class="modal-footer no-print">
+        <button class="btn btn-secondary" onclick="closeModal('modalPrintReport')">Close</button>
+        <button class="btn btn-primary" onclick="window.print()">
+          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+          Print Sheet
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="js/data.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/sales-report.js"></script>
+</body>
+</html>

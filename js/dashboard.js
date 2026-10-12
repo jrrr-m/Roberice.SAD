@@ -32,12 +32,18 @@ async function loadDashboardData() {
       id: String(p.product_id),
       name: p.product_name,
       category: p.category,
-      priceSack: Number(p.price_sack),
-      priceKg: Number(p.price_kg),
-      kgPerSack: Number(p.kg_per_sack),
-      stockSacks: Number(p.stock_sacks),
-      stockKg: Number(p.stock_kg),
-      thresholdKg: Number(p.reorder_level_kg),
+      origin: p.origin || 'Local',
+      riceType: p.rice_type || p.category || 'White Rice',
+      priceSack: Number(p.price_sack || 0),
+      priceKg: Number(p.price_kg || 0),
+      kgPerSack: Number(p.kg_per_sack || 50),
+      stockSacks: Number(p.stock_sacks || 0),
+      stockKg: Number(p.stock_kg || 0),
+      packaged5kg: Number(p.packaged_5kg || 0),
+      packaged10kg: Number(p.packaged_10kg || 0),
+      packaged20kg: Number(p.packaged_20kg || 0),
+      thresholdKg: Number(p.reorder_level_kg || 0),
+      daysOld: Number(p.days_old !== undefined ? p.days_old : 0),
       status: p.product_status
     }));
 
@@ -89,8 +95,11 @@ function loadDashboardMetrics() {
   document.getElementById('statSalesTotal').textContent = `${formatCurrency(salesTotal)} total`;
 
   const lowStockProducts = products.filter(p => isLowStock(p));
-
   document.getElementById('statLowStockCount').textContent = lowStockProducts.length;
+
+  const oldStockCount = products.filter(p => p.daysOld > 60 && (p.stockSacks > 0 || p.stockKg > 0)).length;
+  const oldStockEl = document.getElementById('statOldStockCount');
+  if (oldStockEl) oldStockEl.textContent = oldStockCount;
 
   renderTopSelling(transactions, products);
   renderLowStockAlerts(lowStockProducts);

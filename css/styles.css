@@ -1181,7 +1181,338 @@ body {
     left: 0;
     top: 0;
     width: 100%;
+    background: #fff !important;
+    color: #000 !important;
+    padding: 20px;
   }
+  .no-print {
+    display: none !important;
+  }
+}
+
+/* ==========================================================================
+   New Module Styles: Origin, Packaging, Stock Aging, Reports, Files
+   ========================================================================== */
+
+/* Origin Badges */
+.badge-local {
+  background: #e8f5e9;
+  color: #2e7d32;
+  border: 1px solid #c8e6c9;
+}
+.badge-imported {
+  background: #e0f2fe;
+  color: #0284c7;
+  border: 1px solid #bae6fd;
+}
+
+/* Stock Aging Badges */
+.badge-fresh {
+  background: #dcfce7;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.badge-normal-age {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.badge-aging {
+  background: #fef3c7;
+  color: #b45309;
+  border: 1px solid #fde68a;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.badge-old-stock {
+  background: #fee2e2;
+  color: #b91c1c;
+  border: 1px solid #fca5a5;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  animation: pulse-border 2s infinite;
+}
+
+@keyframes pulse-border {
+  0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+  70% { box-shadow: 0 0 0 4px rgba(239, 68, 68, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
+
+/* Old Stock Alert Banner */
+.old-stock-alert-banner {
+  background: linear-gradient(135deg, #fff1f2 0%, #fee2e2 100%);
+  border: 1px solid #fecdd3;
+  border-left: 4px solid #ef4444;
+  border-radius: var(--radius-md);
+  padding: 12px 18px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  box-shadow: var(--shadow-sm);
+}
+.old-stock-alert-banner .alert-text {
+  color: #991b1b;
+  font-weight: 600;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.old-stock-alert-banner .alert-sub {
+  color: #b91c1c;
+  font-size: 12px;
+  font-weight: normal;
+}
+
+/* Packaging Stock Chips */
+.pack-chips-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+.pack-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  padding: 2px 7px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-main);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  font-weight: 500;
+}
+.pack-chip strong {
+  color: var(--primary);
+}
+
+/* POS Packaging Unit Selector Buttons */
+.pos-unit-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 6px 0;
+}
+.pos-unit-btn {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  color: var(--text-main);
+  transition: all 0.15s ease;
+}
+.pos-unit-btn:hover {
+  border-color: var(--primary);
+  background: var(--primary-light);
+}
+.pos-unit-btn.active {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
+/* Tinatakal Quick Weight Chips */
+.tinatakal-chips-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+}
+.tinatakal-chip {
+  background: var(--bg-main);
+  border: 1px dashed var(--border-color);
+  padding: 2px 6px;
+  font-size: 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+.tinatakal-chip:hover {
+  background: var(--primary-light);
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+/* Sales Report Specific Styling */
+.report-header-banner {
+  background: white;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  margin-bottom: 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: var(--shadow-sm);
+}
+.report-meta-box {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.report-meta-box h3 {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--primary);
+}
+.report-meta-box .period-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+/* Printable Report Sheet Design */
+.print-report-sheet {
+  background: white;
+  padding: 30px;
+  border-radius: var(--radius-md);
+  color: #111;
+  font-family: inherit;
+}
+.print-store-header {
+  text-align: center;
+  border-bottom: 2px double #1f4d32;
+  padding-bottom: 16px;
+  margin-bottom: 20px;
+}
+.print-store-header h1 {
+  font-size: 22px;
+  color: #1f4d32;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+.print-store-header p {
+  font-size: 12px;
+  color: #4b5563;
+  margin-top: 2px;
+}
+.print-report-title {
+  text-align: center;
+  margin-bottom: 20px;
+}
+.print-report-title h2 {
+  font-size: 17px;
+  text-transform: uppercase;
+  color: #111;
+  letter-spacing: 1px;
+}
+.print-report-title span {
+  font-size: 13px;
+  color: #1f4d32;
+  font-weight: 700;
+}
+.print-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 24px;
+  border: 1px solid #e5e7eb;
+  padding: 14px;
+  border-radius: 8px;
+  background: #f9fafb;
+}
+.print-stat-item {
+  display: flex;
+  flex-direction: column;
+}
+.print-stat-item .lbl {
+  font-size: 11px;
+  text-transform: uppercase;
+  color: #6b7280;
+  font-weight: 600;
+}
+.print-stat-item .val {
+  font-size: 16px;
+  font-weight: 700;
+  color: #111;
+  margin-top: 2px;
+}
+.print-signatures {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 40px;
+  margin-top: 40px;
+  padding-top: 20px;
+  border-top: 1px solid #e5e7eb;
+}
+.signature-box {
+  text-align: center;
+}
+.signature-line {
+  border-bottom: 1px solid #111;
+  height: 40px;
+  margin-bottom: 6px;
+}
+.signature-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #374151;
+}
+
+/* File Manager Upload Zone */
+.file-dropzone {
+  border: 2px dashed var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 30px;
+  text-align: center;
+  background: var(--bg-card);
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+.file-dropzone:hover, .file-dropzone.dragover {
+  border-color: var(--primary);
+  background: var(--primary-light);
+}
+.file-type-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+.file-type-sql {
+  background: #eff6ff;
+  color: #2563eb;
+  border: 1px solid #bfdbfe;
+}
+.file-type-csv {
+  background: #ecfdf5;
+  color: #059669;
+  border: 1px solid #a7f3d0;
+}
+.file-type-pdf {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+.file-type-doc {
+  background: #f5f3ff;
+  color: #7c3aed;
+  border: 1px solid #ddd6fe;
 }
 
 /* Responsive adjustments */
