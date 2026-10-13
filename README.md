@@ -52,7 +52,7 @@ Roberice.SAD/
 │   ├── add_product.php         # Create new rice variety
 │   ├── update_product.php      # Edit rice variety details & prices
 │   ├── delete_product.php      # Deactivate or remove product
-│   ├── get_transactions.php    # Retrieve past sales orders
+│   ├── get_transactions.php    # Optimized batch retrieval of past sales orders & line items
 │   ├── get_sales_report.php    # Multi-period sales metrics & variety volume aggregation
 │   ├── get_audit_logs.php      # Retrieve audit history entries
 │   └── file_manager.php        # Upload, delete, and list store documents & filtered CSV exports
@@ -61,7 +61,8 @@ Roberice.SAD/
 │   └── styles.css              # Unified responsive design system & component styles
 │
 ├── 📁 database/
-│   └── roberice_db.sql         # Database schema dump and initial seed data
+│   ├── roberice_db.sql         # Comprehensive database schema & 1-year operational dataset (3,727 transactions)
+│   └── init_db.php             # Automated database installer & instant login router
 │
 ├── 📁 assets/                  # Brand icons and logos
 ├── 📁 uploads/                 # Uploaded files and receipts
@@ -160,7 +161,7 @@ The Sales Report module ([`pages/sales-report.html`](pages/sales-report.html)) p
    - Automatically computes and displays the exact Monday-to-Sunday date range (e.g., `Oct 12, 2026 – Oct 18, 2026`).
    - Generates the `OFFICIAL WEEKLY SALES REPORT` statement.
 3. **🗓️ Monthly Report**:
-   - Select by target month (`input type="month"`), with a **"Demo Mo."** shortcut (September 2026).
+   - Select by target month (`input type="month"`), with a **"Prev Mo."** shortcut (September 2026).
    - Generates the `OFFICIAL MONTHLY SALES REPORT` statement.
 4. **📊 Quarterly Report**:
    - Select by Quarter (Q1: Jan–Mar, Q2: Apr–Jun, Q3: Jul–Sep, Q4: Oct–Dec) and Year.
@@ -174,6 +175,41 @@ The Sales Report module ([`pages/sales-report.html`](pages/sales-report.html)) p
    - Formatted printable sheet designed for official store audits and management sign-offs.
 8. **Period-Filtered CSV Export**:
    - Exports line-item transaction CSVs filtered by the currently active report type and period.
+
+---
+
+## 🚀 Recent Updates & Performance Enhancements
+
+### 1. 📦 Full 1-Year Operational Store Dataset
+The database now contains **365 days of continuous operations** (spanning **October 14, 2025 to October 13, 2026**):
+- **3,727 Completed Sales Transactions**: Totals **₱3,409,087.00** in gross store revenue across all 12 operational months.
+- **4,806 Itemized Order Lines**: Reflects realistic retail basket compositions across all package tiers (`50Kg Whole Sack`, `25Kg Half`, `20Kg`, `10Kg`, `5Kg`, and per-Kg `Tinatakal` loose sales).
+- **Realistic Sales Seasonality**: Incorporates holiday surges (December peak with 400 transactions & ₱362,710.50 revenue), weekend volume increases (Saturdays & Sundays), and mid-month / month-end payday spikes.
+- **12 Authentic Philippine Rice Varieties**: All active with realistic wholesale sack and retail per-kg pricing, calibrated reorder thresholds, and active warehouse lots:
+  1. *Sinandomeng Special* (Premium White, Local)
+  2. *Dinorado Fancy Special* (Aromatic, Local)
+  3. *Jasmine Fragrant Premium* (Fragrant Import, Imported)
+  4. *Angelika White Rice* (Regular Milled, Local)
+  5. *Malagkit Glutinous Rice* (Specialty Rice, Local)
+  6. *IR-64 Well-Milled Rice* (Standard Local, Local)
+  7. *Milagrosa Super Fragrant* (Aromatic, Local)
+  8. *Coco Pandan Premium Aromatic* (Fragrant Import, Imported)
+  9. *Brown Rice Organic Whole Grain* (Healthy Specialty, Local)
+  10. *Japanese Calrose Rice* (Specialty Rice, Imported)
+  11. *Maharlika Premium Long Grain* (Premium White, Local)
+  12. *Super Angelica Supreme* (Premium White, Local)
+- **156 Inventory Delivery Batches**: 132 completed and archived historical batches alongside 24 active in-stock lots totaling **215 whole sacks** and **501 loose Kg**, perfectly synchronized with the live inventory balances.
+- **304 Warehouse Audit & Adjustment Logs**: Detailed logs covering regular mill deliveries (from Central Luzon, Isabela, and Mindoro suppliers), retail sack openings, repacking into smaller consumer bags, and routine inventory count reconciliations.
+- **Registered Management & Backup Records**: Live SQL snapshots and annual financial audit PDF references populated in the File Manager.
+
+### 2. ⚡ Transactions API Query Optimization (`api/get_transactions.php`)
+- **Elimination of N+1 Query Loop**: Previously, fetching transactions executed an individual `SELECT` query for items per transaction (causing over 3,700 queries on a 1-year dataset).
+- **Batched Single-Query Item Indexing**: Refactored to fetch all items in a single indexed query joined with the product catalog and mapped in memory.
+- **Performance Benchmark**: Reduced API response time from **1,165ms down to ~100ms** (~11x speedup), delivering instantaneous load times on the Transactions and Dashboard pages.
+
+### 3. 🔄 Seamless Database Setup & Router (`database/init_db.php`)
+- Integrated multi-statement SQL execution directly importing [`database/roberice_db.sql`](database/roberice_db.sql) if tables are uninitialized or when performing a clean wipe via `?fresh=1`.
+- Skips re-execution and routes immediately to the login page when the database is already primed.
 
 ---
 
