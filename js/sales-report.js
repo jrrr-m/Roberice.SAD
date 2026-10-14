@@ -177,9 +177,9 @@ function bindFilterEvents() {
     });
   }
 
-  const btnMonthDemo = document.getElementById('btnMonthDemo');
-  if (btnMonthDemo) {
-    btnMonthDemo.addEventListener('click', () => {
+  const btnMonthPrev = document.getElementById('btnMonthPrev') || document.getElementById('btnMonthDemo');
+  if (btnMonthPrev) {
+    btnMonthPrev.addEventListener('click', () => {
       const monthInput = document.getElementById('filterMonthInput');
       if (monthInput) {
         monthInput.value = '2026-09';
