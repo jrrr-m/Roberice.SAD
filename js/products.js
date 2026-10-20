@@ -17,7 +17,51 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
   document.getElementById('productForm').addEventListener('submit', handleProductSubmit);
+
+  const prodNameInput = document.getElementById('prodName');
+  const prodRiceTypeInput = document.getElementById('prodRiceType');
+  const prodCategoryInput = document.getElementById('prodCategory');
+  if (prodNameInput) prodNameInput.addEventListener('input', checkDuplicateProductLive);
+  if (prodRiceTypeInput) prodRiceTypeInput.addEventListener('input', checkDuplicateProductLive);
+  if (prodCategoryInput) prodCategoryInput.addEventListener('input', checkDuplicateProductLive);
 });
+
+function checkDuplicateProductLive() {
+  const alertEl = document.getElementById('productDuplicateAlert');
+  const nameInput = document.getElementById('prodName');
+  const riceTypeInput = document.getElementById('prodRiceType');
+  const categoryInput = document.getElementById('prodCategory');
+  const editId = document.getElementById('prodEditId') ? document.getElementById('prodEditId').value.trim() : '';
+
+  const name = nameInput ? nameInput.value.trim() : '';
+  const riceType = (riceTypeInput && riceTypeInput.value.trim()) || (categoryInput && categoryInput.value.trim()) || '';
+
+  if (!name || !riceType) {
+    if (alertEl) alertEl.style.display = 'none';
+    if (nameInput) nameInput.style.borderColor = '';
+    if (riceTypeInput) riceTypeInput.style.borderColor = '';
+    return false;
+  }
+
+  const isDuplicate = productsCache.some(p => {
+    if (editId && String(p.id) === String(editId)) return false;
+    const pName = (p.name || '').trim().toLowerCase();
+    const pRiceType = (p.riceType || p.category || 'White Rice').trim().toLowerCase();
+    return pName === name.toLowerCase() && pRiceType === riceType.toLowerCase();
+  });
+
+  if (alertEl) {
+    alertEl.style.display = isDuplicate ? 'block' : 'none';
+  }
+  if (nameInput) {
+    nameInput.style.borderColor = isDuplicate ? '#dc2626' : '';
+  }
+  if (riceTypeInput) {
+    riceTypeInput.style.borderColor = isDuplicate ? '#dc2626' : '';
+  }
+
+  return isDuplicate;
+}
 
 async function renderProductsTable() {
   const tbody = document.getElementById('productsTableBody');
@@ -116,6 +160,7 @@ function openAddProductModal() {
   document.getElementById('prodRiceType').value = '';
   document.getElementById('prodCategory').value = 'Regular Milled';
   document.getElementById('prodPriceSack').value = '';
+  document.getElementById('prodPrice25kg').value = '';
   document.getElementById('prodPriceKg').value = '';
   document.getElementById('prodPrice5kg').value = '';
   document.getElementById('prodPrice10kg').value = '';
@@ -124,10 +169,19 @@ function openAddProductModal() {
   document.getElementById('prodThresholdKg').value = '200';
   document.getElementById('initialStockRow').style.display = 'block';
   document.getElementById('prodInitialSacks').value = '10';
+  document.getElementById('prodInitial25kg').value = '0';
   document.getElementById('prodInitialKg').value = '0';
   document.getElementById('prodInitial5kg').value = '5';
   document.getElementById('prodInitial10kg').value = '3';
   document.getElementById('prodInitial20kg').value = '1';
+
+  const alertEl = document.getElementById('productDuplicateAlert');
+  if (alertEl) alertEl.style.display = 'none';
+  const nameInput = document.getElementById('prodName');
+  const riceTypeInput = document.getElementById('prodRiceType');
+  if (nameInput) nameInput.style.borderColor = '';
+  if (riceTypeInput) riceTypeInput.style.borderColor = '';
+
   openModal('modalProductForm');
 }
 
@@ -150,6 +204,13 @@ function openEditProductModal(productId) {
   document.getElementById('prodKgPerSack').value = 50;
   document.getElementById('prodThresholdKg').value = p.thresholdKg;
   document.getElementById('initialStockRow').style.display = 'none';
+
+  const alertEl = document.getElementById('productDuplicateAlert');
+  if (alertEl) alertEl.style.display = 'none';
+  const nameInput = document.getElementById('prodName');
+  const riceTypeInput = document.getElementById('prodRiceType');
+  if (nameInput) nameInput.style.borderColor = '';
+  if (riceTypeInput) riceTypeInput.style.borderColor = '';
 
   openModal('modalProductForm');
 }
@@ -178,6 +239,32 @@ async function handleProductSubmit(e) {
 
   if (priceSack < 0 || priceKg < 0) {
     showToast('Prices cannot be negative values.', 'warning');
+    return;
+  }
+
+  // Data duplication check: Ensure same product name and rice type does not already exist
+  const resolvedRiceType = riceType || category || 'White Rice';
+  const isDuplicate = productsCache.some(p => {
+    if (editId && String(p.id) === String(editId)) return false;
+    const pName = (p.name || '').trim().toLowerCase();
+    const pRiceType = (p.riceType || p.category || 'White Rice').trim().toLowerCase();
+    return pName === name.toLowerCase() && pRiceType === resolvedRiceType.toLowerCase();
+  });
+
+  if (isDuplicate) {
+    showToast('A product with this name and rice type already exists.', 'warning');
+    const alertEl = document.getElementById('productDuplicateAlert');
+    if (alertEl) {
+      alertEl.textContent = '⚠️ A product with this name and rice type already exists.';
+      alertEl.style.display = 'block';
+    }
+    const nameInput = document.getElementById('prodName');
+    if (nameInput) {
+      nameInput.focus();
+      nameInput.style.borderColor = '#dc2626';
+    }
+    const riceTypeInput = document.getElementById('prodRiceType');
+    if (riceTypeInput) riceTypeInput.style.borderColor = '#dc2626';
     return;
   }
 
@@ -254,6 +341,17 @@ async function handleProductSubmit(e) {
       renderProductsTable();
     } else {
       showToast(result.message || 'Something went wrong.', 'warning');
+      if (result.message && result.message.toLowerCase().includes('already exists')) {
+        const alertEl = document.getElementById('productDuplicateAlert');
+        if (alertEl) {
+          alertEl.textContent = '⚠️ ' + result.message;
+          alertEl.style.display = 'block';
+        }
+        const nameInput = document.getElementById('prodName');
+        if (nameInput) nameInput.style.borderColor = '#dc2626';
+        const riceTypeInput = document.getElementById('prodRiceType');
+        if (riceTypeInput) riceTypeInput.style.borderColor = '#dc2626';
+      }
     }
   } catch (error) {
     console.error(error);

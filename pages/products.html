@@ -54,6 +54,9 @@
       <form id="productForm">
         <input type="hidden" id="prodEditId" value="">
         <div class="modal-body">
+          <div id="productDuplicateAlert" style="display:none; margin-bottom: 14px; padding: 10px 14px; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 6px; color: #dc2626; font-size: 13px; font-weight: 500;">
+            ⚠️ A product with this name and rice type already exists.
+          </div>
           <div class="form-row">
             <div class="form-group">
               <label for="prodName">Rice Variety Name</label>
@@ -167,6 +170,6 @@
   <script src="../js/data.js"></script>
   <script src="../js/utils.js"></script>
   <script src="../js/auth.js?v=3"></script>
-  <script src="../js/products.js?v=2"></script>
+  <script src="../js/products.js?v=3"></script>
 </body>
 </html>
