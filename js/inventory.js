@@ -54,7 +54,7 @@ async function initInventoryPage() {
     if (el && el.tagName === 'SELECT') el.addEventListener('change', validateOpenSackLive);
   });
 
-  const restockInputs = ['restockProductSelect', 'restockDate', 'restockBatch', 'restockSacks', 'restockKg', 'restock5kg', 'restock10kg', 'restock20kg'];
+  const restockInputs = ['restockProductSelect', 'restockDate', 'restockBatch', 'restockSacks', 'restockKg', 'restock25kg', 'restock20kg', 'restock10kg', 'restock5kg'];
   restockInputs.forEach(id => {
     const el = document.getElementById(id);
     if (el) el.addEventListener('input', validateRestockLive);
@@ -66,15 +66,19 @@ async function initInventoryPage() {
   const selAdjType = document.getElementById('adjustType');
   if (selAdjProd) selAdjProd.addEventListener('change', () => {
     updateAdjustBatches();
+    populateAdjustFormFields();
     updateAdjustRepackPreview();
   });
-  if (selAdjType) selAdjType.addEventListener('change', updateAdjustTypeUI);
-  ['adjust5kg', 'adjust10kg', 'adjust20kg'].forEach(id => {
+  if (selAdjType) selAdjType.addEventListener('change', () => {
+    updateAdjustTypeUI();
+    populateAdjustFormFields();
+  });
+  ['adjust25kg', 'adjust20kg', 'adjust10kg', 'adjust5kg'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.addEventListener('input', updateAdjustRepackPreview);
   });
 
-  const adjustInputs = ['adjustProductSelect', 'adjustBatchSelect', 'adjustType', 'adjustNote', 'adjustSacks', 'adjustKg', 'adjust5kg', 'adjust10kg', 'adjust20kg'];
+  const adjustInputs = ['adjustProductSelect', 'adjustBatchSelect', 'adjustType', 'adjustNote', 'adjustSacks', 'adjustKg', 'adjust25kg', 'adjust20kg', 'adjust10kg', 'adjust5kg'];
   adjustInputs.forEach(id => {
     const el = document.getElementById(id);
     if (el) el.addEventListener('input', validateAdjustLive);
@@ -155,7 +159,7 @@ function validateRestockLive() {
   if (dateInput && dateInput.value) dateInput.style.borderColor = '';
   if (batchInput && batchInput.value.trim()) batchInput.style.borderColor = '';
 
-  const qtyIds = ['restockSacks', 'restockKg', 'restock5kg', 'restock10kg', 'restock20kg'];
+  const qtyIds = ['restockSacks', 'restockKg', 'restock25kg', 'restock20kg', 'restock10kg', 'restock5kg'];
   let hasNegative = false;
 
   qtyIds.forEach(id => {
@@ -189,7 +193,7 @@ function validateAdjustLive() {
   if (typeSelect && typeSelect.value) typeSelect.style.borderColor = '';
   if (noteInput && noteInput.value.trim()) noteInput.style.borderColor = '';
 
-  const qtyIds = ['adjustSacks', 'adjustKg', 'adjust5kg', 'adjust10kg', 'adjust20kg'];
+  const qtyIds = ['adjustSacks', 'adjustKg', 'adjust25kg', 'adjust20kg', 'adjust10kg', 'adjust5kg'];
   let hasNegative = false;
 
   qtyIds.forEach(id => {
@@ -471,23 +475,24 @@ function populateProductSelect(selectId, productId = null) {
   const select = document.getElementById(selectId);
   select.innerHTML = inventoryCache.map(p => `
     <option value="${p.id}" ${p.id === productId ? 'selected' : ''}>
-      ${p.name} [${p.origin}] - Current: ${p.stockSacks} sacks, ${p.stockKg} kg (Packs: ${p.packaged5kg}x 5Kg, ${p.packaged10kg}x 10Kg, ${p.packaged20kg}x 20Kg)
+      ${p.name} [${p.origin}] - Current: ${p.stockSacks} sacks, ${p.packaged25kg}x 25kg, ${p.stockKg} kg (Packs: ${p.packaged20kg}x 20Kg, ${p.packaged10kg}x 10Kg, ${p.packaged5kg}x 5Kg)
     </option>
   `).join('');
 }
 
 function openRestockModal(productId = null) {
   populateProductSelect('restockProductSelect', productId);
-  const resetIds = ['restockProductSelect', 'restockSacks', 'restockKg', 'restock5kg', 'restock10kg', 'restock20kg', 'restockDate', 'restockBatch'];
+  const resetIds = ['restockProductSelect', 'restockSacks', 'restockKg', 'restock25kg', 'restock20kg', 'restock10kg', 'restock5kg', 'restockDate', 'restockBatch'];
   resetIds.forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.borderColor = '';
   });
   document.getElementById('restockSacks').value = '0';
   document.getElementById('restockKg').value = '0';
-  document.getElementById('restock5kg').value = '0';
-  document.getElementById('restock10kg').value = '0';
+  document.getElementById('restock25kg').value = '0';
   document.getElementById('restock20kg').value = '0';
+  document.getElementById('restock10kg').value = '0';
+  document.getElementById('restock5kg').value = '0';
   document.getElementById('restockDate').value = new Date().toISOString().split('T')[0];
   document.getElementById('restockBatch').value = `BATCH-${dateCode()}`;
   hideInventoryAlert('restock');
@@ -497,21 +502,42 @@ function openRestockModal(productId = null) {
 function openAdjustModal(productId = null) {
   populateProductSelect('adjustProductSelect', productId);
   updateAdjustBatches();
-  const resetIds = ['adjustProductSelect', 'adjustBatchSelect', 'adjustType', 'adjustSacks', 'adjustKg', 'adjust5kg', 'adjust10kg', 'adjust20kg', 'adjustNote'];
+  const resetIds = ['adjustProductSelect', 'adjustBatchSelect', 'adjustType', 'adjustSacks', 'adjustKg', 'adjust25kg', 'adjust20kg', 'adjust10kg', 'adjust5kg', 'adjustNote'];
   resetIds.forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.borderColor = '';
   });
-  document.getElementById('adjustType').value = 'repack';
-  document.getElementById('adjustSacks').value = '0';
-  document.getElementById('adjustKg').value = '0';
-  document.getElementById('adjust5kg').value = '0';
-  document.getElementById('adjust10kg').value = '0';
-  document.getElementById('adjust20kg').value = '0';
+  document.getElementById('adjustType').value = 'correction';
+  populateAdjustFormFields();
   document.getElementById('adjustNote').value = '';
   hideInventoryAlert('adjust');
   updateAdjustTypeUI();
   openModal('modalStockAdjust');
+}
+
+function populateAdjustFormFields() {
+  const prodSelect = document.getElementById('adjustProductSelect');
+  const typeSelect = document.getElementById('adjustType');
+  if (!prodSelect || !typeSelect) return;
+
+  const product = inventoryCache.find(p => p.id === prodSelect.value);
+  if (!product) return;
+
+  if (typeSelect.value === 'correction') {
+    document.getElementById('adjustSacks').value = product.stockSacks || 0;
+    document.getElementById('adjustKg').value = product.stockKg || 0;
+    document.getElementById('adjust25kg').value = product.packaged25kg || 0;
+    document.getElementById('adjust20kg').value = product.packaged20kg || 0;
+    document.getElementById('adjust10kg').value = product.packaged10kg || 0;
+    document.getElementById('adjust5kg').value = product.packaged5kg || 0;
+  } else {
+    document.getElementById('adjustSacks').value = 0;
+    document.getElementById('adjustKg').value = 0;
+    document.getElementById('adjust25kg').value = 0;
+    document.getElementById('adjust20kg').value = 0;
+    document.getElementById('adjust10kg').value = 0;
+    document.getElementById('adjust5kg').value = 0;
+  }
 }
 
 function updateAdjustBatches() {
@@ -524,7 +550,7 @@ function updateAdjustBatches() {
 
   if (product.batches && product.batches.length > 0) {
     batchSelect.innerHTML = product.batches.map(b => {
-      return `<option value="${b.batch_code}">${b.batch_code} (${b.stock_sacks} sacks, ${Number(b.stock_kg).toFixed(1)} kg loose • ${b.days_old}d old)</option>`;
+      return `<option value="${b.batch_code}">${b.batch_code} (${b.stock_sacks} sacks, ${b.packaged_25kg || 0}x 25kg, ${Number(b.stock_kg).toFixed(1)} kg loose • ${b.days_old}d old)</option>`;
     }).join('');
   } else {
     const batches = getProductBatches(product);
@@ -544,8 +570,8 @@ function updateAdjustTypeUI() {
   const type = typeSelect.value;
   if (type === 'repack') {
     if (infoBox) infoBox.style.display = 'block';
-    if (bulkRow) bulkRow.style.display = 'none';
-    if (packsHeading) packsHeading.textContent = 'Retail Bags to Produce (5kg, 10kg, 20kg)';
+    if (bulkRow) bulkRow.style.display = 'grid';
+    if (packsHeading) packsHeading.textContent = 'Retail Bags to Produce (25kg Half / 20kg / 10kg / 5kg)';
     updateAdjustRepackPreview();
   } else if (type === 'correction') {
     if (infoBox) infoBox.style.display = 'none';
@@ -562,15 +588,16 @@ function updateAdjustTypeUI() {
 function updateAdjustRepackPreview() {
   const infoText = document.getElementById('adjustRepackInfoText');
   if (!infoText) return;
-  const p5 = parseInt(document.getElementById('adjust5kg').value) || 0;
-  const p10 = parseInt(document.getElementById('adjust10kg').value) || 0;
+  const p25 = parseInt(document.getElementById('adjust25kg').value) || 0;
   const p20 = parseInt(document.getElementById('adjust20kg').value) || 0;
-  const totalKg = (p5 * 5) + (p10 * 10) + (p20 * 20);
+  const p10 = parseInt(document.getElementById('adjust10kg').value) || 0;
+  const p5 = parseInt(document.getElementById('adjust5kg').value) || 0;
+  const totalKg = (p25 * 25) + (p20 * 20) + (p10 * 10) + (p5 * 5);
 
   if (totalKg === 0) {
-    infoText.innerHTML = `Enter how many 5kg, 10kg, or 20kg retail bags to produce. The system will automatically deduct the required kilos from loose stock or whole sacks in the selected batch.`;
+    infoText.innerHTML = `Enter how many 25kg, 20kg, 10kg, or 5kg retail bags to produce. The system will automatically deduct the required kilos from loose stock or whole sacks in the selected batch.`;
   } else {
-    infoText.innerHTML = `Repacking <strong>${totalKg} kg</strong> total (${p5 > 0 ? p5 + 'x 5kg ' : ''}${p10 > 0 ? p10 + 'x 10kg ' : ''}${p20 > 0 ? p20 + 'x 20kg' : ''}).<br>This will deduct <strong>${totalKg} kg</strong> from bulk inventory (first from loose tinatakal, then opening whole sacks if needed).`;
+    infoText.innerHTML = `Repacking <strong>${totalKg} kg</strong> total (${p25 > 0 ? p25 + 'x 25kg Half ' : ''}${p20 > 0 ? p20 + 'x 20kg ' : ''}${p10 > 0 ? p10 + 'x 10kg ' : ''}${p5 > 0 ? p5 + 'x 5kg' : ''}).<br>This will deduct <strong>${totalKg} kg</strong> from bulk inventory (first from loose tinatakal, then opening whole sacks if needed).`;
   }
 }
 
@@ -582,18 +609,20 @@ async function handleRestockSubmit(e) {
   const batchInput = document.getElementById('restockBatch');
   const sacksInput = document.getElementById('restockSacks');
   const kgInput = document.getElementById('restockKg');
-  const p5Input = document.getElementById('restock5kg');
-  const p10Input = document.getElementById('restock10kg');
+  const p25Input = document.getElementById('restock25kg');
   const p20Input = document.getElementById('restock20kg');
+  const p10Input = document.getElementById('restock10kg');
+  const p5Input = document.getElementById('restock5kg');
 
   const productId = prodSelect.value;
   const receivedDate = dateInput.value.trim();
   const batchNumber = batchInput.value.trim();
   const sacks = parseInt(sacksInput.value) || 0;
   const kg = parseFloat(kgInput.value) || 0;
-  const packaged5kg = parseInt(p5Input.value) || 0;
-  const packaged10kg = parseInt(p10Input.value) || 0;
+  const packaged25kg = parseInt(p25Input ? p25Input.value : 0) || 0;
   const packaged20kg = parseInt(p20Input.value) || 0;
+  const packaged10kg = parseInt(p10Input.value) || 0;
+  const packaged5kg = parseInt(p5Input.value) || 0;
 
   // 1. Missing required fields check
   const requiredFields = [
@@ -631,16 +660,19 @@ async function handleRestockSubmit(e) {
   const qtyInputs = [
     { el: sacksInput, val: sacks },
     { el: kgInput, val: kg },
-    { el: p5Input, val: packaged5kg },
+    { el: p25Input, val: packaged25kg },
+    { el: p20Input, val: packaged20kg },
     { el: p10Input, val: packaged10kg },
-    { el: p20Input, val: packaged20kg }
+    { el: p5Input, val: packaged5kg }
   ];
 
   // Any negative?
   for (const item of qtyInputs) {
     if (item.val < 0) {
-      item.el.style.borderColor = '#dc2626';
-      item.el.focus();
+      if (item.el) {
+        item.el.style.borderColor = '#dc2626';
+        item.el.focus();
+      }
       showToast('Value must be greater than zero.', 'warning');
       showInventoryAlert('restock', 'Value must be greater than zero.');
       return;
@@ -648,15 +680,15 @@ async function handleRestockSubmit(e) {
   }
 
   // All zero?
-  if (sacks <= 0 && kg <= 0 && packaged5kg <= 0 && packaged10kg <= 0 && packaged20kg <= 0) {
-    qtyInputs.forEach(item => item.el.style.borderColor = '#dc2626');
+  if (sacks <= 0 && kg <= 0 && packaged25kg <= 0 && packaged20kg <= 0 && packaged10kg <= 0 && packaged5kg <= 0) {
+    qtyInputs.forEach(item => { if (item.el) item.el.style.borderColor = '#dc2626'; });
     sacksInput.focus();
     showToast('Value must be greater than zero.', 'warning');
     showInventoryAlert('restock', 'Value must be greater than zero.');
     return;
   }
 
-  qtyInputs.forEach(item => item.el.style.borderColor = '');
+  qtyInputs.forEach(item => { if (item.el) item.el.style.borderColor = ''; });
   hideInventoryAlert('restock');
 
   const user = JSON.parse(sessionStorage.getItem('roberice_logged_user')) || {};
@@ -672,9 +704,10 @@ async function handleRestockSubmit(e) {
         type: 'restock',
         sacks,
         kg,
-        packaged5kg,
-        packaged10kg,
+        packaged25kg,
         packaged20kg,
+        packaged10kg,
+        packaged5kg,
         receivedDate,
         batchNumber,
         note: `Restocked batch ${batchNumber} (${receivedDate})`,
@@ -710,9 +743,10 @@ async function handleAdjustSubmit(e) {
   const noteInput = document.getElementById('adjustNote');
   const sacksInput = document.getElementById('adjustSacks');
   const kgInput = document.getElementById('adjustKg');
-  const p5Input = document.getElementById('adjust5kg');
-  const p10Input = document.getElementById('adjust10kg');
+  const p25Input = document.getElementById('adjust25kg');
   const p20Input = document.getElementById('adjust20kg');
+  const p10Input = document.getElementById('adjust10kg');
+  const p5Input = document.getElementById('adjust5kg');
 
   const productId = prodSelect.value;
   const batchNumber = batchSelect ? batchSelect.value : '';
@@ -720,9 +754,10 @@ async function handleAdjustSubmit(e) {
   const note = noteInput.value.trim();
   const sacks = parseInt(sacksInput.value) || 0;
   const kg = parseFloat(kgInput.value) || 0;
-  const packaged5kg = parseInt(p5Input.value) || 0;
-  const packaged10kg = parseInt(p10Input.value) || 0;
-  const packaged20kg = parseInt(p20Input.value) || 0;
+  const packaged25kg = parseInt(p25Input ? p25Input.value : 0) || 0;
+  const packaged20kg = parseInt(p20Input ? p20Input.value : 0) || 0;
+  const packaged10kg = parseInt(p10Input ? p10Input.value : 0) || 0;
+  const packaged5kg = parseInt(p5Input ? p5Input.value : 0) || 0;
 
   // 1. Missing required fields check
   const requiredFields = [
@@ -758,25 +793,20 @@ async function handleAdjustSubmit(e) {
 
   // 2. Repack requires at least one retail package bag > 0
   if (type === 'repack') {
-    if (packaged5kg <= 0 && packaged10kg <= 0 && packaged20kg <= 0) {
-      p5Input.style.borderColor = '#dc2626';
-      p10Input.style.borderColor = '#dc2626';
-      p20Input.style.borderColor = '#dc2626';
-      p5Input.focus();
-      const msg = 'Please enter at least one retail bag quantity (5kg, 10kg, or 20kg) to repack.';
+    if (packaged25kg <= 0 && packaged20kg <= 0 && packaged10kg <= 0 && packaged5kg <= 0) {
+      [p25Input, p20Input, p10Input, p5Input].forEach(el => { if (el) el.style.borderColor = '#dc2626'; });
+      const msg = 'Please enter at least one bag quantity (25kg Half, 20kg, 10kg, or 5kg) to repack.';
       showToast(msg, 'warning');
       showInventoryAlert('adjust', msg);
       return;
     }
 
-    const totalRepackedKg = (packaged5kg * 5) + (packaged10kg * 10) + (packaged20kg * 20);
+    const totalRepackedKg = (packaged25kg * 25) + (packaged20kg * 20) + (packaged10kg * 10) + (packaged5kg * 5);
     const product = inventoryCache.find(p => p.id === productId);
     if (product) {
-      const availableKg = (product.stockSacks * 50) + product.stockKg;
+      const availableKg = (product.stockSacks * 50) + (product.packaged25kg * 25) + (product.packaged20kg * 20) + (product.packaged10kg * 10) + (product.packaged5kg * 5) + product.stockKg;
       if (totalRepackedKg > availableKg) {
-        p5Input.style.borderColor = '#dc2626';
-        p10Input.style.borderColor = '#dc2626';
-        p20Input.style.borderColor = '#dc2626';
+        [p25Input, p20Input, p10Input, p5Input].forEach(el => { if (el) el.style.borderColor = '#dc2626'; });
         const msg = `Insufficient bulk inventory: Needs ${totalRepackedKg} kg to repack, but only ${availableKg.toFixed(1)} kg is available.`;
         showToast(msg, 'warning');
         showInventoryAlert('adjust', msg);
@@ -788,23 +818,26 @@ async function handleAdjustSubmit(e) {
     const qtyInputs = [
       { el: sacksInput, val: sacks },
       { el: kgInput, val: kg },
-      { el: p5Input, val: packaged5kg },
+      { el: p25Input, val: packaged25kg },
+      { el: p20Input, val: packaged20kg },
       { el: p10Input, val: packaged10kg },
-      { el: p20Input, val: packaged20kg }
+      { el: p5Input, val: packaged5kg }
     ];
 
     for (const item of qtyInputs) {
       if (item.val < 0) {
-        item.el.style.borderColor = '#dc2626';
-        item.el.focus();
+        if (item.el) {
+          item.el.style.borderColor = '#dc2626';
+          item.el.focus();
+        }
         showToast('Value must be greater than zero.', 'warning');
         showInventoryAlert('adjust', 'Value must be greater than zero.');
         return;
       }
     }
 
-    if (sacks <= 0 && kg <= 0 && packaged5kg <= 0 && packaged10kg <= 0 && packaged20kg <= 0) {
-      qtyInputs.forEach(item => item.el.style.borderColor = '#dc2626');
+    if (sacks <= 0 && kg <= 0 && packaged25kg <= 0 && packaged20kg <= 0 && packaged10kg <= 0 && packaged5kg <= 0) {
+      qtyInputs.forEach(item => { if (item.el) item.el.style.borderColor = '#dc2626'; });
       sacksInput.focus();
       showToast('Value must be greater than zero.', 'warning');
       showInventoryAlert('adjust', 'Value must be greater than zero.');
@@ -812,7 +845,7 @@ async function handleAdjustSubmit(e) {
     }
   }
 
-  [sacksInput, kgInput, p5Input, p10Input, p20Input].forEach(el => el.style.borderColor = '');
+  [sacksInput, kgInput, p25Input, p20Input, p10Input, p5Input].forEach(el => { if (el) el.style.borderColor = ''; });
   hideInventoryAlert('adjust');
 
   const user = JSON.parse(sessionStorage.getItem('roberice_logged_user')) || {};
@@ -828,9 +861,10 @@ async function handleAdjustSubmit(e) {
         type,
         sacks,
         kg,
-        packaged5kg,
-        packaged10kg,
+        packaged25kg,
         packaged20kg,
+        packaged10kg,
+        packaged5kg,
         batchNumber,
         note,
         user: user.name || 'Admin User'
