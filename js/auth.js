@@ -305,12 +305,28 @@ function renderAppFrame(user) {
     mainWrapper.insertAdjacentHTML('afterbegin', headerHtml);
   }
 
+  // Synchronize dynamic sticky header offset
+  updateStickyHeaderOffset();
+
   // Bind Logout Event
   const btnLogout = document.getElementById('btnLogout');
   if (btnLogout) {
     btnLogout.addEventListener('click', logout);
   }
 }
+
+// Synchronize CSS custom property --top-header-height with the actual rendered header height
+function updateStickyHeaderOffset() {
+  const topHeader = document.querySelector('.top-header');
+  if (topHeader) {
+    const height = Math.round(topHeader.getBoundingClientRect().height);
+    if (height > 0) {
+      document.documentElement.style.setProperty('--top-header-height', `${height}px`);
+    }
+  }
+}
+
+window.addEventListener('resize', updateStickyHeaderOffset);
 
 // User Logout Handler
 function logout() {
@@ -327,5 +343,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const user = checkAuth();
   if (user && !window.location.pathname.endsWith('login.html')) {
     renderAppFrame(user);
+    updateStickyHeaderOffset();
   }
 });
