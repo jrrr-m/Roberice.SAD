@@ -282,29 +282,42 @@
             <select id="adjustProductSelect" class="form-select" required></select>
           </div>
 
-          <div class="form-group">
+          <div class="form-group" style="margin-top: 10px;">
+            <label for="adjustBatchSelect">Source Batch (FIFO Rotation)</label>
+            <select id="adjustBatchSelect" class="form-select" required></select>
+          </div>
+
+          <div class="form-group" style="margin-top: 10px;">
             <label for="adjustType">Action / Adjustment Type</label>
             <select id="adjustType" class="form-select" required>
+              <option value="repack">Repack into Retail Bags (Deducts from bulk loose/sacks)</option>
               <option value="correction">Inventory Correction (Set / Adjust Physical Count)</option>
-              <option value="repack">Repack into 5kg / 10kg / 20kg Packages (Deducts from bulk/loose)</option>
               <option value="spoilage">Damage / Spoilage (Remove Damaged / Infested Stock)</option>
             </select>
           </div>
 
-          <div class="form-row">
+          <!-- Dynamic Live Repack Guidance / Preview Box -->
+          <div id="adjustRepackInfoBox" style="background:var(--primary-light); border:1px solid var(--primary-border); border-radius:var(--radius-md); padding:12px; margin-top:12px; margin-bottom:12px;">
+            <div style="font-size:12px; font-weight:700; color:var(--primary); margin-bottom:4px;">REPACKING ASSISTANT</div>
+            <div id="adjustRepackInfoText" style="font-size:13px; color:var(--text-main);">
+              Enter how many 5kg, 10kg, or 20kg retail bags to produce. The system will automatically deduct the required kilos from loose stock or whole sacks in the selected batch.
+            </div>
+          </div>
+
+          <div class="form-row" id="adjustBulkRow">
             <div class="form-group">
-              <label for="adjustSacks">Sacks Amount</label>
+              <label for="adjustSacks" id="adjustSacksLabel">Whole Sacks Amount (50kg)</label>
               <input type="number" id="adjustSacks" class="form-control" value="0" min="0">
             </div>
 
             <div class="form-group">
-              <label for="adjustKg">Loose Tinatakal (Kg)</label>
+              <label for="adjustKg" id="adjustKgLabel">Loose Tinatakal (Kg)</label>
               <input type="number" id="adjustKg" class="form-control" value="0" min="0" step="0.1">
             </div>
           </div>
 
-          <div style="margin-top: 10px; font-weight:600; font-size:12px; color:var(--text-muted); text-transform:uppercase;">
-            Package Bags (5kg, 10kg, 20kg) Count
+          <div id="adjustPacksHeading" style="margin-top: 10px; font-weight:600; font-size:12px; color:var(--text-muted); text-transform:uppercase;">
+            Package Bags (5kg, 10kg, 20kg) to Produce
           </div>
 
           <div class="form-row" style="grid-template-columns: repeat(3, 1fr); margin-top: 6px;">

@@ -61,7 +61,20 @@ async function initInventoryPage() {
     if (el && el.tagName === 'SELECT') el.addEventListener('change', validateRestockLive);
   });
 
-  const adjustInputs = ['adjustProductSelect', 'adjustType', 'adjustNote', 'adjustSacks', 'adjustKg', 'adjust5kg', 'adjust10kg', 'adjust20kg'];
+  // Adjust / Repack Event Triggers
+  const selAdjProd = document.getElementById('adjustProductSelect');
+  const selAdjType = document.getElementById('adjustType');
+  if (selAdjProd) selAdjProd.addEventListener('change', () => {
+    updateAdjustBatches();
+    updateAdjustRepackPreview();
+  });
+  if (selAdjType) selAdjType.addEventListener('change', updateAdjustTypeUI);
+  ['adjust5kg', 'adjust10kg', 'adjust20kg'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', updateAdjustRepackPreview);
+  });
+
+  const adjustInputs = ['adjustProductSelect', 'adjustBatchSelect', 'adjustType', 'adjustNote', 'adjustSacks', 'adjustKg', 'adjust5kg', 'adjust10kg', 'adjust20kg'];
   adjustInputs.forEach(id => {
     const el = document.getElementById(id);
     if (el) el.addEventListener('input', validateAdjustLive);
@@ -230,7 +243,8 @@ async function renderInventoryManageTable() {
       receivedDate: p.received_date || '2026-09-01',
       batchNumber: p.batch_number || 'BATCH-001',
       daysOld: Number(p.days_old !== undefined && p.days_old !== null ? p.days_old : 0),
-      thresholdKg: Number(p.reorder_level_kg || 0)
+      thresholdKg: Number(p.reorder_level_kg || 0),
+      batches: p.batches || []
     }));
 
     // Populate Rice Type Filter
@@ -482,7 +496,8 @@ function openRestockModal(productId = null) {
 
 function openAdjustModal(productId = null) {
   populateProductSelect('adjustProductSelect', productId);
-  const resetIds = ['adjustProductSelect', 'adjustType', 'adjustSacks', 'adjustKg', 'adjust5kg', 'adjust10kg', 'adjust20kg', 'adjustNote'];
+  updateAdjustBatches();
+  const resetIds = ['adjustProductSelect', 'adjustBatchSelect', 'adjustType', 'adjustSacks', 'adjustKg', 'adjust5kg', 'adjust10kg', 'adjust20kg', 'adjustNote'];
   resetIds.forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.borderColor = '';
@@ -495,7 +510,68 @@ function openAdjustModal(productId = null) {
   document.getElementById('adjust20kg').value = '0';
   document.getElementById('adjustNote').value = '';
   hideInventoryAlert('adjust');
+  updateAdjustTypeUI();
   openModal('modalStockAdjust');
+}
+
+function updateAdjustBatches() {
+  const prodSelect = document.getElementById('adjustProductSelect');
+  const batchSelect = document.getElementById('adjustBatchSelect');
+  if (!prodSelect || !batchSelect) return;
+
+  const product = inventoryCache.find(p => p.id === prodSelect.value);
+  if (!product) return;
+
+  if (product.batches && product.batches.length > 0) {
+    batchSelect.innerHTML = product.batches.map(b => {
+      return `<option value="${b.batch_code}">${b.batch_code} (${b.stock_sacks} sacks, ${Number(b.stock_kg).toFixed(1)} kg loose • ${b.days_old}d old)</option>`;
+    }).join('');
+  } else {
+    const batches = getProductBatches(product);
+    batchSelect.innerHTML = batches.map(b => `
+      <option value="${b.batchNumber}">${b.label}</option>
+    `).join('');
+  }
+}
+
+function updateAdjustTypeUI() {
+  const typeSelect = document.getElementById('adjustType');
+  const infoBox = document.getElementById('adjustRepackInfoBox');
+  const bulkRow = document.getElementById('adjustBulkRow');
+  const packsHeading = document.getElementById('adjustPacksHeading');
+  if (!typeSelect) return;
+
+  const type = typeSelect.value;
+  if (type === 'repack') {
+    if (infoBox) infoBox.style.display = 'block';
+    if (bulkRow) bulkRow.style.display = 'none';
+    if (packsHeading) packsHeading.textContent = 'Retail Bags to Produce (5kg, 10kg, 20kg)';
+    updateAdjustRepackPreview();
+  } else if (type === 'correction') {
+    if (infoBox) infoBox.style.display = 'none';
+    if (bulkRow) bulkRow.style.display = 'grid';
+    if (packsHeading) packsHeading.textContent = 'Package Bags Count (Physical Count Recount)';
+  } else {
+    // Spoilage
+    if (infoBox) infoBox.style.display = 'none';
+    if (bulkRow) bulkRow.style.display = 'grid';
+    if (packsHeading) packsHeading.textContent = 'Damaged Package Bags to Discard';
+  }
+}
+
+function updateAdjustRepackPreview() {
+  const infoText = document.getElementById('adjustRepackInfoText');
+  if (!infoText) return;
+  const p5 = parseInt(document.getElementById('adjust5kg').value) || 0;
+  const p10 = parseInt(document.getElementById('adjust10kg').value) || 0;
+  const p20 = parseInt(document.getElementById('adjust20kg').value) || 0;
+  const totalKg = (p5 * 5) + (p10 * 10) + (p20 * 20);
+
+  if (totalKg === 0) {
+    infoText.innerHTML = `Enter how many 5kg, 10kg, or 20kg retail bags to produce. The system will automatically deduct the required kilos from loose stock or whole sacks in the selected batch.`;
+  } else {
+    infoText.innerHTML = `Repacking <strong>${totalKg} kg</strong> total (${p5 > 0 ? p5 + 'x 5kg ' : ''}${p10 > 0 ? p10 + 'x 10kg ' : ''}${p20 > 0 ? p20 + 'x 20kg' : ''}).<br>This will deduct <strong>${totalKg} kg</strong> from bulk inventory (first from loose tinatakal, then opening whole sacks if needed).`;
+  }
 }
 
 async function handleRestockSubmit(e) {
@@ -629,6 +705,7 @@ async function handleAdjustSubmit(e) {
   e.preventDefault();
 
   const prodSelect = document.getElementById('adjustProductSelect');
+  const batchSelect = document.getElementById('adjustBatchSelect');
   const typeSelect = document.getElementById('adjustType');
   const noteInput = document.getElementById('adjustNote');
   const sacksInput = document.getElementById('adjustSacks');
@@ -638,6 +715,7 @@ async function handleAdjustSubmit(e) {
   const p20Input = document.getElementById('adjust20kg');
 
   const productId = prodSelect.value;
+  const batchNumber = batchSelect ? batchSelect.value : '';
   const type = typeSelect.value;
   const note = noteInput.value.trim();
   const sacks = parseInt(sacksInput.value) || 0;
@@ -678,37 +756,19 @@ async function handleAdjustSubmit(e) {
     return;
   }
 
-  // 2. Value must be greater than zero validation
-  const qtyInputs = [
-    { el: sacksInput, val: sacks },
-    { el: kgInput, val: kg },
-    { el: p5Input, val: packaged5kg },
-    { el: p10Input, val: packaged10kg },
-    { el: p20Input, val: packaged20kg }
-  ];
-
-  // Any negative?
-  for (const item of qtyInputs) {
-    if (item.val < 0) {
-      item.el.style.borderColor = '#dc2626';
-      item.el.focus();
-      showToast('Value must be greater than zero.', 'warning');
-      showInventoryAlert('adjust', 'Value must be greater than zero.');
+  // 2. Repack requires at least one retail package bag > 0
+  if (type === 'repack') {
+    if (packaged5kg <= 0 && packaged10kg <= 0 && packaged20kg <= 0) {
+      p5Input.style.borderColor = '#dc2626';
+      p10Input.style.borderColor = '#dc2626';
+      p20Input.style.borderColor = '#dc2626';
+      p5Input.focus();
+      const msg = 'Please enter at least one retail bag quantity (5kg, 10kg, or 20kg) to repack.';
+      showToast(msg, 'warning');
+      showInventoryAlert('adjust', msg);
       return;
     }
-  }
 
-  // All zero?
-  if (sacks <= 0 && kg <= 0 && packaged5kg <= 0 && packaged10kg <= 0 && packaged20kg <= 0) {
-    qtyInputs.forEach(item => item.el.style.borderColor = '#dc2626');
-    sacksInput.focus();
-    showToast('Value must be greater than zero.', 'warning');
-    showInventoryAlert('adjust', 'Value must be greater than zero.');
-    return;
-  }
-
-  // If repack, check if sufficient stock is available to repack
-  if (type === 'repack') {
     const totalRepackedKg = (packaged5kg * 5) + (packaged10kg * 10) + (packaged20kg * 20);
     const product = inventoryCache.find(p => p.id === productId);
     if (product) {
@@ -717,15 +777,42 @@ async function handleAdjustSubmit(e) {
         p5Input.style.borderColor = '#dc2626';
         p10Input.style.borderColor = '#dc2626';
         p20Input.style.borderColor = '#dc2626';
-        const msg = `Insufficient bulk inventory: Needs ${totalRepackedKg} kg to repack, but only ${availableKg} kg is available.`;
+        const msg = `Insufficient bulk inventory: Needs ${totalRepackedKg} kg to repack, but only ${availableKg.toFixed(1)} kg is available.`;
         showToast(msg, 'warning');
         showInventoryAlert('adjust', msg);
         return;
       }
     }
+  } else {
+    // Physical count / Spoilage validation
+    const qtyInputs = [
+      { el: sacksInput, val: sacks },
+      { el: kgInput, val: kg },
+      { el: p5Input, val: packaged5kg },
+      { el: p10Input, val: packaged10kg },
+      { el: p20Input, val: packaged20kg }
+    ];
+
+    for (const item of qtyInputs) {
+      if (item.val < 0) {
+        item.el.style.borderColor = '#dc2626';
+        item.el.focus();
+        showToast('Value must be greater than zero.', 'warning');
+        showInventoryAlert('adjust', 'Value must be greater than zero.');
+        return;
+      }
+    }
+
+    if (sacks <= 0 && kg <= 0 && packaged5kg <= 0 && packaged10kg <= 0 && packaged20kg <= 0) {
+      qtyInputs.forEach(item => item.el.style.borderColor = '#dc2626');
+      sacksInput.focus();
+      showToast('Value must be greater than zero.', 'warning');
+      showInventoryAlert('adjust', 'Value must be greater than zero.');
+      return;
+    }
   }
 
-  qtyInputs.forEach(item => item.el.style.borderColor = '');
+  [sacksInput, kgInput, p5Input, p10Input, p20Input].forEach(el => el.style.borderColor = '');
   hideInventoryAlert('adjust');
 
   const user = JSON.parse(sessionStorage.getItem('roberice_logged_user')) || {};
@@ -744,6 +831,7 @@ async function handleAdjustSubmit(e) {
         packaged5kg,
         packaged10kg,
         packaged20kg,
+        batchNumber,
         note,
         user: user.name || 'Admin User'
       })

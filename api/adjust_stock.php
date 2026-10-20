@@ -58,9 +58,16 @@ if ($type === 'open_sack') {
         echo json_encode(["success" => false, "message" => "Value must be greater than zero."]);
         exit;
     }
-    if ($sacks === 0 && $kg <= 0 && $p5 === 0 && $p10 === 0 && $p20 === 0 && $p25 === 0) {
-        echo json_encode(["success" => false, "message" => "Value must be greater than zero."]);
-        exit;
+    if ($type === 'repack') {
+        if ($p5 <= 0 && $p10 <= 0 && $p20 <= 0 && $p25 <= 0) {
+            echo json_encode(["success" => false, "message" => "Please enter the quantity of bags (5kg, 10kg, or 20kg) to repack."]);
+            exit;
+        }
+    } else {
+        if ($sacks === 0 && $kg <= 0 && $p5 === 0 && $p10 === 0 && $p20 === 0 && $p25 === 0) {
+            echo json_encode(["success" => false, "message" => "Value must be greater than zero."]);
+            exit;
+        }
     }
 } elseif ($type === 'correction') {
     if (empty($note)) {
@@ -114,7 +121,17 @@ try {
     $p25 = (int)($data['packaged25kg'] ?? 0);
     $sackType = trim($data['sackType'] ?? '20kg');
     $openQty = max(1, (int)($data['openQty'] ?? $data['qty'] ?? 1));
-    $batchNumber = !empty($data['batchNumber']) ? trim($data['batchNumber']) : ($product['batch_number'] ?? 'BATCH-001');
+    $batchNumber = !empty($data['batchNumber']) ? trim($data['batchNumber']) : '';
+    if (empty($batchNumber)) {
+        $findActive = $conn->prepare("SELECT batch_code FROM inventory_batch WHERE product_id = ? AND status = 'Active' ORDER BY received_date ASC, batch_id ASC LIMIT 1");
+        $findActive->execute([$productId]);
+        $actRow = $findActive->fetch(PDO::FETCH_ASSOC);
+        if ($actRow) {
+            $batchNumber = $actRow['batch_code'];
+        } else {
+            $batchNumber = $product['batch_number'] ?? 'BATCH-001';
+        }
+    }
 
     $receivedDate = !empty($data['receivedDate']) ? $data['receivedDate'] : ($type === 'restock' ? date('Y-m-d') : $product['received_date']);
     $detailNote = $note;
@@ -272,8 +289,28 @@ try {
                 $b25 = max(0, $b25 - abs($p25));
                 $b20 = max(0, $b20 - abs($p20));
                 $b10 = max(0, $b10 - abs($p10));
-                $b5 = max(0, $b5 - abs($p5));
-                $bKg = max(0, $bKg - abs($kg));
+            } elseif ($type === 'repack') {
+                $b5 += abs($p5);
+                $b10 += abs($p10);
+                $b20 += abs($p20);
+                $b25 += abs($p25);
+                $totalRepackedKg = (abs($p5) * 5) + (abs($p10) * 10) + (abs($p20) * 20) + (abs($p25) * 25);
+                if ($bKg >= $totalRepackedKg) {
+                    $bKg -= $totalRepackedKg;
+                } else {
+                    $neededKg = $totalRepackedKg - $bKg;
+                    $kgPerSack = 50.0;
+                    $bSacksToOpen = (int)ceil($neededKg / $kgPerSack);
+                    $bSacks = max(0, $bSacks - $bSacksToOpen);
+                    $bKg = max(0.0, ($bKg + ($bSacksToOpen * $kgPerSack)) - $totalRepackedKg);
+                }
+            } elseif ($type === 'correction') {
+                $bSacks = max(0, $sacks);
+                $bKg = max(0, $kg);
+                if (isset($data['packaged5kg'])) $b5 = max(0, $p5);
+                if (isset($data['packaged10kg'])) $b10 = max(0, $p10);
+                if (isset($data['packaged20kg'])) $b20 = max(0, $p20);
+                if (isset($data['packaged25kg'])) $b25 = max(0, $p25);
             }
 
             $bVol = ($bSacks * 50) + ($b25 * 25) + ($b20 * 20) + ($b10 * 10) + ($b5 * 5) + $bKg;
@@ -298,7 +335,7 @@ try {
             }
         } else {
             // If batch record does not exist yet, create a new active batch row in inventory_batch
-            if ($type === 'restock' || $type === 'correction') {
+            if ($type === 'restock' || $type === 'correction' || $type === 'repack') {
                 $bSacks = abs($sacks);
                 $b25 = abs($p25);
                 $b20 = abs($p20);
@@ -318,6 +355,13 @@ try {
         }
     }
 
+    $logSacks = abs($sacks);
+    $logKg = abs($kg);
+    if ($type === 'repack') {
+        $logSacks = isset($sacksToOpen) ? $sacksToOpen : 0;
+        $logKg = $totalRepackedKg ?? 0;
+    }
+
     $stmt = $conn->prepare("
         INSERT INTO inventory_adjustment
         (product_id, batch_code, adjustment_type, sacks, kg, note, performed_by)
@@ -327,8 +371,8 @@ try {
         $productId,
         $batchNumber,
         $type,
-        abs($sacks),
-        abs($kg),
+        $logSacks,
+        $logKg,
         trim($detailNote),
         $user
     ]);
