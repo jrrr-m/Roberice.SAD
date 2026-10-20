@@ -4,14 +4,14 @@ A web-based Point of Sale (POS) and Inventory Management System customized for *
 
 ---
 
-## 🗂️ Project Structure & GitHub File Navigation
+## Project Structure & GitHub File Navigation
 
 Below is the directory map of repository files, frontend controllers, and backend API endpoints:
 
 ```
 Roberice.SAD/
 ├── index.html                  # Root entry point: session check & automated role/permission redirect
-├── 📁 pages/                   # User Interface Pages
+├── pages/                   # User Interface Pages
 │   ├── login.html              # User authentication (Admin / Cashier / Staff)
 │   ├── dashboard.html          # Executive store dashboard & revenue analytics
 │   ├── pos.html                # Point of Sale terminal with packaging & stock limits
@@ -24,7 +24,7 @@ Roberice.SAD/
 │   ├── audit.html              # System audit trail (adjustments, sack openings, depletions)
 │   └── users.html              # User management & granular module permissions matrix
 │
-├── 📁 js/                      # Frontend Logic & Dynamic Controllers
+├── js/                      # Frontend Logic & Dynamic Controllers
 │   ├── auth.js                 # Authentication, route guards, role & permission verification
 │   ├── pos.js                  # POS cart, multi-packaging calculation, stock limit validation
 │   ├── view-inventory.js       # Inventory table, batch drawer accordion, live depletion
@@ -40,7 +40,7 @@ Roberice.SAD/
 │   ├── utils.js                # Currency, dates, toasts, modal controllers, FIFO helpers
 │   └── data.js                 # Shared lookup tokens & fallback test data
 │
-├── 📁 api/                     # Backend PHP Endpoints (PDO MySQL)
+├── api/                     # Backend PHP Endpoints (PDO MySQL)
 │   ├── db.php                  # Database connection configuration (roberice_db)
 │   ├── login.php               # Login authentication verification & permissions loading
 │   ├── users.php               # User account CRUD, password hashing & permissions matrix
@@ -57,21 +57,21 @@ Roberice.SAD/
 │   ├── get_audit_logs.php      # Retrieve audit history entries
 │   └── file_manager.php        # Upload, delete, and list store documents & filtered CSV exports
 │
-├── 📁 css/
+├── css/
 │   └── styles.css              # Unified responsive design system & component styles
 │
-├── 📁 database/
+├── database/
 │   ├── roberice_db.sql         # Comprehensive database schema & 1-year operational dataset (3,727 transactions)
 │   └── init_db.php             # Automated database installer & instant login router
 │
-├── 📁 assets/                  # Brand icons and logos
-├── 📁 uploads/                 # Uploaded files and receipts
+├── assets/                  # Brand icons and logos
+├── uploads/                 # Uploaded files and receipts
 └── DATABASE_SETUP_GUIDE.txt    # Setup notes
 ```
 
 ---
 
-## 📑 Page Directory & Feature Breakdown
+## Page Directory & Feature Breakdown
 
 | Page | File | Default Roles | Core Features |
 |---|---|---|---|
@@ -89,7 +89,7 @@ Roberice.SAD/
 
 ---
 
-## 🎨 UI Architecture & Navigation Design
+## UI Architecture & Navigation Design
 
 The frontend user interface features an optimized, distraction-free workflow with standardized layout alignment and intuitive contextual actions:
 
@@ -117,22 +117,22 @@ The frontend user interface features an optimized, distraction-free workflow wit
 
 ---
 
-## 🔐 User Management & Granular Permissions System
+## User Management & Granular Permissions System
 
 The system includes a flexible Role-Based Access Control (RBAC) and **Granular Feature Permissions Matrix** managed via [`pages/users.html`](pages/users.html) and [`api/users.php`](api/users.php):
 
 ### 1. Modular Permission Tokens
 Administrators can check or uncheck 10 independent module permissions for each user:
-- 📊 `dashboard` — Executive sales KPIs, gross revenue, and summary charts.
-- 🛒 `pos` — Point of Sale terminal and checkout register.
-- 📦 `view-inventory` — Stock inspection, sack counts, and FIFO batch inspection.
-- 🏷️ `inventory` — Warehouse stock restocking, sack opening conversion, physical corrections, and damage logging.
-- 🌾 `products` — Rice varieties catalog, unit prices, and packaging rates.
-- 🧾 `transactions` — Customer order logs and printable receipt viewing.
-- 📈 `sales-report` — Daily, Weekly, Monthly, Quarterly, and Yearly sales reports.
-- 📁 `file-manager` — Store receipts repository and filtered CSV downloads.
-- 📋 `audit` — Warehouse adjustment logs and audit trails.
-- 👥 `users` — Administrator user management and permission configuration.
+- `dashboard` — Executive sales KPIs, gross revenue, and summary charts.
+- `pos` — Point of Sale terminal and checkout register.
+- `view-inventory` — Stock inspection, sack counts, and FIFO batch inspection.
+- `inventory` — Warehouse stock restocking, sack opening conversion, physical corrections, and damage logging.
+- `products` — Rice varieties catalog, unit prices, and packaging rates.
+- `transactions` — Customer order logs and printable receipt viewing.
+- `sales-report` — Daily, Weekly, Monthly, Quarterly, and Yearly sales reports.
+- `file-manager` — Store receipts repository and filtered CSV downloads.
+- `audit` — Warehouse adjustment logs and audit trails.
+- `users` — Administrator user management and permission configuration.
 
 ### 2. Role Presets
 - **Administrator (Full Access)**: Grants all 10 module permissions.
@@ -149,27 +149,27 @@ Administrators can check or uncheck 10 independent module permissions for each u
 
 ---
 
-## 📊 Sales Analytics & Multi-Period Reporting
+## Sales Analytics & Multi-Period Reporting
 
 The Sales Report module ([`pages/sales-report.html`](pages/sales-report.html)) provides dedicated multi-period reporting:
 
-1. **📅 Daily Report**:
+1. **Daily Report**:
    - Filter by a target date (`input type="date"`), with a quick **"Today"** shortcut.
    - Generates the `OFFICIAL DAILY SALES REPORT` statement.
-2. **📆 Weekly Report**:
+2. **Weekly Report**:
    - Select by calendar week (`input type="week"`), with a **"This Week"** shortcut.
    - Automatically computes and displays the exact Monday-to-Sunday date range (e.g., `Oct 12, 2026 – Oct 18, 2026`).
    - Generates the `OFFICIAL WEEKLY SALES REPORT` statement.
-3. **🗓️ Monthly Report**:
+3. **Monthly Report**:
    - Select by target month (`input type="month"`), with a **"Prev Mo."** shortcut (September 2026).
    - Generates the `OFFICIAL MONTHLY SALES REPORT` statement.
-4. **📊 Quarterly Report**:
+4. **Quarterly Report**:
    - Select by Quarter (Q1: Jan–Mar, Q2: Apr–Jun, Q3: Jul–Sep, Q4: Oct–Dec) and Year.
    - Generates the `OFFICIAL QUARTERLY SALES REPORT` statement.
-5. **📈 Yearly Report**:
+5. **Yearly Report**:
    - Select by calendar Year (e.g., 2026).
    - Generates the `OFFICIAL YEARLY SALES REPORT` statement.
-6. **🔍 Custom Range & All Time**:
+6. **Custom Range & All Time**:
    - Select custom Start Date and End Date or view all-time recorded history.
 7. **Official Print Statement**:
    - Formatted printable sheet designed for official store audits and management sign-offs.
@@ -178,9 +178,9 @@ The Sales Report module ([`pages/sales-report.html`](pages/sales-report.html)) p
 
 ---
 
-## 🚀 Recent Updates & Performance Enhancements
+## Recent Updates & Performance Enhancements
 
-### 1. 📦 Full 1-Year Operational Store Dataset
+### 1. Full 1-Year Operational Store Dataset
 The database now contains **365 days of continuous operations** (spanning **October 14, 2025 to October 13, 2026**):
 - **3,727 Completed Sales Transactions**: Totals **₱3,409,087.00** in gross store revenue across all 12 operational months.
 - **4,806 Itemized Order Lines**: Reflects realistic retail basket compositions across all package tiers (`50Kg Whole Sack`, `25Kg Half`, `20Kg`, `10Kg`, `5Kg`, and per-Kg `Tinatakal` loose sales).
@@ -202,12 +202,12 @@ The database now contains **365 days of continuous operations** (spanning **Octo
 - **304 Warehouse Audit & Adjustment Logs**: Detailed logs covering regular mill deliveries (from Central Luzon, Isabela, and Mindoro suppliers), retail sack openings, repacking into smaller consumer bags, and routine inventory count reconciliations.
 - **Registered Management & Backup Records**: Live SQL snapshots and annual financial audit PDF references populated in the File Manager.
 
-### 2. ⚡ Transactions API Query Optimization (`api/get_transactions.php`)
+### 2. Transactions API Query Optimization (`api/get_transactions.php`)
 - **Elimination of N+1 Query Loop**: Previously, fetching transactions executed an individual `SELECT` query for items per transaction (causing over 3,700 queries on a 1-year dataset).
 - **Batched Single-Query Item Indexing**: Refactored to fetch all items in a single indexed query joined with the product catalog and mapped in memory.
 - **Performance Benchmark**: Reduced API response time from **1,165ms down to ~100ms** (~11x speedup), delivering instantaneous load times on the Transactions and Dashboard pages.
 
-### 3. 🔄 Seamless Database Setup & Router (`database/init_db.php`)
+### 3. Seamless Database Setup & Router (`database/init_db.php`)
 - Integrated multi-statement SQL execution directly importing [`database/roberice_db.sql`](database/roberice_db.sql) if tables are uninitialized or when performing a clean wipe via `?fresh=1`.
 - Skips re-execution and routes immediately to the login page when the database is already primed.
 
@@ -225,7 +225,7 @@ The database now contains **365 days of continuous operations** (spanning **Octo
 
 3. **Initialize Database (Choose Either Option)**:
 
-   ### ⚡ Option A: Automatic Web Setup (Fastest — Recommended)
+   ### Option A: Automatic Web Setup (Fastest — Recommended)
    Simply open your browser and navigate to:
    ```
    http://localhost/Roberice.SAD/database/init_db.php
@@ -237,7 +237,7 @@ The database now contains **365 days of continuous operations** (spanning **Octo
    - Seed default admin & cashier accounts
    - Automatically redirect and load the login page immediately upon completion!
 
-   ### 📁 Option B: Manual phpMyAdmin Import
+   ### Option B: Manual phpMyAdmin Import
    - Navigate to [http://localhost/phpmyadmin](http://localhost/phpmyadmin).
    - Create a database named `roberice_db` (Collation: `utf8mb4_general_ci`).
    - Click **Import** and choose [`database/roberice_db.sql`](database/roberice_db.sql).
