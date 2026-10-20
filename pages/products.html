@@ -54,8 +54,8 @@
       <form id="productForm">
         <input type="hidden" id="prodEditId" value="">
         <div class="modal-body">
-          <div id="productDuplicateAlert" style="display:none; margin-bottom: 14px; padding: 10px 14px; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 6px; color: #dc2626; font-size: 13px; font-weight: 500;">
-            ⚠️ A product with this name and rice type already exists.
+          <div id="productFormAlert" style="display:none; margin-bottom: 14px; padding: 10px 14px; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 6px; color: #dc2626; font-size: 13px; font-weight: 500;">
+            <span id="productFormAlertMsg">⚠️ A product with this name and rice type already exists.</span>
           </div>
           <div class="form-row">
             <div class="form-group">
@@ -85,30 +85,30 @@
           <div class="form-row" style="grid-template-columns: repeat(3, 1fr);">
             <div class="form-group">
               <label for="prodPriceSack">Whole Sack Price (50kg) (₱)</label>
-              <input type="number" id="prodPriceSack" class="form-control" placeholder="0.00" step="0.01" min="0" required>
+              <input type="number" id="prodPriceSack" class="form-control" placeholder="0.00" step="0.01" min="0.01" required>
             </div>
             <div class="form-group">
               <label for="prodPrice25kg">Half Sack Price (25kg) (₱)</label>
-              <input type="number" id="prodPrice25kg" class="form-control" placeholder="Auto / Half sack" step="0.01" min="0">
+              <input type="number" id="prodPrice25kg" class="form-control" placeholder="Auto / Half sack" step="0.01" min="0.01">
             </div>
             <div class="form-group">
               <label for="prodPriceKg">Price per Kg / Loose (₱)</label>
-              <input type="number" id="prodPriceKg" class="form-control" placeholder="0.00" step="0.01" min="0" required>
+              <input type="number" id="prodPriceKg" class="form-control" placeholder="0.00" step="0.01" min="0.01" required>
             </div>
           </div>
 
           <div class="form-row" style="grid-template-columns: repeat(3, 1fr);">
             <div class="form-group">
               <label for="prodPrice20kg">20kg Pack Price (₱)</label>
-              <input type="number" id="prodPrice20kg" class="form-control" placeholder="Optional / Auto" step="0.01" min="0">
+              <input type="number" id="prodPrice20kg" class="form-control" placeholder="Optional / Auto" step="0.01" min="0.01">
             </div>
             <div class="form-group">
               <label for="prodPrice10kg">10kg Pack Price (₱)</label>
-              <input type="number" id="prodPrice10kg" class="form-control" placeholder="Optional / Auto" step="0.01" min="0">
+              <input type="number" id="prodPrice10kg" class="form-control" placeholder="Optional / Auto" step="0.01" min="0.01">
             </div>
             <div class="form-group">
               <label for="prodPrice5kg">5kg Pack Price (₱)</label>
-              <input type="number" id="prodPrice5kg" class="form-control" placeholder="Optional / Auto" step="0.01" min="0">
+              <input type="number" id="prodPrice5kg" class="form-control" placeholder="Optional / Auto" step="0.01" min="0.01">
             </div>
           </div>
 
@@ -170,6 +170,6 @@
   <script src="../js/data.js"></script>
   <script src="../js/utils.js"></script>
   <script src="../js/auth.js?v=3"></script>
-  <script src="../js/products.js?v=3"></script>
+  <script src="../js/products.js?v=4"></script>
 </body>
 </html>

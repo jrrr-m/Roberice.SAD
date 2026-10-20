@@ -18,49 +18,156 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   document.getElementById('productForm').addEventListener('submit', handleProductSubmit);
 
-  const prodNameInput = document.getElementById('prodName');
-  const prodRiceTypeInput = document.getElementById('prodRiceType');
-  const prodCategoryInput = document.getElementById('prodCategory');
-  if (prodNameInput) prodNameInput.addEventListener('input', checkDuplicateProductLive);
-  if (prodRiceTypeInput) prodRiceTypeInput.addEventListener('input', checkDuplicateProductLive);
-  if (prodCategoryInput) prodCategoryInput.addEventListener('input', checkDuplicateProductLive);
+  const inputIdsToValidate = [
+    'prodName', 'prodRiceType', 'prodCategory',
+    'prodPriceSack', 'prodPrice25kg', 'prodPriceKg',
+    'prodPrice20kg', 'prodPrice10kg', 'prodPrice5kg',
+    'prodThresholdKg', 'prodInitialSacks', 'prodInitial25kg',
+    'prodInitialKg', 'prodInitial20kg', 'prodInitial10kg', 'prodInitial5kg'
+  ];
+
+  inputIdsToValidate.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', validateProductFormLive);
+  });
 });
 
-function checkDuplicateProductLive() {
-  const alertEl = document.getElementById('productDuplicateAlert');
+function showProductFormAlert(message) {
+  const alertEl = document.getElementById('productFormAlert') || document.getElementById('productDuplicateAlert');
+  if (!alertEl) return;
+  const msgEl = document.getElementById('productFormAlertMsg');
+  const cleanMsg = message.replace(/^⚠️\s*/, '');
+  if (msgEl) {
+    msgEl.textContent = '⚠️ ' + cleanMsg;
+  } else {
+    alertEl.textContent = '⚠️ ' + cleanMsg;
+  }
+  alertEl.style.display = 'block';
+}
+
+function hideProductFormAlert() {
+  const alertEl = document.getElementById('productFormAlert') || document.getElementById('productDuplicateAlert');
+  if (alertEl) alertEl.style.display = 'none';
+}
+
+function validateProductFormLive() {
   const nameInput = document.getElementById('prodName');
   const riceTypeInput = document.getElementById('prodRiceType');
   const categoryInput = document.getElementById('prodCategory');
+  const priceSackInput = document.getElementById('prodPriceSack');
+  const price25kgInput = document.getElementById('prodPrice25kg');
+  const priceKgInput = document.getElementById('prodPriceKg');
+  const price20kgInput = document.getElementById('prodPrice20kg');
+  const price10kgInput = document.getElementById('prodPrice10kg');
+  const price5kgInput = document.getElementById('prodPrice5kg');
+  const thresholdInput = document.getElementById('prodThresholdKg');
   const editId = document.getElementById('prodEditId') ? document.getElementById('prodEditId').value.trim() : '';
 
+  // 1. Check for Duplicate
   const name = nameInput ? nameInput.value.trim() : '';
   const riceType = (riceTypeInput && riceTypeInput.value.trim()) || (categoryInput && categoryInput.value.trim()) || '';
 
-  if (!name || !riceType) {
-    if (alertEl) alertEl.style.display = 'none';
-    if (nameInput) nameInput.style.borderColor = '';
-    if (riceTypeInput) riceTypeInput.style.borderColor = '';
-    return false;
+  if (name && riceType) {
+    const isDuplicate = productsCache.some(p => {
+      if (editId && String(p.id) === String(editId)) return false;
+      const pName = (p.name || '').trim().toLowerCase();
+      const pRiceType = (p.riceType || p.category || 'White Rice').trim().toLowerCase();
+      return pName === name.toLowerCase() && pRiceType === riceType.toLowerCase();
+    });
+
+    if (isDuplicate) {
+      showProductFormAlert('A product with this name and rice type already exists.');
+      if (nameInput) nameInput.style.borderColor = '#dc2626';
+      if (riceTypeInput) riceTypeInput.style.borderColor = '#dc2626';
+      return false;
+    }
   }
 
-  const isDuplicate = productsCache.some(p => {
-    if (editId && String(p.id) === String(editId)) return false;
-    const pName = (p.name || '').trim().toLowerCase();
-    const pRiceType = (p.riceType || p.category || 'White Rice').trim().toLowerCase();
-    return pName === name.toLowerCase() && pRiceType === riceType.toLowerCase();
-  });
+  if (nameInput) nameInput.style.borderColor = '';
+  if (riceTypeInput) riceTypeInput.style.borderColor = '';
 
-  if (alertEl) {
-    alertEl.style.display = isDuplicate ? 'block' : 'none';
-  }
-  if (nameInput) {
-    nameInput.style.borderColor = isDuplicate ? '#dc2626' : '';
-  }
-  if (riceTypeInput) {
-    riceTypeInput.style.borderColor = isDuplicate ? '#dc2626' : '';
+  // 2. Validate values must be greater than 0
+  if (priceSackInput && priceSackInput.value !== '') {
+    const val = parseFloat(priceSackInput.value);
+    if (isNaN(val) || val <= 0) {
+      priceSackInput.style.borderColor = '#dc2626';
+      showProductFormAlert('Whole sack price must be greater than 0.');
+      return false;
+    } else {
+      priceSackInput.style.borderColor = '';
+    }
   }
 
-  return isDuplicate;
+  if (priceKgInput && priceKgInput.value !== '') {
+    const val = parseFloat(priceKgInput.value);
+    if (isNaN(val) || val <= 0) {
+      priceKgInput.style.borderColor = '#dc2626';
+      showProductFormAlert('Price per kg must be greater than 0.');
+      return false;
+    } else {
+      priceKgInput.style.borderColor = '';
+    }
+  }
+
+  if (thresholdInput && thresholdInput.value !== '') {
+    const val = parseFloat(thresholdInput.value);
+    if (isNaN(val) || val <= 0) {
+      thresholdInput.style.borderColor = '#dc2626';
+      showProductFormAlert('Low-stock threshold must be greater than 0.');
+      return false;
+    } else {
+      thresholdInput.style.borderColor = '';
+    }
+  }
+
+  const packInputs = [
+    { el: price25kgInput, label: 'Half sack price' },
+    { el: price20kgInput, label: '20kg pack price' },
+    { el: price10kgInput, label: '10kg pack price' },
+    { el: price5kgInput, label: '5kg pack price' }
+  ];
+
+  for (const pack of packInputs) {
+    if (pack.el && pack.el.value !== '') {
+      const val = parseFloat(pack.el.value);
+      if (isNaN(val) || val <= 0) {
+        pack.el.style.borderColor = '#dc2626';
+        showProductFormAlert(`${pack.label} must be greater than 0.`);
+        return false;
+      } else {
+        pack.el.style.borderColor = '';
+      }
+    }
+  }
+
+  if (priceSackInput && price25kgInput && priceSackInput.value !== '' && price25kgInput.value !== '') {
+    const sVal = parseFloat(priceSackInput.value);
+    const hVal = parseFloat(price25kgInput.value);
+    if (!isNaN(sVal) && !isNaN(hVal) && sVal <= hVal) {
+      priceSackInput.style.borderColor = '#dc2626';
+      price25kgInput.style.borderColor = '#dc2626';
+      showProductFormAlert('Whole sack price must be greater than half sack price.');
+      return false;
+    }
+  }
+
+  const stockInputIds = ['prodInitialSacks', 'prodInitial25kg', 'prodInitialKg', 'prodInitial20kg', 'prodInitial10kg', 'prodInitial5kg'];
+  for (const id of stockInputIds) {
+    const el = document.getElementById(id);
+    if (el && el.value !== '') {
+      const val = parseFloat(el.value);
+      if (isNaN(val) || val < 0) {
+        el.style.borderColor = '#dc2626';
+        showProductFormAlert('Initial stock quantities must be greater than or equal to 0.');
+        return false;
+      } else {
+        el.style.borderColor = '';
+      }
+    }
+  }
+
+  hideProductFormAlert();
+  return true;
 }
 
 async function renderProductsTable() {
@@ -175,12 +282,8 @@ function openAddProductModal() {
   document.getElementById('prodInitial10kg').value = '3';
   document.getElementById('prodInitial20kg').value = '1';
 
-  const alertEl = document.getElementById('productDuplicateAlert');
-  if (alertEl) alertEl.style.display = 'none';
-  const nameInput = document.getElementById('prodName');
-  const riceTypeInput = document.getElementById('prodRiceType');
-  if (nameInput) nameInput.style.borderColor = '';
-  if (riceTypeInput) riceTypeInput.style.borderColor = '';
+  hideProductFormAlert();
+  document.querySelectorAll('#modalProductForm input').forEach(inp => inp.style.borderColor = '');
 
   openModal('modalProductForm');
 }
@@ -205,12 +308,8 @@ function openEditProductModal(productId) {
   document.getElementById('prodThresholdKg').value = p.thresholdKg;
   document.getElementById('initialStockRow').style.display = 'none';
 
-  const alertEl = document.getElementById('productDuplicateAlert');
-  if (alertEl) alertEl.style.display = 'none';
-  const nameInput = document.getElementById('prodName');
-  const riceTypeInput = document.getElementById('prodRiceType');
-  if (nameInput) nameInput.style.borderColor = '';
-  if (riceTypeInput) riceTypeInput.style.borderColor = '';
+  hideProductFormAlert();
+  document.querySelectorAll('#modalProductForm input').forEach(inp => inp.style.borderColor = '');
 
   openModal('modalProductForm');
 }
@@ -232,17 +331,14 @@ async function handleProductSubmit(e) {
   const kgPerSack = 50;
   const thresholdKg = parseFloat(document.getElementById('prodThresholdKg').value) || 200;
 
+  // 1. Required fields
   if (!name || !category || isNaN(priceSack) || isNaN(priceKg)) {
     showToast('Please complete all required fields.', 'warning');
+    showProductFormAlert('Please complete all required fields.');
     return;
   }
 
-  if (priceSack < 0 || priceKg < 0) {
-    showToast('Prices cannot be negative values.', 'warning');
-    return;
-  }
-
-  // Data duplication check: Ensure same product name and rice type does not already exist
+  // 2. Data duplication check: Ensure same product name and rice type does not already exist
   const resolvedRiceType = riceType || category || 'White Rice';
   const isDuplicate = productsCache.some(p => {
     if (editId && String(p.id) === String(editId)) return false;
@@ -253,11 +349,7 @@ async function handleProductSubmit(e) {
 
   if (isDuplicate) {
     showToast('A product with this name and rice type already exists.', 'warning');
-    const alertEl = document.getElementById('productDuplicateAlert');
-    if (alertEl) {
-      alertEl.textContent = '⚠️ A product with this name and rice type already exists.';
-      alertEl.style.display = 'block';
-    }
+    showProductFormAlert('A product with this name and rice type already exists.');
     const nameInput = document.getElementById('prodName');
     if (nameInput) {
       nameInput.focus();
@@ -266,6 +358,63 @@ async function handleProductSubmit(e) {
     const riceTypeInput = document.getElementById('prodRiceType');
     if (riceTypeInput) riceTypeInput.style.borderColor = '#dc2626';
     return;
+  }
+
+  // 3. Values must be greater validation
+  if (priceSack <= 0) {
+    showToast('Whole sack price must be greater than 0.', 'warning');
+    showProductFormAlert('Whole sack price must be greater than 0.');
+    const el = document.getElementById('prodPriceSack');
+    if (el) { el.focus(); el.style.borderColor = '#dc2626'; }
+    return;
+  }
+
+  if (priceKg <= 0) {
+    showToast('Price per kg must be greater than 0.', 'warning');
+    showProductFormAlert('Price per kg must be greater than 0.');
+    const el = document.getElementById('prodPriceKg');
+    if (el) { el.focus(); el.style.borderColor = '#dc2626'; }
+    return;
+  }
+
+  if (thresholdKg <= 0) {
+    showToast('Low-stock threshold must be greater than 0.', 'warning');
+    showProductFormAlert('Low-stock threshold must be greater than 0.');
+    const el = document.getElementById('prodThresholdKg');
+    if (el) { el.focus(); el.style.borderColor = '#dc2626'; }
+    return;
+  }
+
+  if (price25kg <= 0 || price5kg <= 0 || price10kg <= 0 || price20kg <= 0) {
+    showToast('Pack prices must be greater than 0.', 'warning');
+    showProductFormAlert('Pack prices must be greater than 0.');
+    return;
+  }
+
+  if (priceSack <= price25kg) {
+    showToast('Whole sack price must be greater than half sack price.', 'warning');
+    showProductFormAlert('Whole sack price must be greater than half sack price.');
+    const el = document.getElementById('prodPriceSack');
+    if (el) el.style.borderColor = '#dc2626';
+    const el2 = document.getElementById('prodPrice25kg');
+    if (el2) el2.style.borderColor = '#dc2626';
+    return;
+  }
+
+  // 4. Initial stock quantities must be greater than or equal to 0 (for new product)
+  if (!editId) {
+    const initialSacks = parseInt(document.getElementById('prodInitialSacks').value) || 0;
+    const packaged25kg = parseInt(document.getElementById('prodInitial25kg').value) || 0;
+    const initialKg = parseFloat(document.getElementById('prodInitialKg').value) || 0;
+    const packaged5kg = parseInt(document.getElementById('prodInitial5kg').value) || 0;
+    const packaged10kg = parseInt(document.getElementById('prodInitial10kg').value) || 0;
+    const packaged20kg = parseInt(document.getElementById('prodInitial20kg').value) || 0;
+
+    if (initialSacks < 0 || packaged25kg < 0 || initialKg < 0 || packaged5kg < 0 || packaged10kg < 0 || packaged20kg < 0) {
+      showToast('Initial stock quantities must be greater than or equal to 0.', 'warning');
+      showProductFormAlert('Initial stock quantities must be greater than or equal to 0.');
+      return;
+    }
   }
 
   try {
@@ -341,17 +490,7 @@ async function handleProductSubmit(e) {
       renderProductsTable();
     } else {
       showToast(result.message || 'Something went wrong.', 'warning');
-      if (result.message && result.message.toLowerCase().includes('already exists')) {
-        const alertEl = document.getElementById('productDuplicateAlert');
-        if (alertEl) {
-          alertEl.textContent = '⚠️ ' + result.message;
-          alertEl.style.display = 'block';
-        }
-        const nameInput = document.getElementById('prodName');
-        if (nameInput) nameInput.style.borderColor = '#dc2626';
-        const riceTypeInput = document.getElementById('prodRiceType');
-        if (riceTypeInput) riceTypeInput.style.borderColor = '#dc2626';
-      }
+      showProductFormAlert(result.message || 'Something went wrong.');
     }
   } catch (error) {
     console.error(error);

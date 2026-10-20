@@ -53,12 +53,57 @@ try {
     exit;
 }
 
-try {
-    $price25kg = !empty($data['price25kg']) ? (float)$data['price25kg'] : ((float)$data['priceSack'] / 2);
-    $price5kg = !empty($data['price5kg']) ? (float)$data['price5kg'] : ((float)$data['priceKg'] * 5);
-    $price10kg = !empty($data['price10kg']) ? (float)$data['price10kg'] : ((float)$data['priceKg'] * 10);
-    $price20kg = !empty($data['price20kg']) ? (float)$data['price20kg'] : ((float)$data['priceKg'] * 20);
+// Value validation: numeric prices and threshold must be greater than 0
+$priceSack = isset($data['priceSack']) ? (float)$data['priceSack'] : 0;
+$priceKg = isset($data['priceKg']) ? (float)$data['priceKg'] : 0;
+$thresholdKg = isset($data['thresholdKg']) ? (float)$data['thresholdKg'] : 200;
 
+if ($priceSack <= 0) {
+    echo json_encode([
+        "success" => false,
+        "message" => "Whole sack price must be greater than 0."
+    ]);
+    exit;
+}
+
+if ($priceKg <= 0) {
+    echo json_encode([
+        "success" => false,
+        "message" => "Price per kg must be greater than 0."
+    ]);
+    exit;
+}
+
+if ($thresholdKg <= 0) {
+    echo json_encode([
+        "success" => false,
+        "message" => "Low-stock alert threshold must be greater than 0."
+    ]);
+    exit;
+}
+
+$price25kg = !empty($data['price25kg']) ? (float)$data['price25kg'] : ($priceSack / 2);
+$price5kg = !empty($data['price5kg']) ? (float)$data['price5kg'] : ($priceKg * 5);
+$price10kg = !empty($data['price10kg']) ? (float)$data['price10kg'] : ($priceKg * 10);
+$price20kg = !empty($data['price20kg']) ? (float)$data['price20kg'] : ($priceKg * 20);
+
+if ($price25kg <= 0 || $price5kg <= 0 || $price10kg <= 0 || $price20kg <= 0) {
+    echo json_encode([
+        "success" => false,
+        "message" => "Pack prices must be greater than 0."
+    ]);
+    exit;
+}
+
+if ($priceSack <= $price25kg) {
+    echo json_encode([
+        "success" => false,
+        "message" => "Whole sack price must be greater than half sack price."
+    ]);
+    exit;
+}
+
+try {
     $stmt = $conn->prepare("
         UPDATE product
         SET product_name = ?, category = ?, origin = ?, rice_type = ?, price_sack = ?, price_25kg = ?, price_kg = ?, price_5kg = ?, price_10kg = ?, price_20kg = ?, kg_per_sack = 50.00
@@ -70,9 +115,9 @@ try {
         $category,
         $origin,
         $riceType,
-        $data['priceSack'],
+        $priceSack,
         $price25kg,
-        $data['priceKg'],
+        $priceKg,
         $price5kg,
         $price10kg,
         $price20kg,
@@ -86,7 +131,7 @@ try {
     ");
 
     $stmt->execute([
-        $data['thresholdKg'],
+        $thresholdKg,
         $productId
     ]);
 
