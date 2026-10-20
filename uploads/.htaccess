@@ -1,0 +1,16 @@
+# Disable PHP execution in the uploads directory
+<FilesMatch "\.(php|phtml|php3|php4|php5|php7|php8|phps)$">
+    Order Deny,Allow
+    Deny from all
+</FilesMatch>
+
+# Fallback: remove handler if mod_php is loaded
+<IfModule mod_php.c>
+    php_flag engine off
+</IfModule>
+<IfModule mod_php7.c>
+    php_flag engine off
+</IfModule>
+<IfModule mod_php8.c>
+    php_flag engine off
+</IfModule>

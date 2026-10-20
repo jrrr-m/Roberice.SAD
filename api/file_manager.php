@@ -71,7 +71,13 @@ try {
         $uploader = trim($_POST["uploader"] ?? "Admin User");
 
         // Generate safe unique stored filename
-        $ext = pathinfo($origName, PATHINFO_EXTENSION);
+        $ext = strtolower(pathinfo($origName, PATHINFO_EXTENSION));
+        $allowedExtensions = ['pdf', 'png', 'jpg', 'jpeg', 'csv', 'sql', 'docx', 'xlsx', 'txt'];
+        if (!in_array($ext, $allowedExtensions, true)) {
+            echo json_encode(["success" => false, "message" => "File type not permitted. Allowed extensions: " . implode(', ', $allowedExtensions)]);
+            exit;
+        }
+
         $cleanBase = preg_replace('/[^a-zA-Z0-9_-]/', '_', pathinfo($origName, PATHINFO_FILENAME));
         $storedName = $cleanBase . "_" . date("Ymd_His") . ($ext ? "." . $ext : "");
         $destPath = $uploadsDir . "/" . $storedName;
@@ -120,7 +126,7 @@ try {
 
         // If exec didn't write or failed, create portable SQL backup via PHP PDO
         if (!file_exists($destPath) || filesize($destPath) === 0) {
-            $tables = ["users", "product", "inventory", "inventory_adjustment", "sales_transaction", "transaction_item", "file_records"];
+            $tables = ["users", "product", "inventory", "inventory_batch", "inventory_adjustment", "sales_transaction", "transaction_item", "file_records"];
             $dumpContent = "-- Roberice Database Auto-Backup\n-- Generated on " . date("Y-m-d H:i:s") . "\n\n";
 
             foreach ($tables as $t) {

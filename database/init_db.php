@@ -27,7 +27,7 @@ try {
     $pdo->exec("CREATE DATABASE IF NOT EXISTS `{$dbname}` CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;");
     $pdo->exec("USE `{$dbname}`;");
 
-    $isFresh = isset($_GET['fresh']) && $_GET['fresh'] == '1';
+    $isFresh = (isset($_GET['fresh']) && $_GET['fresh'] == '1' && (isset($_GET['confirm']) && $_GET['confirm'] === 'roberice_reset_confirmed')) || (php_sapi_name() === 'cli' && isset($argv[1]) && $argv[1] === '--fresh');
 
     // 3. Check if database tables already exist and have product data
     $hasTables = false;
@@ -39,7 +39,7 @@ try {
         }
     }
 
-    // 4. Initialize schema and dataset from roberice_db.sql if uninitialized or fresh reset requested
+    // 4. Initialize schema and dataset from roberice_db.sql if uninitialized or confirmed fresh reset requested
     if (!$hasTables || $isFresh) {
         $sqlFile = __DIR__ . '/roberice_db.sql';
         if (file_exists($sqlFile)) {

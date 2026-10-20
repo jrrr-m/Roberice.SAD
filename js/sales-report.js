@@ -24,7 +24,7 @@ function getCurrentISOWeek() {
 
 function setDefaultFilterDates() {
   const now = new Date();
-  const todayStr = now.toISOString().split('T')[0];
+  const todayStr = typeof getLocalDateString === 'function' ? getLocalDateString(now) : `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   const curMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   const curWeekStr = getCurrentISOWeek();
 
@@ -159,7 +159,7 @@ function bindFilterEvents() {
     btnDailyToday.addEventListener('click', () => {
       const dailyInput = document.getElementById('filterDailyDate');
       if (dailyInput) {
-        dailyInput.value = new Date().toISOString().split('T')[0];
+        dailyInput.value = typeof getLocalDateString === 'function' ? getLocalDateString() : new Date().toLocaleDateString('en-CA');
         loadSalesReport();
       }
     });
@@ -213,7 +213,7 @@ function bindFilterEvents() {
     document.getElementById('filterCashier').value = 'all';
     document.getElementById('filterPayment').value = 'all';
     const now = new Date();
-    document.getElementById('filterDailyDate').value = now.toISOString().split('T')[0];
+    document.getElementById('filterDailyDate').value = typeof getLocalDateString === 'function' ? getLocalDateString(now) : `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     document.getElementById('filterWeekInput').value = getCurrentISOWeek();
     document.getElementById('filterMonthInput').value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     document.getElementById('filterQuarter').value = '4';
@@ -314,7 +314,7 @@ function renderReportView(data) {
   document.getElementById('kpiSacksSold').textContent = `${summary.totalSacksSold || 0} sacks`;
   document.getElementById('kpiTotalKgSold').textContent = `${formatNumber(summary.totalVolumeKg || 0)} kg total equivalent`;
 
-  const packsTotal = (summary.total5kgPacks || 0) + (summary.total10kgPacks || 0) + (summary.total20kgPacks || 0);
+  const packsTotal = (summary.total25kgPacks || 0) + (summary.total20kgPacks || 0) + (summary.total10kgPacks || 0) + (summary.total5kgPacks || 0);
   document.getElementById('kpiPacksSold').textContent = `${packsTotal} pre-packed bags`;
   document.getElementById('kpiTinatakalKg').textContent = `${summary.totalTinatakalKg || 0} kg loose tinatakal`;
 
@@ -334,7 +334,7 @@ function renderReportView(data) {
   const varieties = data.varietyBreakdown || [];
 
   if (!varieties.length) {
-    vTable.innerHTML = `<tr><td colspan="11" class="empty-state">No rice sales recorded in this period.</td></tr>`;
+    vTable.innerHTML = `<tr><td colspan="12" class="empty-state">No rice sales recorded in this period.</td></tr>`;
   } else {
     vTable.innerHTML = varieties.map(v => {
       const originBadge = v.origin === 'Imported'
@@ -445,7 +445,7 @@ function openPrintReportModal() {
       </div>
       <div class="print-stat-item">
         <span class="lbl">Sacks & Packs Sold</span>
-        <span class="val">${summary.totalSacksSold || 0} Sacks / ${(summary.total5kgPacks||0)+(summary.total10kgPacks||0)+(summary.total20kgPacks||0)} Packs</span>
+        <span class="val">${summary.totalSacksSold || 0} Sacks / ${(summary.total25kgPacks||0)+(summary.total20kgPacks||0)+(summary.total10kgPacks||0)+(summary.total5kgPacks||0)} Packs</span>
       </div>
     </div>
 

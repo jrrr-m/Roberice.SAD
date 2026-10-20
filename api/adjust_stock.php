@@ -212,19 +212,24 @@ try {
             $detailNote .= " [Damaged packs: 25kg={$p25}, 20kg={$p20}, 10kg={$p10}, 5kg={$p5}]";
         }
     } elseif ($type === 'repack') {
+        $totalRepackedKg = (abs($p5) * 5) + (abs($p10) * 10) + (abs($p20) * 20) + (abs($p25) * 25);
+        $availableBulkKg = ($newSacks * 50.0) + $newKg;
+        if ($totalRepackedKg > $availableBulkKg) {
+            throw new Exception("Insufficient bulk stock to repack: Needs {$totalRepackedKg} kg, but only " . number_format($availableBulkKg, 1) . " kg is available in bulk stock (sacks + loose kg).");
+        }
         $newPack5 += abs($p5);
         $newPack10 += abs($p10);
         $newPack20 += abs($p20);
         $newPack25 += abs($p25);
-        $totalRepackedKg = (abs($p5) * 5) + (abs($p10) * 10) + (abs($p20) * 20) + (abs($p25) * 25);
         if ($newKg >= $totalRepackedKg) {
             $newKg -= $totalRepackedKg;
         } else {
             $neededKg = $totalRepackedKg - $newKg;
             $kgPerSack = 50.0;
             $sacksToOpen = (int)ceil($neededKg / $kgPerSack);
-            $newSacks = max(0, $newSacks - $sacksToOpen);
-            $newKg = max(0, ($newKg + ($sacksToOpen * $kgPerSack)) - $totalRepackedKg);
+            $actualSacksOpened = min($newSacks, $sacksToOpen);
+            $newSacks = max(0, $newSacks - $actualSacksOpened);
+            $newKg = max(0.0, ($newKg + ($actualSacksOpened * $kgPerSack)) - $totalRepackedKg);
         }
         $detailNote = !empty($note) ? $note : "Repacked stock into bags [25kg={$p25}, 20kg={$p20}, 10kg={$p10}, 5kg={$p5}]";
     } else {
@@ -289,6 +294,8 @@ try {
                 $b25 = max(0, $b25 - abs($p25));
                 $b20 = max(0, $b20 - abs($p20));
                 $b10 = max(0, $b10 - abs($p10));
+                $b5 = max(0, $b5 - abs($p5));
+                $bKg = max(0.0, $bKg - abs($kg));
             } elseif ($type === 'repack') {
                 $b5 += abs($p5);
                 $b10 += abs($p10);
@@ -301,8 +308,9 @@ try {
                     $neededKg = $totalRepackedKg - $bKg;
                     $kgPerSack = 50.0;
                     $bSacksToOpen = (int)ceil($neededKg / $kgPerSack);
-                    $bSacks = max(0, $bSacks - $bSacksToOpen);
-                    $bKg = max(0.0, ($bKg + ($bSacksToOpen * $kgPerSack)) - $totalRepackedKg);
+                    $actualBatchSacks = min($bSacks, $bSacksToOpen);
+                    $bSacks = max(0, $bSacks - $actualBatchSacks);
+                    $bKg = max(0.0, ($bKg + ($actualBatchSacks * $kgPerSack)) - $totalRepackedKg);
                 }
             } elseif ($type === 'correction') {
                 $bSacks = max(0, $sacks);

@@ -16,3 +16,4 @@ $RECYCLE.BIN/
 # Uploaded Files & Temp
 uploads/*
 !uploads/.gitkeep
+!uploads/.htaccess

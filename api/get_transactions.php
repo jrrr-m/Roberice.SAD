@@ -50,6 +50,7 @@ try {
         $txId = $t['transaction_id'];
         $t['items'] = $itemsByTx[$txId] ?? [];
     }
+    unset($t);
 
     echo json_encode($transactions);
 

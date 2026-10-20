@@ -10,7 +10,7 @@ function renderSalesBarChart(containerId, transactions = []) {
     d.setDate(d.getDate() - i);
 
     days.push({
-      dateStr: d.toISOString().split('T')[0],
+      dateStr: typeof getLocalDateString === 'function' ? getLocalDateString(d) : `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`,
       label: d.toLocaleString('en-US', { month: 'short', day: '2-digit' }),
       total: 0
     });

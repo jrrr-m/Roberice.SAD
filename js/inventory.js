@@ -493,7 +493,7 @@ function openRestockModal(productId = null) {
   document.getElementById('restock20kg').value = '0';
   document.getElementById('restock10kg').value = '0';
   document.getElementById('restock5kg').value = '0';
-  document.getElementById('restockDate').value = new Date().toISOString().split('T')[0];
+  document.getElementById('restockDate').value = typeof getLocalDateString === 'function' ? getLocalDateString() : new Date().toLocaleDateString('en-CA');
   document.getElementById('restockBatch').value = `BATCH-${dateCode()}`;
   hideInventoryAlert('restock');
   openModal('modalRestock');

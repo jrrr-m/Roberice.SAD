@@ -150,6 +150,17 @@ function renderAppFrame(user) {
       `;
     }).join('');
 
+  const roleDisplayMap = {
+    'admin': 'Admin (Full Access)',
+    'cashier': 'Cashier (Restricted)',
+    'clerk': 'Inventory Clerk',
+    'inventory clerk': 'Inventory Clerk',
+    'manager': 'Store Manager',
+    'store manager': 'Store Manager'
+  };
+  const userRoleKey = (user.role || '').toLowerCase();
+  const userRoleDisplay = roleDisplayMap[userRoleKey] || (user.role || 'Staff');
+
   const sidebarHtml = `
     <aside class="sidebar">
       <div class="sidebar-header">
@@ -166,7 +177,7 @@ function renderAppFrame(user) {
         <div class="sidebar-user-card">
           <div class="profile-details">
             <div class="user-name">${userName}</div>
-            <div class="user-role">${user.role === 'admin' ? 'Admin (Full Access)' : 'Cashier (Restricted)'}</div>
+            <div class="user-role">${userRoleDisplay}</div>
           </div>
           <button class="btn-logout" id="btnLogout" title="Logout">
             <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>

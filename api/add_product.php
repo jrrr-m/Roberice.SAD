@@ -185,6 +185,35 @@ try {
         $thresholdKg
     ]);
 
+    // Sync initial stock with inventory_batch
+    $hasBatches = $conn->query("SHOW TABLES LIKE 'inventory_batch'")->fetchAll();
+    if (count($hasBatches) > 0) {
+        $totalInitKg = ($initialSacks * 50) + ($packaged25kg * 25) + ($packaged20kg * 20) + ($packaged10kg * 10) + ($packaged5kg * 5) + $initialKg;
+        $batchStatus = ($totalInitKg <= 0) ? 'Depleted' : 'Active';
+        $insBatch = $conn->prepare("
+            INSERT INTO inventory_batch 
+            (product_id, batch_code, received_date, stock_sacks, packaged_25kg, packaged_20kg, packaged_10kg, packaged_5kg, stock_kg, status, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+        ");
+        $insBatch->execute([$productId, $batchNumber, $receivedDate, $initialSacks, $packaged25kg, $packaged20kg, $packaged10kg, $packaged5kg, $initialKg, $batchStatus]);
+    }
+
+    // Log initial restock to inventory_adjustment if any stock was provided
+    if ($initialSacks > 0 || $packaged25kg > 0 || $initialKg > 0 || $packaged5kg > 0 || $packaged10kg > 0 || $packaged20kg > 0) {
+        $adjStmt = $conn->prepare("
+            INSERT INTO inventory_adjustment
+            (product_id, batch_code, adjustment_date, adjustment_type, sacks, kg, note, performed_by)
+            VALUES (?, ?, NOW(), 'restock', ?, ?, ?, 'Admin User')
+        ");
+        $adjStmt->execute([
+            $productId,
+            $batchNumber,
+            $initialSacks,
+            $initialKg,
+            "Initial stock configuration for {$name} [Batch: {$batchNumber}, Packs: 25k={$packaged25kg}, 20k={$packaged20kg}, 10k={$packaged10kg}, 5k={$packaged5kg}]"
+        ]);
+    }
+
     $conn->commit();
 
     echo json_encode([

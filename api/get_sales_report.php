@@ -168,6 +168,36 @@ try {
     $paymentStats = [];
     $dailyStats = [];
 
+    // Fetch all transaction items in a single batch query (eliminates N+1 query problem)
+    $itemsSql = "
+        SELECT
+            ti.transaction_id,
+            ti.transaction_item_id,
+            ti.product_id,
+            ti.unit,
+            ti.quantity,
+            ti.unit_price,
+            ti.subtotal,
+            p.product_name,
+            p.category,
+            p.origin,
+            p.rice_type,
+            p.kg_per_sack
+        FROM transaction_item ti
+        JOIN sales_transaction t ON ti.transaction_id = t.transaction_id
+        JOIN product p ON ti.product_id = p.product_id
+        WHERE $whereSql
+        ORDER BY ti.transaction_item_id ASC
+    ";
+    $itemStmt = $conn->prepare($itemsSql);
+    $itemStmt->execute($params);
+    $allItems = $itemStmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $itemsByTx = [];
+    foreach ($allItems as $it) {
+        $itemsByTx[(int)$it['transaction_id']][] = $it;
+    }
+
     foreach ($transactions as &$txn) {
         $tId = (int)$txn["transaction_id"];
         $amt = (float)$txn["total_amount"];
@@ -203,27 +233,8 @@ try {
         $paymentStats[$pMethod]["sales"] += $amt;
         $paymentStats[$pMethod]["transactions"] += 1;
 
-        // Fetch transaction items
-        $itemStmt = $conn->prepare("
-            SELECT
-                ti.transaction_item_id,
-                ti.product_id,
-                ti.unit,
-                ti.quantity,
-                ti.unit_price,
-                ti.subtotal,
-                p.product_name,
-                p.category,
-                p.origin,
-                p.rice_type,
-                p.kg_per_sack
-            FROM transaction_item ti
-            JOIN product p ON ti.product_id = p.product_id
-            WHERE ti.transaction_id = ?
-        ");
-        $itemStmt->execute([$tId]);
-        $items = $itemStmt->fetchAll(PDO::FETCH_ASSOC);
-
+        // Attach pre-fetched items
+        $items = $itemsByTx[$tId] ?? [];
         $txn["items"] = $items;
 
         foreach ($items as $item) {
@@ -285,6 +296,7 @@ try {
             $totalVolumeKg += $itemKg;
         }
     }
+    unset($txn);
 
     // Filter varieties by origin and rice_type if requested
     $varietyList = array_values($varietyStats);
@@ -292,8 +304,9 @@ try {
         $varietyList = array_filter($varietyList, fn($v) => strtolower($v["origin"]) === strtolower($origin));
     }
     if ($riceType !== "all") {
-        $varietyList = array_filter($varietyList, fn($v) => strtolower($v["rice_type"]) === strtolower($riceType));
+        $varietyList = array_filter($varietyList, fn($v) => strtolower($v["rice_type"]) === strtolower($riceType) || strtolower($v["category"]) === strtolower($riceType));
     }
+    $varietyList = array_values($varietyList);
 
     // Sort varieties by revenue descending
     usort($varietyList, fn($a, $b) => $b["revenue"] <=> $a["revenue"]);
@@ -302,6 +315,7 @@ try {
     foreach ($varietyList as &$v) {
         $v["percentage"] = $totalRevenue > 0 ? round(($v["revenue"] / $totalRevenue) * 100, 1) : 0;
     }
+    unset($v);
 
     // Sort daily stats chronologically
     ksort($dailyStats);

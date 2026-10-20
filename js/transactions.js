@@ -99,7 +99,7 @@ function renderTransactions() {
   const cashier = document.getElementById('filterCashier').value;
   const method = document.getElementById('filterMethod').value;
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = typeof getLocalDateString === 'function' ? getLocalDateString() : new Date().toLocaleDateString('en-CA');
 
   const filtered = transactionsCache.filter(t => {
     if (isCashier) {
@@ -150,7 +150,11 @@ function renderTransactions() {
     return;
   }
 
-  tbody.innerHTML = filtered.map(t => {
+  // Display up to 150 transactions for responsive DOM performance
+  const displayLimit = 150;
+  const toDisplay = filtered.slice(0, displayLimit);
+
+  let rowsHtml = toDisplay.map(t => {
     const items = t.items.map(i =>
       `${i.productName} <span style="color:var(--text-muted);">(${i.qty} ${i.unit})</span>`
     ).join(', ');
@@ -172,6 +176,18 @@ function renderTransactions() {
       </tr>
     `;
   }).join('');
+
+  if (filtered.length > displayLimit) {
+    rowsHtml += `
+      <tr>
+        <td colspan="7" style="text-align:center;padding:12px;color:var(--text-muted);background:var(--bg-subtle, #f9fafb);font-size:12px;">
+          Showing latest ${displayLimit} of ${filtered.length} matching transactions. Use filters above to narrow your query.
+        </td>
+      </tr>
+    `;
+  }
+
+  tbody.innerHTML = rowsHtml;
 }
 
 function viewTxnReceipt(transactionId) {

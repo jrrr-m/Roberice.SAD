@@ -199,7 +199,7 @@ async function renderProductsTable() {
     }
 
     tbody.innerHTML = productsCache.map(p => {
-      const totalVolume = (p.stockSacks * p.kgPerSack) + p.stockKg + (p.packaged5kg * 5) + (p.packaged10kg * 10) + (p.packaged20kg * 20);
+      const totalVolume = (p.stockSacks * p.kgPerSack) + (p.packaged25kg * 25) + (p.packaged20kg * 20) + (p.packaged10kg * 10) + (p.packaged5kg * 5) + p.stockKg;
       const isOut = totalVolume <= 0;
       const lowStock = !isOut && totalVolume <= p.thresholdKg;
 
@@ -223,9 +223,10 @@ async function renderProductsTable() {
           <td>
             <div><strong>${p.stockSacks} sacks</strong>, ${p.stockKg} kg</div>
             <div class="pack-chips-group" style="margin-top:2px;">
-              <span class="pack-chip">5k: <strong>${p.packaged5kg}</strong></span>
-              <span class="pack-chip">10k: <strong>${p.packaged10kg}</strong></span>
+              <span class="pack-chip">25k: <strong>${p.packaged25kg}</strong></span>
               <span class="pack-chip">20k: <strong>${p.packaged20kg}</strong></span>
+              <span class="pack-chip">10k: <strong>${p.packaged10kg}</strong></span>
+              <span class="pack-chip">5k: <strong>${p.packaged5kg}</strong></span>
             </div>
           </td>
           <td>${p.thresholdKg} kg</td>

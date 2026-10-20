@@ -68,7 +68,16 @@ function formatDateTime(dateString) {
   });
 }
 
-// Low Stock calculation rule
+// Local timezone-safe Date string (YYYY-MM-DD) avoiding UTC day shifts
+function getLocalDateString(d = new Date()) {
+  if (!(d instanceof Date) || isNaN(d)) d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+// Low Stock calculation rule (includes whole sacks, loose kg, and all pre-packed bags)
 function isLowStock(product) {
   if (!product) return false;
 
@@ -79,11 +88,15 @@ function isLowStock(product) {
   }
 
   const stockSacks = Number(product.stockSacks) || 0;
+  const p25 = Number(product.packaged25kg) || 0;
+  const p20 = Number(product.packaged20kg) || 0;
+  const p10 = Number(product.packaged10kg) || 0;
+  const p5 = Number(product.packaged5kg) || 0;
   const stockKg = Number(product.stockKg) || 0;
-  const kgPerSack = Number(product.kgPerSack) || 0;
+  const kgPerSack = Number(product.kgPerSack) || 50;
   const thresholdKg = Number(product.thresholdKg) || 0;
 
-  const totalKg = (stockSacks * kgPerSack) + stockKg;
+  const totalKg = (stockSacks * kgPerSack) + (p25 * 25) + (p20 * 20) + (p10 * 10) + (p5 * 5) + stockKg;
 
   return totalKg <= thresholdKg;
 }

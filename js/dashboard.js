@@ -76,7 +76,13 @@ function loadDashboardMetrics() {
   document.getElementById('statTotalProducts').textContent = products.length;
 
   const totalValue = products.reduce((total, p) => {
-    return total + (p.stockSacks * p.priceSack) + (p.stockKg * p.priceKg);
+    const sacksVal = (p.stockSacks || 0) * (p.priceSack || 0);
+    const p25Val = (p.packaged25kg || 0) * (p.price25kg || (p.priceSack ? p.priceSack / 2 : p.priceKg * 25));
+    const p20Val = (p.packaged20kg || 0) * (p.price20kg || (p.priceKg * 20));
+    const p10Val = (p.packaged10kg || 0) * (p.price10kg || (p.priceKg * 10));
+    const p5Val = (p.packaged5kg || 0) * (p.price5kg || (p.priceKg * 5));
+    const looseVal = (p.stockKg || 0) * (p.priceKg || 0);
+    return total + sacksVal + p25Val + p20Val + p10Val + p5Val + looseVal;
   }, 0);
 
   document.getElementById('statInventoryValue').textContent = formatCurrency(totalValue);
@@ -97,7 +103,14 @@ function loadDashboardMetrics() {
   const lowStockProducts = products.filter(p => isLowStock(p));
   document.getElementById('statLowStockCount').textContent = lowStockProducts.length;
 
-  const oldStockCount = products.filter(p => p.daysOld > 60 && (p.stockSacks > 0 || p.stockKg > 0)).length;
+  const oldStockCount = products.filter(p => p.daysOld > 60 && (
+    (p.stockSacks || 0) > 0 ||
+    (p.packaged25kg || 0) > 0 ||
+    (p.packaged20kg || 0) > 0 ||
+    (p.packaged10kg || 0) > 0 ||
+    (p.packaged5kg || 0) > 0 ||
+    (p.stockKg || 0) > 0
+  )).length;
   const oldStockEl = document.getElementById('statOldStockCount');
   if (oldStockEl) oldStockEl.textContent = oldStockCount;
 

@@ -36,6 +36,9 @@ try {
         $productId = (int)$item["productId"];
         $unit = $item["unit"];
         $qty = (float)$item["qty"];
+        $openedSacksCount = 0;
+        $openedKgAmount = 0.0;
+        $chosenSackToOpen = null;
 
         if ($qty <= 0) {
             throw new Exception("Invalid quantity.");
@@ -60,7 +63,8 @@ try {
                 i.stock_kg,
                 i.packaged_5kg,
                 i.packaged_10kg,
-                i.packaged_20kg
+                i.packaged_20kg,
+                i.batch_number
             FROM product p
             JOIN inventory i ON p.product_id = i.product_id
             WHERE p.product_id = ?
@@ -134,6 +138,7 @@ try {
             // "tinatakal" or "kg" (loose retail per kg)
             $unitPrice = (float)$product["price_kg"];
             $openSackType = !empty($item["openSackType"]) ? strtolower(trim($item["openSackType"])) : null;
+            $chosenSackToOpen = null;
 
             $totalAvailableKg = ($stockSacks * 50.0) + ($p25 * 25.0) + ($p20 * 20.0) + ($p10 * 10.0) + ($p5 * 5.0) + $stockKg;
 
@@ -160,6 +165,7 @@ try {
                     $openedSackDesc = "{$sacksToOpen}x 25kg half sack";
                     $openedSacksCount = $sacksToOpen;
                     $openedKgAmount = $addedKg;
+                    $chosenSackToOpen = '25kg';
                 } elseif ($openSackType === "20kg" || (empty($openSackType) && $p20 > 0)) {
                     $sacksToOpen = max(1, (int)ceil($neededKg / 20.0));
                     if ($p20 < $sacksToOpen) {
@@ -171,6 +177,7 @@ try {
                     $openedSackDesc = "{$sacksToOpen}x 20kg sack";
                     $openedSacksCount = $sacksToOpen;
                     $openedKgAmount = $addedKg;
+                    $chosenSackToOpen = '20kg';
                 } elseif ($openSackType === "10kg" || (empty($openSackType) && $p10 > 0)) {
                     $sacksToOpen = max(1, (int)ceil($neededKg / 10.0));
                     if ($p10 < $sacksToOpen) {
@@ -182,6 +189,7 @@ try {
                     $openedSackDesc = "{$sacksToOpen}x 10kg sack";
                     $openedSacksCount = $sacksToOpen;
                     $openedKgAmount = $addedKg;
+                    $chosenSackToOpen = '10kg';
                 } elseif ($openSackType === "5kg" || (empty($openSackType) && $p5 > 0)) {
                     $sacksToOpen = max(1, (int)ceil($neededKg / 5.0));
                     if ($p5 < $sacksToOpen) {
@@ -193,6 +201,7 @@ try {
                     $openedSackDesc = "{$sacksToOpen}x 5kg sack";
                     $openedSacksCount = $sacksToOpen;
                     $openedKgAmount = $addedKg;
+                    $chosenSackToOpen = '5kg';
                 } elseif ($stockSacks > 0) {
                     $sacksToOpen = max(1, (int)ceil($neededKg / 50.0));
                     if ($stockSacks < $sacksToOpen) {
@@ -204,6 +213,7 @@ try {
                     $openedSackDesc = "{$sacksToOpen}x Whole Sack (50kg)";
                     $openedSacksCount = $sacksToOpen;
                     $openedKgAmount = $addedKg;
+                    $chosenSackToOpen = '50kg';
                 } else {
                     throw new Exception("No sacks available to open for " . $product["product_name"] . ".");
                 }
@@ -265,15 +275,15 @@ try {
                 $b5 = (int)$bRow['packaged_5kg'];
                 $bKg = (float)$bRow['stock_kg'];
 
-                if ($unit === 'sack' || $unit === '50kg') {
+                if ($unitLower === 'sack' || $unitLower === '50kg') {
                     $bSacks = max(0, $bSacks - (int)$qty);
-                } elseif ($unit === '25kg' || $unit === 'half') {
+                } elseif ($unitLower === '25kg' || $unitLower === 'half_sack' || $unitLower === 'half') {
                     $b25 = max(0, $b25 - (int)$qty);
-                } elseif ($unit === '20kg') {
+                } elseif ($unitLower === '20kg') {
                     $b20 = max(0, $b20 - (int)$qty);
-                } elseif ($unit === '10kg') {
+                } elseif ($unitLower === '10kg') {
                     $b10 = max(0, $b10 - (int)$qty);
-                } elseif ($unit === '5kg') {
+                } elseif ($unitLower === '5kg') {
                     $b5 = max(0, $b5 - (int)$qty);
                 } else {
                     if (isset($openedSacksCount) && $openedSacksCount > 0) {

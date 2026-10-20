@@ -77,7 +77,7 @@ function renderAuditTable() {
   const dateFilter = document.getElementById('filterDateRange')?.value || 'all';
 
   const now = new Date();
-  const todayStr = now.toISOString().slice(0, 10);
+  const todayStr = typeof getLocalDateString === 'function' ? getLocalDateString(now) : `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   const sevenDaysAgo = new Date(now.getTime() - (7 * 24 * 60 * 60 * 1000));
   const thirtyDaysAgo = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000));
 
@@ -117,7 +117,11 @@ function renderAuditTable() {
     return;
   }
 
-  tbody.innerHTML = filtered.map(item => {
+  // Display up to 150 audit items for responsive DOM performance
+  const displayLimit = 150;
+  const toDisplay = filtered.slice(0, displayLimit);
+
+  let rowsHtml = toDisplay.map(item => {
     // Action Type Badge
     let badgeClass = item.badge_class || 'badge-secondary';
     if (item.type === 'open_sack') badgeClass = 'badge-open-sack';
@@ -163,6 +167,18 @@ function renderAuditTable() {
       </tr>
     `;
   }).join('');
+
+  if (filtered.length > displayLimit) {
+    rowsHtml += `
+      <tr>
+        <td colspan="7" style="text-align:center;padding:12px;color:var(--text-muted);background:var(--bg-subtle, #f9fafb);font-size:12px;">
+          Showing latest ${displayLimit} of ${filtered.length} matching audit events. Use search or filters above to narrow your query.
+        </td>
+      </tr>
+    `;
+  }
+
+  tbody.innerHTML = rowsHtml;
 }
 
 function exportAuditLogsToCsv() {
@@ -187,7 +203,8 @@ function exportAuditLogsToCsv() {
   const encodedUri = encodeURI(csvContent);
   const link = document.createElement('a');
   link.setAttribute('href', encodedUri);
-  link.setAttribute('download', `Roberice_Audit_Log_${new Date().toISOString().slice(0, 10)}.csv`);
+  const dateStr = typeof getLocalDateString === 'function' ? getLocalDateString() : new Date().toLocaleDateString('en-CA');
+  link.setAttribute('download', `Roberice_Audit_Log_${dateStr}.csv`);
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
