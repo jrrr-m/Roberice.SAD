@@ -36,10 +36,20 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (selViewProd) selViewProd.addEventListener('change', () => {
     updateViewOpenSackBatches();
     updateViewOpenSackPreview();
+    validateViewOpenSackLive();
   });
-  if (selViewBatch) selViewBatch.addEventListener('change', updateViewOpenSackPreview);
-  if (selViewType) selViewType.addEventListener('change', updateViewOpenSackPreview);
-  if (inpViewQty) inpViewQty.addEventListener('input', updateViewOpenSackPreview);
+  if (selViewBatch) selViewBatch.addEventListener('change', () => {
+    updateViewOpenSackPreview();
+    validateViewOpenSackLive();
+  });
+  if (selViewType) selViewType.addEventListener('change', () => {
+    updateViewOpenSackPreview();
+    validateViewOpenSackLive();
+  });
+  if (inpViewQty) inpViewQty.addEventListener('input', () => {
+    updateViewOpenSackPreview();
+    validateViewOpenSackLive();
+  });
 });
 
 async function loadInventory() {
@@ -349,6 +359,47 @@ function renderInventoryTable() {
   tbody.innerHTML = htmlRows;
 }
 
+function showViewOpenSackAlert(message) {
+  const alertEl = document.getElementById('viewOpenSackAlert');
+  if (!alertEl) return;
+  const msgEl = document.getElementById('viewOpenSackAlertMsg');
+  const cleanMsg = (message || '').replace(/^⚠️\s*/, '');
+  if (msgEl) {
+    msgEl.textContent = '⚠️ ' + cleanMsg;
+  } else {
+    alertEl.textContent = '⚠️ ' + cleanMsg;
+  }
+  alertEl.style.display = 'block';
+}
+
+function hideViewOpenSackAlert() {
+  const alertEl = document.getElementById('viewOpenSackAlert');
+  if (alertEl) alertEl.style.display = 'none';
+}
+
+function validateViewOpenSackLive() {
+  const prodSelect = document.getElementById('viewOpenSackProduct');
+  const batchSelect = document.getElementById('viewOpenSackBatch');
+  const qtyInput = document.getElementById('viewOpenSackQty');
+
+  if (prodSelect && prodSelect.value) prodSelect.style.borderColor = '';
+  if (batchSelect && batchSelect.value) batchSelect.style.borderColor = '';
+
+  if (qtyInput && qtyInput.value !== '') {
+    const val = parseFloat(qtyInput.value);
+    if (isNaN(val) || val <= 0) {
+      qtyInput.style.borderColor = '#dc2626';
+      showViewOpenSackAlert('Value must be greater than zero.');
+      return false;
+    } else {
+      qtyInput.style.borderColor = '';
+    }
+  }
+
+  hideViewOpenSackAlert();
+  return true;
+}
+
 function openViewOpenSackModal(productId = null, targetBatchCode = null) {
   const prodSelect = document.getElementById('viewOpenSackProduct');
   if (!prodSelect) return;
@@ -362,8 +413,16 @@ function openViewOpenSackModal(productId = null, targetBatchCode = null) {
   updateViewOpenSackBatches(targetBatchCode);
 
   document.getElementById('viewOpenSackType').value = '50kg';
-  document.getElementById('viewOpenSackQty').value = '1';
-  document.getElementById('viewOpenSackNote').value = '';
+  const qtyEl = document.getElementById('viewOpenSackQty');
+  qtyEl.value = '1';
+  qtyEl.style.borderColor = '';
+  const noteEl = document.getElementById('viewOpenSackNote');
+  noteEl.value = '';
+  noteEl.style.borderColor = '';
+  document.getElementById('viewOpenSackProduct').style.borderColor = '';
+  document.getElementById('viewOpenSackBatch').style.borderColor = '';
+  hideViewOpenSackAlert();
+
   updateViewOpenSackPreview();
   openModal('modalOpenSackView');
 }
@@ -463,10 +522,72 @@ async function handleViewOpenSackSubmit(e) {
 
   const productId = prodSelect.value;
   const sackType = typeSelect.value;
-  const openQty = parseInt(qtyInput.value) || 1;
+  const rawQty = qtyInput.value.trim();
   const batchNumber = batchSelect ? batchSelect.value : '';
   const note = noteInput ? noteInput.value.trim() : '';
 
+  // 1. Missing required fields check
+  const requiredFields = [
+    { el: prodSelect, val: productId, label: 'Rice Variety' },
+    { el: batchSelect, val: batchNumber, label: 'Rice Batch' },
+    { el: qtyInput, val: rawQty, label: 'Number of Sacks' }
+  ];
+
+  const missingLabels = [];
+  let firstMissingEl = null;
+
+  requiredFields.forEach(f => {
+    if (!f.val) {
+      missingLabels.push(f.label);
+      if (f.el) {
+        f.el.style.borderColor = '#dc2626';
+        if (!firstMissingEl) firstMissingEl = f.el;
+      }
+    } else {
+      if (f.el) f.el.style.borderColor = '';
+    }
+  });
+
+  if (missingLabels.length > 0) {
+    const errorMsg = missingLabels.length === 1
+      ? `${missingLabels[0]} is required.`
+      : `Please fill in all required fields: ${missingLabels.join(', ')}.`;
+    showToast(errorMsg, 'warning');
+    showViewOpenSackAlert(errorMsg);
+    if (firstMissingEl) firstMissingEl.focus();
+    return;
+  }
+
+  // 2. Value must be greater than zero validation
+  const openQty = parseInt(rawQty);
+  if (isNaN(openQty) || openQty <= 0) {
+    qtyInput.style.borderColor = '#dc2626';
+    qtyInput.focus();
+    showToast('Value must be greater than zero.', 'warning');
+    showViewOpenSackAlert('Value must be greater than zero.');
+    return;
+  }
+
+  // 3. Stock sufficiency check
+  const product = inventoryCache.find(p => p.id === productId);
+  if (product) {
+    let currentSacks = product.stockSacks;
+    if (sackType === '25kg' || sackType === 'half') currentSacks = product.packaged25kg;
+    else if (sackType === '20kg') currentSacks = product.packaged20kg;
+    else if (sackType === '10kg') currentSacks = product.packaged10kg;
+    else if (sackType === '5kg') currentSacks = product.packaged5kg;
+
+    if (openQty > currentSacks) {
+      qtyInput.style.borderColor = '#dc2626';
+      qtyInput.focus();
+      const msg = `Cannot open ${openQty} sack(s). Only ${currentSacks} available in inventory!`;
+      showToast(msg, 'danger');
+      showViewOpenSackAlert(msg);
+      return;
+    }
+  }
+
+  hideViewOpenSackAlert();
   const loggedUser = JSON.parse(sessionStorage.getItem('roberice_logged_user') || '{}');
   const userName = loggedUser.full_name || 'Admin User';
 
@@ -496,5 +617,6 @@ async function handleViewOpenSackSubmit(e) {
   } catch (err) {
     console.error('Error opening sack:', err);
     showToast(err.message || 'Failed to open sack.', 'danger');
+    showViewOpenSackAlert(err.message || 'Failed to open sack.');
   }
 }

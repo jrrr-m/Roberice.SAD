@@ -5,8 +5,8 @@ require_once "db.php";
 
 $data = json_decode(file_get_contents("php://input"), true);
 
-if (!isset($data['productId'], $data['type'])) {
-    echo json_encode(["success" => false, "message" => "Missing required information."]);
+if (!isset($data['productId'], $data['type']) || empty($data['productId']) || (int)$data['productId'] <= 0) {
+    echo json_encode(["success" => false, "message" => "Rice Variety is required."]);
     exit;
 }
 
@@ -14,12 +14,63 @@ $productId = (int)$data['productId'];
 $type = $data['type'];
 $sacks = (int)($data['sacks'] ?? 0);
 $kg = (float)($data['kg'] ?? 0);
+$p5 = (int)($data['packaged5kg'] ?? 0);
+$p10 = (int)($data['packaged10kg'] ?? 0);
+$p20 = (int)($data['packaged20kg'] ?? 0);
+$p25 = (int)($data['packaged25kg'] ?? 0);
 $note = trim($data['note'] ?? '');
 $user = trim($data['user'] ?? 'Admin User');
 
 if (!in_array($type, ['restock', 'spoilage', 'correction', 'repack', 'open_sack'])) {
     echo json_encode(["success" => false, "message" => "Invalid adjustment type."]);
     exit;
+}
+
+if ($type === 'open_sack') {
+    $rawQty = $data['openQty'] ?? $data['qty'] ?? 0;
+    if (!is_numeric($rawQty) || (int)$rawQty <= 0) {
+        echo json_encode(["success" => false, "message" => "Value must be greater than zero."]);
+        exit;
+    }
+} elseif ($type === 'restock') {
+    if (empty($data['receivedDate'])) {
+        echo json_encode(["success" => false, "message" => "Date received is required."]);
+        exit;
+    }
+    if (empty(trim($data['batchNumber'] ?? ''))) {
+        echo json_encode(["success" => false, "message" => "Batch number is required."]);
+        exit;
+    }
+    if ($sacks < 0 || $kg < 0 || $p5 < 0 || $p10 < 0 || $p20 < 0 || $p25 < 0) {
+        echo json_encode(["success" => false, "message" => "Value must be greater than zero."]);
+        exit;
+    }
+    if ($sacks === 0 && $kg <= 0 && $p5 === 0 && $p10 === 0 && $p20 === 0 && $p25 === 0) {
+        echo json_encode(["success" => false, "message" => "Value must be greater than zero."]);
+        exit;
+    }
+} elseif ($type === 'spoilage' || $type === 'repack') {
+    if (empty($note)) {
+        echo json_encode(["success" => false, "message" => "Reason / notes are required."]);
+        exit;
+    }
+    if ($sacks < 0 || $kg < 0 || $p5 < 0 || $p10 < 0 || $p20 < 0 || $p25 < 0) {
+        echo json_encode(["success" => false, "message" => "Value must be greater than zero."]);
+        exit;
+    }
+    if ($sacks === 0 && $kg <= 0 && $p5 === 0 && $p10 === 0 && $p20 === 0 && $p25 === 0) {
+        echo json_encode(["success" => false, "message" => "Value must be greater than zero."]);
+        exit;
+    }
+} elseif ($type === 'correction') {
+    if (empty($note)) {
+        echo json_encode(["success" => false, "message" => "Reason / notes are required."]);
+        exit;
+    }
+    if ($sacks < 0 || $kg < 0 || $p5 < 0 || $p10 < 0 || $p20 < 0 || $p25 < 0) {
+        echo json_encode(["success" => false, "message" => "Value must be greater than zero."]);
+        exit;
+    }
 }
 
 try {

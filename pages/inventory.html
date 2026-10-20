@@ -124,8 +124,11 @@
         <button class="modal-close" onclick="closeModal('modalOpenSack')">&times;</button>
       </div>
 
-      <form id="openSackForm">
+      <form id="openSackForm" novalidate>
         <div class="modal-body">
+          <div id="openSackAlert" style="display:none; margin-bottom: 14px; padding: 10px 14px; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 6px; color: #dc2626; font-size: 13px; font-weight: 500;">
+            <span id="openSackAlertMsg">⚠️ Error message</span>
+          </div>
           <p style="font-size:13px; color:var(--text-muted); margin-bottom:14px;">
             Open an unopened rice sack (20kg, 10kg, 5kg) to convert it into loose (tinatakal) rice for custom-kilo selling.
           </p>
@@ -189,9 +192,12 @@
         <button class="modal-close" onclick="closeModal('modalRestock')">&times;</button>
       </div>
 
-      <form id="restockForm">
+      <form id="restockForm" novalidate>
 
         <div class="modal-body">
+          <div id="restockAlert" style="display:none; margin-bottom: 14px; padding: 10px 14px; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 6px; color: #dc2626; font-size: 13px; font-weight: 500;">
+            <span id="restockAlertMsg">⚠️ Error message</span>
+          </div>
 
           <div class="form-group">
             <label for="restockProductSelect">Select Rice Variety</label>
@@ -264,9 +270,12 @@
         <button class="modal-close" onclick="closeModal('modalStockAdjust')">&times;</button>
       </div>
 
-      <form id="adjustStockForm">
+      <form id="adjustStockForm" novalidate>
 
         <div class="modal-body">
+          <div id="adjustStockAlert" style="display:none; margin-bottom: 14px; padding: 10px 14px; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 6px; color: #dc2626; font-size: 13px; font-weight: 500;">
+            <span id="adjustStockAlertMsg">⚠️ Error message</span>
+          </div>
 
           <div class="form-group">
             <label for="adjustProductSelect">Select Rice Variety</label>
@@ -334,8 +343,8 @@
 
   <script src="../js/data.js"></script>
   <script src="../js/utils.js"></script>
-  <script src="../js/auth.js"></script>
-  <script src="../js/inventory.js"></script>
+  <script src="../js/auth.js?v=3"></script>
+  <script src="../js/inventory.js?v=3"></script>
 
 </body>
 </html>

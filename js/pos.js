@@ -46,10 +46,20 @@ async function initPOS() {
   if (selPosProd) selPosProd.addEventListener('change', () => {
     updatePosOpenSackBatches();
     updatePosOpenSackPreview();
+    validatePosOpenSackLive();
   });
-  if (selPosBatch) selPosBatch.addEventListener('change', updatePosOpenSackPreview);
-  if (selPosType) selPosType.addEventListener('change', updatePosOpenSackPreview);
-  if (inpPosQty) inpPosQty.addEventListener('input', updatePosOpenSackPreview);
+  if (selPosBatch) selPosBatch.addEventListener('change', () => {
+    updatePosOpenSackPreview();
+    validatePosOpenSackLive();
+  });
+  if (selPosType) selPosType.addEventListener('change', () => {
+    updatePosOpenSackPreview();
+    validatePosOpenSackLive();
+  });
+  if (inpPosQty) inpPosQty.addEventListener('input', () => {
+    updatePosOpenSackPreview();
+    validatePosOpenSackLive();
+  });
 
   renderCart();
 }
@@ -1158,6 +1168,47 @@ function renderReceiptModal(txn) {
 // Open Sack Modal in POS
 // ==========================================
 
+function showPosOpenSackAlert(message) {
+  const alertEl = document.getElementById('posOpenSackAlert');
+  if (!alertEl) return;
+  const msgEl = document.getElementById('posOpenSackAlertMsg');
+  const cleanMsg = (message || '').replace(/^⚠️\s*/, '');
+  if (msgEl) {
+    msgEl.textContent = '⚠️ ' + cleanMsg;
+  } else {
+    alertEl.textContent = '⚠️ ' + cleanMsg;
+  }
+  alertEl.style.display = 'block';
+}
+
+function hidePosOpenSackAlert() {
+  const alertEl = document.getElementById('posOpenSackAlert');
+  if (alertEl) alertEl.style.display = 'none';
+}
+
+function validatePosOpenSackLive() {
+  const prodSelect = document.getElementById('posOpenSackProduct');
+  const batchSelect = document.getElementById('posOpenSackBatch');
+  const qtyInput = document.getElementById('posOpenSackQty');
+
+  if (prodSelect && prodSelect.value) prodSelect.style.borderColor = '';
+  if (batchSelect && batchSelect.value) batchSelect.style.borderColor = '';
+
+  if (qtyInput && qtyInput.value !== '') {
+    const val = parseFloat(qtyInput.value);
+    if (isNaN(val) || val <= 0) {
+      qtyInput.style.borderColor = '#dc2626';
+      showPosOpenSackAlert('Value must be greater than zero.');
+      return false;
+    } else {
+      qtyInput.style.borderColor = '';
+    }
+  }
+
+  hidePosOpenSackAlert();
+  return true;
+}
+
 function openPosOpenSackModal(productId = null) {
   const prodSelect = document.getElementById('posOpenSackProduct');
   if (!prodSelect) return;
@@ -1171,8 +1222,16 @@ function openPosOpenSackModal(productId = null) {
   updatePosOpenSackBatches();
 
   document.getElementById('posOpenSackType').value = '50kg';
-  document.getElementById('posOpenSackQty').value = '1';
-  document.getElementById('posOpenSackNote').value = '';
+  const qtyEl = document.getElementById('posOpenSackQty');
+  qtyEl.value = '1';
+  qtyEl.style.borderColor = '';
+  const noteEl = document.getElementById('posOpenSackNote');
+  noteEl.value = '';
+  noteEl.style.borderColor = '';
+  document.getElementById('posOpenSackProduct').style.borderColor = '';
+  document.getElementById('posOpenSackBatch').style.borderColor = '';
+  hidePosOpenSackAlert();
+
   updatePosOpenSackPreview();
   openModal('modalOpenSackPos');
 }
@@ -1255,31 +1314,80 @@ function updatePosOpenSackPreview() {
 async function handlePosOpenSackSubmit(e) {
   e.preventDefault();
 
-  const productId = document.getElementById('posOpenSackProduct').value;
-  const sackType = document.getElementById('posOpenSackType').value;
-  const qty = parseInt(document.getElementById('posOpenSackQty').value) || 1;
-  const batchNumber = document.getElementById('posOpenSackBatch').value;
-  const note = document.getElementById('posOpenSackNote').value.trim();
+  const prodSelect = document.getElementById('posOpenSackProduct');
+  const batchSelect = document.getElementById('posOpenSackBatch');
+  const typeSelect = document.getElementById('posOpenSackType');
+  const qtyInput = document.getElementById('posOpenSackQty');
+  const noteInput = document.getElementById('posOpenSackNote');
 
+  const productId = prodSelect.value;
+  const sackType = typeSelect.value;
+  const rawQty = qtyInput.value.trim();
+  const batchNumber = batchSelect.value;
+  const note = noteInput.value.trim();
+
+  // 1. Missing required fields check
+  const requiredFields = [
+    { el: prodSelect, val: productId, label: 'Rice Variety' },
+    { el: batchSelect, val: batchNumber, label: 'Rice Batch' },
+    { el: qtyInput, val: rawQty, label: 'Number of Sacks to Open' }
+  ];
+
+  const missingLabels = [];
+  let firstMissingEl = null;
+
+  requiredFields.forEach(f => {
+    if (!f.val) {
+      missingLabels.push(f.label);
+      if (f.el) {
+        f.el.style.borderColor = '#dc2626';
+        if (!firstMissingEl) firstMissingEl = f.el;
+      }
+    } else {
+      if (f.el) f.el.style.borderColor = '';
+    }
+  });
+
+  if (missingLabels.length > 0) {
+    const errorMsg = missingLabels.length === 1
+      ? `${missingLabels[0]} is required.`
+      : `Please fill in all required fields: ${missingLabels.join(', ')}.`;
+    showToast(errorMsg, 'warning');
+    showPosOpenSackAlert(errorMsg);
+    if (firstMissingEl) firstMissingEl.focus();
+    return;
+  }
+
+  // 2. Value must be greater than zero validation
+  const qty = parseInt(rawQty);
+  if (isNaN(qty) || qty <= 0) {
+    qtyInput.style.borderColor = '#dc2626';
+    qtyInput.focus();
+    showToast('Value must be greater than zero.', 'warning');
+    showPosOpenSackAlert('Value must be greater than zero.');
+    return;
+  }
+
+  // 3. Stock sufficiency check
   const product = productsCache.find(p => p.id === productId);
-  if (!product) return;
+  if (product) {
+    let currentSacks = product.stockSacks;
+    if (sackType === '25kg' || sackType === 'half') currentSacks = product.packaged25kg;
+    else if (sackType === '20kg') currentSacks = product.packaged20kg;
+    else if (sackType === '10kg') currentSacks = product.packaged10kg;
+    else if (sackType === '5kg') currentSacks = product.packaged5kg;
 
-  let currentSacks = product.stockSacks;
-  if (sackType === '25kg' || sackType === 'half') currentSacks = product.packaged25kg;
-  else if (sackType === '20kg') currentSacks = product.packaged20kg;
-  else if (sackType === '10kg') currentSacks = product.packaged10kg;
-  else if (sackType === '5kg') currentSacks = product.packaged5kg;
-
-  if (qty <= 0) {
-    showToast('Please specify a valid quantity of sacks to open.', 'warning');
-    return;
+    if (qty > currentSacks) {
+      qtyInput.style.borderColor = '#dc2626';
+      qtyInput.focus();
+      const msg = `Cannot open ${qty} sack(s). Only ${currentSacks} available in inventory!`;
+      showToast(msg, 'danger');
+      showPosOpenSackAlert(msg);
+      return;
+    }
   }
 
-  if (qty > currentSacks) {
-    showToast(`Cannot open ${qty} sack(s). Only ${currentSacks} available in inventory!`, 'danger');
-    return;
-  }
-
+  hidePosOpenSackAlert();
   const user = JSON.parse(sessionStorage.getItem('roberice_logged_user')) || {};
 
   showTopLoader();
@@ -1307,10 +1415,12 @@ async function handlePosOpenSackSubmit(e) {
       renderCart();
     } else {
       showToast(result.message || 'Failed to open sack.', 'danger');
+      showPosOpenSackAlert(result.message || 'Failed to open sack.');
     }
   } catch (err) {
     console.error(err);
     showToast('Failed to process sack opening.', 'danger');
+    showPosOpenSackAlert('Failed to process sack opening.');
   } finally {
     hideTopLoader();
   }
