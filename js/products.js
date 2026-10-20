@@ -65,33 +65,29 @@ function validateProductFormLive() {
 
   // 1. Check for Duplicate
   const name = nameInput ? nameInput.value.trim() : '';
-  const riceType = (riceTypeInput && riceTypeInput.value.trim()) || (categoryInput && categoryInput.value.trim()) || '';
 
-  if (name && riceType) {
+  if (name) {
     const isDuplicate = productsCache.some(p => {
       if (editId && String(p.id) === String(editId)) return false;
       const pName = (p.name || '').trim().toLowerCase();
-      const pRiceType = (p.riceType || p.category || 'White Rice').trim().toLowerCase();
-      return pName === name.toLowerCase() && pRiceType === riceType.toLowerCase();
+      return pName === name.toLowerCase();
     });
 
     if (isDuplicate) {
-      showProductFormAlert('A product with this name and rice type already exists.');
+      showProductFormAlert('A product with this name already exists.');
       if (nameInput) nameInput.style.borderColor = '#dc2626';
-      if (riceTypeInput) riceTypeInput.style.borderColor = '#dc2626';
       return false;
     }
   }
 
   if (nameInput) nameInput.style.borderColor = '';
-  if (riceTypeInput) riceTypeInput.style.borderColor = '';
 
-  // 2. Validate values must be greater than 0
+  // 2. Validate values must be greater than zero
   if (priceSackInput && priceSackInput.value !== '') {
     const val = parseFloat(priceSackInput.value);
     if (isNaN(val) || val <= 0) {
       priceSackInput.style.borderColor = '#dc2626';
-      showProductFormAlert('Whole sack price must be greater than 0.');
+      showProductFormAlert('Value must be greater than zero.');
       return false;
     } else {
       priceSackInput.style.borderColor = '';
@@ -102,7 +98,7 @@ function validateProductFormLive() {
     const val = parseFloat(priceKgInput.value);
     if (isNaN(val) || val <= 0) {
       priceKgInput.style.borderColor = '#dc2626';
-      showProductFormAlert('Price per kg must be greater than 0.');
+      showProductFormAlert('Value must be greater than zero.');
       return false;
     } else {
       priceKgInput.style.borderColor = '';
@@ -113,29 +109,23 @@ function validateProductFormLive() {
     const val = parseFloat(thresholdInput.value);
     if (isNaN(val) || val <= 0) {
       thresholdInput.style.borderColor = '#dc2626';
-      showProductFormAlert('Low-stock threshold must be greater than 0.');
+      showProductFormAlert('Value must be greater than zero.');
       return false;
     } else {
       thresholdInput.style.borderColor = '';
     }
   }
 
-  const packInputs = [
-    { el: price25kgInput, label: 'Half sack price' },
-    { el: price20kgInput, label: '20kg pack price' },
-    { el: price10kgInput, label: '10kg pack price' },
-    { el: price5kgInput, label: '5kg pack price' }
-  ];
-
+  const packInputs = [price25kgInput, price20kgInput, price10kgInput, price5kgInput];
   for (const pack of packInputs) {
-    if (pack.el && pack.el.value !== '') {
-      const val = parseFloat(pack.el.value);
+    if (pack && pack.value !== '') {
+      const val = parseFloat(pack.value);
       if (isNaN(val) || val <= 0) {
-        pack.el.style.borderColor = '#dc2626';
-        showProductFormAlert(`${pack.label} must be greater than 0.`);
+        pack.style.borderColor = '#dc2626';
+        showProductFormAlert('Value must be greater than zero.');
         return false;
       } else {
-        pack.el.style.borderColor = '';
+        pack.style.borderColor = '';
       }
     }
   }
@@ -158,7 +148,7 @@ function validateProductFormLive() {
       const val = parseFloat(el.value);
       if (isNaN(val) || val < 0) {
         el.style.borderColor = '#dc2626';
-        showProductFormAlert('Initial stock quantities must be greater than or equal to 0.');
+        showProductFormAlert('Value must be greater than zero.');
         return false;
       } else {
         el.style.borderColor = '';
@@ -322,72 +312,100 @@ async function handleProductSubmit(e) {
   const origin = document.getElementById('prodOrigin').value;
   const riceType = document.getElementById('prodRiceType').value.trim();
   const category = document.getElementById('prodCategory').value.trim();
-  const priceSack = parseFloat(document.getElementById('prodPriceSack').value);
+  const priceSackInput = document.getElementById('prodPriceSack');
+  const priceKgInput = document.getElementById('prodPriceKg');
+  const thresholdKgInput = document.getElementById('prodThresholdKg');
+
+  // 1. Missing required fields check
+  const requiredFields = [
+    { el: document.getElementById('prodName'), val: name, label: 'Rice Variety Name' },
+    { el: document.getElementById('prodRiceType'), val: riceType, label: 'Specific Rice Type' },
+    { el: document.getElementById('prodCategory'), val: category, label: 'Category Classification' },
+    { el: priceSackInput, val: priceSackInput ? priceSackInput.value.trim() : '', label: 'Whole Sack Price' },
+    { el: priceKgInput, val: priceKgInput ? priceKgInput.value.trim() : '', label: 'Price per Kg' },
+    { el: thresholdKgInput, val: thresholdKgInput ? thresholdKgInput.value.trim() : '', label: 'Low-Stock Alert Threshold' }
+  ];
+
+  const missingLabels = [];
+  let firstMissingEl = null;
+
+  requiredFields.forEach(f => {
+    if (!f.val) {
+      missingLabels.push(f.label);
+      if (f.el) {
+        f.el.style.borderColor = '#dc2626';
+        if (!firstMissingEl) firstMissingEl = f.el;
+      }
+    } else {
+      if (f.el) f.el.style.borderColor = '';
+    }
+  });
+
+  if (missingLabels.length > 0) {
+    const errorMsg = missingLabels.length === 1
+      ? `${missingLabels[0]} is required.`
+      : `Please fill in all required fields: ${missingLabels.join(', ')}.`;
+    showToast(errorMsg, 'warning');
+    showProductFormAlert(errorMsg);
+    if (firstMissingEl) firstMissingEl.focus();
+    return;
+  }
+
+  const priceSack = parseFloat(priceSackInput.value);
   const price25kg = parseFloat(document.getElementById('prodPrice25kg').value) || (priceSack / 2);
-  const priceKg = parseFloat(document.getElementById('prodPriceKg').value);
+  const priceKg = parseFloat(priceKgInput.value);
   const price5kg = parseFloat(document.getElementById('prodPrice5kg').value) || (priceKg * 5);
   const price10kg = parseFloat(document.getElementById('prodPrice10kg').value) || (priceKg * 10);
   const price20kg = parseFloat(document.getElementById('prodPrice20kg').value) || (priceKg * 20);
   const kgPerSack = 50;
-  const thresholdKg = parseFloat(document.getElementById('prodThresholdKg').value) || 200;
+  const thresholdKg = parseFloat(thresholdKgInput.value) || 200;
 
-  // 1. Required fields
-  if (!name || !category || isNaN(priceSack) || isNaN(priceKg)) {
-    showToast('Please complete all required fields.', 'warning');
-    showProductFormAlert('Please complete all required fields.');
-    return;
-  }
-
-  // 2. Data duplication check: Ensure same product name and rice type does not already exist
-  const resolvedRiceType = riceType || category || 'White Rice';
+  // 2. Data duplication check: Ensure same product name does not already exist
   const isDuplicate = productsCache.some(p => {
     if (editId && String(p.id) === String(editId)) return false;
     const pName = (p.name || '').trim().toLowerCase();
-    const pRiceType = (p.riceType || p.category || 'White Rice').trim().toLowerCase();
-    return pName === name.toLowerCase() && pRiceType === resolvedRiceType.toLowerCase();
+    return pName === name.toLowerCase();
   });
 
   if (isDuplicate) {
-    showToast('A product with this name and rice type already exists.', 'warning');
-    showProductFormAlert('A product with this name and rice type already exists.');
+    showToast('A product with this name already exists.', 'warning');
+    showProductFormAlert('A product with this name already exists.');
     const nameInput = document.getElementById('prodName');
     if (nameInput) {
       nameInput.focus();
       nameInput.style.borderColor = '#dc2626';
     }
-    const riceTypeInput = document.getElementById('prodRiceType');
-    if (riceTypeInput) riceTypeInput.style.borderColor = '#dc2626';
     return;
   }
 
-  // 3. Values must be greater validation
+  // 3. Values must be greater than zero validation
   if (priceSack <= 0) {
-    showToast('Whole sack price must be greater than 0.', 'warning');
-    showProductFormAlert('Whole sack price must be greater than 0.');
+    showToast('Value must be greater than zero.', 'warning');
+    showProductFormAlert('Value must be greater than zero.');
     const el = document.getElementById('prodPriceSack');
     if (el) { el.focus(); el.style.borderColor = '#dc2626'; }
     return;
   }
 
   if (priceKg <= 0) {
-    showToast('Price per kg must be greater than 0.', 'warning');
-    showProductFormAlert('Price per kg must be greater than 0.');
+    showToast('Value must be greater than zero.', 'warning');
+    showProductFormAlert('Value must be greater than zero.');
     const el = document.getElementById('prodPriceKg');
     if (el) { el.focus(); el.style.borderColor = '#dc2626'; }
     return;
   }
 
   if (thresholdKg <= 0) {
-    showToast('Low-stock threshold must be greater than 0.', 'warning');
-    showProductFormAlert('Low-stock threshold must be greater than 0.');
+    showToast('Value must be greater than zero.', 'warning');
+    showProductFormAlert('Value must be greater than zero.');
     const el = document.getElementById('prodThresholdKg');
     if (el) { el.focus(); el.style.borderColor = '#dc2626'; }
     return;
   }
 
   if (price25kg <= 0 || price5kg <= 0 || price10kg <= 0 || price20kg <= 0) {
-    showToast('Pack prices must be greater than 0.', 'warning');
-    showProductFormAlert('Pack prices must be greater than 0.');
+    showToast('Value must be greater than zero.', 'warning');
+    showProductFormAlert('Value must be greater than zero.');
     return;
   }
 
@@ -411,8 +429,8 @@ async function handleProductSubmit(e) {
     const packaged20kg = parseInt(document.getElementById('prodInitial20kg').value) || 0;
 
     if (initialSacks < 0 || packaged25kg < 0 || initialKg < 0 || packaged5kg < 0 || packaged10kg < 0 || packaged20kg < 0) {
-      showToast('Initial stock quantities must be greater than or equal to 0.', 'warning');
-      showProductFormAlert('Initial stock quantities must be greater than or equal to 0.');
+      showToast('Value must be greater than zero.', 'warning');
+      showProductFormAlert('Value must be greater than zero.');
       return;
     }
   }

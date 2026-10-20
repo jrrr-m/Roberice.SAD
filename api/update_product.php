@@ -14,34 +14,73 @@ if (!$data || empty($data['productId'])) {
 
 $productId = (int)$data['productId'];
 $name = isset($data['name']) ? trim($data['name']) : '';
-$category = !empty($data['category']) ? trim($data['category']) : '';
+$category = isset($data['category']) ? trim($data['category']) : '';
 $origin = !empty($data['origin']) && in_array($data['origin'], ['Local', 'Imported']) ? $data['origin'] : 'Local';
-$riceType = !empty($data['riceType']) ? trim($data['riceType']) : (!empty($data['category']) ? trim($data['category']) : 'White Rice');
+$riceType = isset($data['riceType']) ? trim($data['riceType']) : '';
 
 if ($name === '') {
     echo json_encode([
         "success" => false,
-        "message" => "Product name is required."
+        "message" => "Rice variety name is required."
     ]);
     exit;
 }
 
-// Data duplication handler: check if another active product with this name and rice type exists
+if ($riceType === '') {
+    echo json_encode([
+        "success" => false,
+        "message" => "Specific rice type / grain is required."
+    ]);
+    exit;
+}
+
+if ($category === '') {
+    echo json_encode([
+        "success" => false,
+        "message" => "Category classification is required."
+    ]);
+    exit;
+}
+
+if (!isset($data['priceSack']) || $data['priceSack'] === '' || $data['priceSack'] === null) {
+    echo json_encode([
+        "success" => false,
+        "message" => "Whole sack price is required."
+    ]);
+    exit;
+}
+
+if (!isset($data['priceKg']) || $data['priceKg'] === '' || $data['priceKg'] === null) {
+    echo json_encode([
+        "success" => false,
+        "message" => "Price per kg is required."
+    ]);
+    exit;
+}
+
+if (!isset($data['thresholdKg']) || $data['thresholdKg'] === '' || $data['thresholdKg'] === null) {
+    echo json_encode([
+        "success" => false,
+        "message" => "Low-stock alert threshold is required."
+    ]);
+    exit;
+}
+
+// Data duplication handler: check if another active product with this name exists
 try {
     $checkStmt = $conn->prepare("
         SELECT product_id 
         FROM product 
         WHERE LOWER(TRIM(product_name)) = LOWER(TRIM(?)) 
-          AND LOWER(TRIM(rice_type)) = LOWER(TRIM(?)) 
           AND product_id != ?
           AND product_status = 'Active'
         LIMIT 1
     ");
-    $checkStmt->execute([$name, $riceType, $productId]);
+    $checkStmt->execute([$name, $productId]);
     if ($checkStmt->fetch()) {
         echo json_encode([
             "success" => false,
-            "message" => "A product with this name and rice type already exists."
+            "message" => "A product with this name already exists."
         ]);
         exit;
     }
@@ -53,31 +92,15 @@ try {
     exit;
 }
 
-// Value validation: numeric prices and threshold must be greater than 0
+// Value validation: numeric prices and threshold must be greater than zero
 $priceSack = isset($data['priceSack']) ? (float)$data['priceSack'] : 0;
 $priceKg = isset($data['priceKg']) ? (float)$data['priceKg'] : 0;
 $thresholdKg = isset($data['thresholdKg']) ? (float)$data['thresholdKg'] : 200;
 
-if ($priceSack <= 0) {
+if ($priceSack <= 0 || $priceKg <= 0 || $thresholdKg <= 0) {
     echo json_encode([
         "success" => false,
-        "message" => "Whole sack price must be greater than 0."
-    ]);
-    exit;
-}
-
-if ($priceKg <= 0) {
-    echo json_encode([
-        "success" => false,
-        "message" => "Price per kg must be greater than 0."
-    ]);
-    exit;
-}
-
-if ($thresholdKg <= 0) {
-    echo json_encode([
-        "success" => false,
-        "message" => "Low-stock alert threshold must be greater than 0."
+        "message" => "Value must be greater than zero."
     ]);
     exit;
 }
@@ -90,7 +113,7 @@ $price20kg = !empty($data['price20kg']) ? (float)$data['price20kg'] : ($priceKg 
 if ($price25kg <= 0 || $price5kg <= 0 || $price10kg <= 0 || $price20kg <= 0) {
     echo json_encode([
         "success" => false,
-        "message" => "Pack prices must be greater than 0."
+        "message" => "Value must be greater than zero."
     ]);
     exit;
 }
