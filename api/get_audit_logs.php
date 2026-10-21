@@ -57,8 +57,12 @@ try {
         $adjParams = [];
 
         if ($typeFilter !== 'all') {
-            $adjWhere .= " AND a.adjustment_type = ?";
-            $adjParams[] = $typeFilter;
+            if ($typeFilter === 'correction' || $typeFilter === 'physical_count') {
+                $adjWhere .= " AND (a.adjustment_type = 'correction' OR a.adjustment_type = 'physical_count')";
+            } else {
+                $adjWhere .= " AND a.adjustment_type = ?";
+                $adjParams[] = $typeFilter;
+            }
         }
 
         if ($search !== '') {
@@ -168,7 +172,7 @@ try {
             $category = 'Packaging';
             $badgeClass = 'badge-info';
             $qtyImpact = "Repacked into retail bags";
-        } elseif ($type === 'correction') {
+        } elseif ($type === 'correction' || $type === 'physical_count') {
             $label = 'Count Correction';
             $category = 'Audit';
             $badgeClass = 'badge-warning';

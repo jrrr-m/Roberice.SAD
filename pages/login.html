@@ -146,10 +146,34 @@
         loginAlert.style.display = 'block';
       }
 
+      async function loadDatabaseRoles() {
+        try {
+          const res = await fetch('../api/register.php');
+          if (res.ok) {
+            const data = await res.json();
+            if (data.success && Array.isArray(data.roles) && data.roles.length > 0) {
+              const regRole = document.getElementById('regRole');
+              if (regRole) {
+                const currentVal = regRole.value || 'Cashier';
+                regRole.innerHTML = data.roles.map(r => 
+                  `<option value="${r}">${r}</option>`
+                ).join('');
+                if (data.roles.includes(currentVal)) {
+                  regRole.value = currentVal;
+                }
+              }
+            }
+          }
+        } catch (e) {
+          // Gracefully fallback to existing options
+        }
+      }
+
       function openRegister() {
         registerForm.reset();
         registerAlert.style.display = 'none';
         modalRegister.classList.add('active');
+        loadDatabaseRoles();
         document.getElementById('regFullName').focus();
       }
 

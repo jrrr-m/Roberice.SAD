@@ -332,6 +332,16 @@ try {
     // Sort daily stats chronologically
     ksort($dailyStats);
 
+    // Fetch distinct transaction years from the database for dynamic filter rendering
+    $availableYears = [];
+    try {
+        $yearStmt = $conn->query("SELECT DISTINCT YEAR(transaction_date) AS yr FROM sales_transaction WHERE transaction_date IS NOT NULL ORDER BY yr DESC");
+        $availableYears = array_map('intval', $yearStmt->fetchAll(PDO::FETCH_COLUMN));
+    } catch (Exception $e) {}
+    if (empty($availableYears)) {
+        $availableYears = [(int)date("Y")];
+    }
+
     $txnCount = count($transactions);
     $avgTxn = $txnCount > 0 ? round($totalRevenue / $txnCount, 2) : 0;
 
@@ -340,6 +350,7 @@ try {
         "reportType" => $reportType,
         "reportTitle" => $reportTitle,
         "periodLabel" => $periodLabel,
+        "availableYears" => $availableYears,
         "summary" => [
             "totalRevenue" => $totalRevenue,
             "totalTransactions" => $txnCount,

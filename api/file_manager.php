@@ -45,12 +45,17 @@ try {
         $totalSizeStmt = $conn->query("SELECT COUNT(*) AS total_count, COALESCE(SUM(file_size), 0) AS total_size FROM file_records");
         $stats = $totalSizeStmt->fetch(PDO::FETCH_ASSOC);
 
+        // Query distinct categories from file_records
+        $catStmt = $conn->query("SELECT DISTINCT category FROM file_records WHERE category IS NOT NULL AND category != '' ORDER BY category ASC");
+        $dbCategories = $catStmt->fetchAll(PDO::FETCH_COLUMN);
+
         echo json_encode([
             "success" => true,
             "stats" => [
                 "totalFiles" => (int)$stats["total_count"],
                 "totalSize" => (int)$stats["total_size"]
             ],
+            "categories" => $dbCategories,
             "files" => $files
         ]);
         exit;

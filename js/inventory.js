@@ -244,8 +244,8 @@ async function renderInventoryManageTable() {
       packaged5kg: Number(p.packaged_5kg || 0),
       packaged10kg: Number(p.packaged_10kg || 0),
       packaged20kg: Number(p.packaged_20kg || 0),
-      receivedDate: p.received_date || '2026-09-01',
-      batchNumber: p.batch_number || 'BATCH-001',
+      receivedDate: p.received_date || (p.batches && p.batches[0] ? p.batches[0].received_date : (typeof getLocalDateString === 'function' ? getLocalDateString() : new Date().toLocaleDateString('en-CA'))),
+      batchNumber: p.batch_number || (p.batches && p.batches[0] ? p.batches[0].batch_code : ''),
       daysOld: Number(p.days_old !== undefined && p.days_old !== null ? p.days_old : 0),
       thresholdKg: Number(p.reorder_level_kg || 0),
       batches: p.batches || []
@@ -934,7 +934,7 @@ function updateOpenSackPreview() {
   const product = inventoryCache.find(p => p.id === prodId);
   const sackType = typeSelect.value;
   const qty = parseInt(qtyInput.value) || 1;
-  const batchNumber = batchSelect ? batchSelect.value : (product ? product.batchNumber : 'BATCH-001');
+  const batchNumber = batchSelect ? batchSelect.value : (product ? product.batchNumber : '');
 
   if (!product) return;
 

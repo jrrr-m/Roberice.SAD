@@ -180,34 +180,30 @@ const DEFAULT_ADJUSTMENTS = [
   { id: 'adj_1', timestamp: '2026-08-28 08:30:00', productId: 'prod_1', productName: 'Sinandomeng Special', type: 'restock', sacks: 10, kg: 0, note: 'New shipment from Nueva Ecija supplier', user: 'Admin User' }
 ];
 
-// LocalStorage Persistence Handlers
+// Clean legacy prototype storage keys so application only relies on authoritative MySQL database
 function initDataStore() {
-  if (!localStorage.getItem('roberice_users')) {
-    localStorage.setItem('roberice_users', JSON.stringify(DEFAULT_USERS));
-  }
-  if (!localStorage.getItem('roberice_products')) {
-    localStorage.setItem('roberice_products', JSON.stringify(DEFAULT_PRODUCTS));
-  }
-  if (!localStorage.getItem('roberice_transactions')) {
-    localStorage.setItem('roberice_transactions', JSON.stringify(DEFAULT_TRANSACTIONS));
-  }
-  if (!localStorage.getItem('roberice_audit_logs')) {
-    localStorage.setItem('roberice_audit_logs', JSON.stringify(DEFAULT_AUDIT_LOGS));
-  }
-  if (!localStorage.getItem('roberice_adjustments')) {
-    localStorage.setItem('roberice_adjustments', JSON.stringify(DEFAULT_ADJUSTMENTS));
-  }
+  const legacyKeys = [
+    'roberice_users',
+    'roberice_products',
+    'roberice_transactions',
+    'roberice_audit_logs',
+    'roberice_adjustments'
+  ];
+  legacyKeys.forEach(k => {
+    try {
+      localStorage.removeItem(k);
+    } catch (e) {}
+  });
 }
 
 // Call on data script load
 initDataStore();
 
-// Getter & Setter Functions
+// Safe Getter & Setter Functions (Memory fallback for auxiliary UI states)
 function getData(key) {
   try {
     return JSON.parse(localStorage.getItem(`roberice_${key}`)) || [];
   } catch (e) {
-    console.error(`Error loading ${key} from storage:`, e);
     return [];
   }
 }
@@ -215,7 +211,5 @@ function getData(key) {
 function saveData(key, data) {
   try {
     localStorage.setItem(`roberice_${key}`, JSON.stringify(data));
-  } catch (e) {
-    console.error(`Error saving ${key} to storage:`, e);
-  }
+  } catch (e) {}
 }

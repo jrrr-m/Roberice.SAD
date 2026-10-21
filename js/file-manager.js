@@ -62,6 +62,19 @@ async function loadFiles() {
       ? formatDateTime(latestBackup.uploaded_at)
       : 'None yet';
 
+    // Populate Category Filter dynamically from database file_records categories
+    const filterCatSelect = document.getElementById('filterCategory');
+    if (filterCatSelect && Array.isArray(data.categories)) {
+      const currentCat = filterCatSelect.value;
+      const baseOptions = ['Document', 'Database Backup', 'Financial Report', 'Supplier Document', 'Sales Invoice', 'Inventory Report'];
+      const combined = [...new Set([...data.categories, ...baseOptions])].filter(Boolean);
+      filterCatSelect.innerHTML = '<option value="all">All Categories</option>' + 
+        combined.map(c => `<option value="${c}">${c}</option>`).join('');
+      if (currentCat && [...filterCatSelect.options].some(o => o.value === currentCat)) {
+        filterCatSelect.value = currentCat;
+      }
+    }
+
     renderFilesTable();
   } catch (e) {
     console.error('Error loading files:', e);

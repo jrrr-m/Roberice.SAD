@@ -105,8 +105,8 @@ async function loadProducts() {
         packaged10kg: Number(p.packaged_10kg || 0),
         packaged20kg: Number(p.packaged_20kg || 0),
         thresholdKg: Number(p.reorder_level_kg || 0),
-        receivedDate: p.received_date || '2026-09-01',
-        batchNumber: p.batch_number || 'BATCH-001',
+        receivedDate: p.received_date || (activeBatches.length > 0 ? activeBatches[0].received_date : (typeof getLocalDateString === 'function' ? getLocalDateString() : new Date().toLocaleDateString('en-CA'))),
+        batchNumber: p.batch_number || (activeBatches.length > 0 ? activeBatches[0].batch_code : ''),
         daysOld: Number(p.days_old !== undefined ? p.days_old : 0),
         status: p.product_status,
         batches: activeBatches
@@ -223,7 +223,8 @@ function getPosProductBatches(product) {
   if (typeof getProductBatches === 'function') {
     return getProductBatches(product);
   }
-  return [{ batchNumber: product.batchNumber || 'BATCH-001', label: product.batchNumber || 'BATCH-001' }];
+  const defaultCode = product.batchNumber || (product.batches && product.batches[0] ? product.batches[0].batch_code : '');
+  return [{ batchNumber: defaultCode, label: defaultCode || 'Current Batch' }];
 }
 
 // ==========================================
@@ -676,7 +677,7 @@ function confirmModalAddToCart() {
   }
 
   const batchSelect = document.getElementById('modalPkgBatchSelect');
-  const batchNumber = batchSelect ? batchSelect.value : (activeModalProduct ? activeModalProduct.batchNumber : 'BATCH-001');
+  const batchNumber = batchSelect ? batchSelect.value : (activeModalProduct ? (activeModalProduct.batchNumber || (activeModalProduct.batches && activeModalProduct.batches[0] ? activeModalProduct.batches[0].batch_code : '')) : '');
 
   addToCart(activeModalProduct.id, activeModalUnit, qty, batchNumber);
   closeModal('modalProductPackaging');
@@ -697,7 +698,7 @@ function addToCart(productId, unit = 'sack', initialQty = 1, batchNumber = null)
     showToast(`Quantity adjusted to maximum available stock (${maxAllowed}).`, 'warning');
   }
 
-  const itemBatch = batchNumber || product.batchNumber || 'BATCH-001';
+  const itemBatch = batchNumber || product.batchNumber || (product.batches && product.batches[0] ? product.batches[0].batch_code : '');
   const existing = cart.find(item => item.productId === productId && item.unit === unit && item.batchNumber === itemBatch);
 
   if (existing) {
@@ -1264,7 +1265,7 @@ function updatePosOpenSackPreview() {
   const product = productsCache.find(p => p.id === prodId);
   const sackType = typeSelect.value;
   const qty = parseInt(qtyInput.value) || 1;
-  const batchNumber = batchSelect ? batchSelect.value : (product ? product.batchNumber : 'BATCH-001');
+  const batchNumber = batchSelect ? batchSelect.value : (product ? (product.batchNumber || (product.batches && product.batches[0] ? product.batches[0].batch_code : '')) : '');
 
   if (!product) return;
 

@@ -4,6 +4,27 @@ require_once "db.php";
 
 $method = $_SERVER["REQUEST_METHOD"];
 
+// Handle GET request: Return selectable roles dynamically from the database
+if ($method === "GET") {
+    try {
+        $baseRoles = ["Cashier", "Inventory Clerk", "Store Manager"];
+        $customStmt = $conn->query("SELECT role_name FROM custom_roles ORDER BY role_name ASC");
+        $custom = $customStmt->fetchAll(PDO::FETCH_COLUMN);
+        $allRoles = array_values(array_unique(array_merge($baseRoles, $custom)));
+        echo json_encode([
+            "success" => true,
+            "roles" => $allRoles
+        ]);
+        exit;
+    } catch (Exception $e) {
+        echo json_encode([
+            "success" => true,
+            "roles" => ["Cashier", "Inventory Clerk", "Store Manager"]
+        ]);
+        exit;
+    }
+}
+
 if ($method !== "POST") {
     http_response_code(405);
     echo json_encode([
@@ -60,11 +81,23 @@ if ($password === "" || strlen($password) < 6) {
     exit;
 }
 
-// 5. Normalize requested role
+// 5. Normalize requested role dynamically connected to custom_roles in DB
 $allowedRoles = ["Cashier", "Inventory Clerk", "Store Manager", "Custom Staff"];
-if (!in_array($role, $allowedRoles, true)) {
-    $role = "Cashier";
+try {
+    $dbCustom = $conn->query("SELECT role_name FROM custom_roles")->fetchAll(PDO::FETCH_COLUMN);
+    if (!empty($dbCustom)) {
+        $allowedRoles = array_merge($allowedRoles, $dbCustom);
+    }
+} catch (Exception $e) {}
+
+$foundRole = null;
+foreach ($allowedRoles as $ar) {
+    if (strcasecmp($ar, $role) === 0) {
+        $foundRole = $ar;
+        break;
+    }
 }
+$role = $foundRole ?: "Cashier";
 
 try {
     // 6. Check if username is already registered in active users

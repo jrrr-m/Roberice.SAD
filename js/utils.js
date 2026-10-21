@@ -351,54 +351,49 @@ window.fetch = async function(...args) {
 function getProductBatches(product) {
   if (!product) return [];
 
-  const currentBatch = product.batchNumber || 'BATCH-001';
-  const recDate = product.receivedDate || '2026-09-01';
-  const daysOld = product.daysOld !== undefined ? Number(product.daysOld) : 14;
+  // Prioritize real active batches loaded from the database inventory_batch table
+  if (Array.isArray(product.batches) && product.batches.length > 0) {
+    return product.batches.map(b => {
+      const code = b.batch_code || b.batchNumber || '';
+      const recDate = b.received_date || b.receivedDate || '';
+      const daysOld = Number(b.days_old !== undefined ? b.days_old : (b.daysOld || 0));
+      
+      let ageLabel = 'Fresh';
+      if (daysOld > 60) ageLabel = 'Old Stock';
+      else if (daysOld > 30) ageLabel = 'Aging';
+      else if (daysOld > 14) ageLabel = 'Normal';
+
+      const fifoTag = daysOld > 60 ? '⚠️ Urgent FIFO (Oldest)' : (daysOld > 30 ? '⭐️ FIFO Priority' : '');
+      const datePart = recDate ? formatDate(recDate) : 'Current Stock';
+
+      return {
+        batchNumber: code,
+        receivedDate: recDate,
+        daysOld: daysOld,
+        ageLabel: ageLabel,
+        stockSacks: Number(b.stock_sacks || 0),
+        stockKg: Number(b.stock_kg || 0),
+        label: `${code} (${datePart} • ${daysOld}d ${ageLabel}) ${fifoTag}`.trim()
+      };
+    });
+  }
+
+  const currentBatch = product.batchNumber || '';
+  const recDate = product.receivedDate || (typeof getLocalDateString === 'function' ? getLocalDateString() : new Date().toLocaleDateString('en-CA'));
+  const daysOld = product.daysOld !== undefined ? Number(product.daysOld) : 0;
 
   let ageLabel = 'Fresh';
   if (daysOld > 60) ageLabel = 'Old Stock';
   else if (daysOld > 30) ageLabel = 'Aging';
   else if (daysOld > 14) ageLabel = 'Normal';
 
-  const batches = [
+  return [
     {
       batchNumber: currentBatch,
       receivedDate: recDate,
       daysOld: daysOld,
       ageLabel: ageLabel,
-      label: `${currentBatch} (${formatDate(recDate)} • ${daysOld}d ${ageLabel}) [Active Batch]`
+      label: currentBatch ? `${currentBatch} (${formatDate(recDate)} • ${daysOld}d ${ageLabel}) [Active Batch]` : 'Current Active Stock'
     }
   ];
-
-  // Derive preceding chronological lots for FIFO rotation (e.g. BATCH-SIN-2609)
-  const match = currentBatch.match(/^(BATCH-[A-Z0-9]+-?)(\d{2})(\d{2})$/);
-  if (match) {
-    const prefix = match[1];
-    const yr = match[2];
-    const mo = parseInt(match[3], 10) || 9;
-
-    const prevMo1 = String(Math.max(1, mo - 1)).padStart(2, '0');
-    const prevMo2 = String(Math.max(1, mo - 2)).padStart(2, '0');
-
-    if (mo > 1) {
-      batches.unshift({
-        batchNumber: `${prefix}${yr}${prevMo1}`,
-        receivedDate: `2026-${prevMo1}-15`,
-        daysOld: daysOld + 30,
-        ageLabel: 'Aging',
-        label: `${prefix}${yr}${prevMo1} (${daysOld + 30}d Aging) ⭐️ FIFO Priority (Older Lot)`
-      });
-    }
-    if (mo > 2) {
-      batches.unshift({
-        batchNumber: `${prefix}${yr}${prevMo2}`,
-        receivedDate: `2026-${prevMo2}-10`,
-        daysOld: daysOld + 60,
-        ageLabel: 'Old Stock',
-        label: `${prefix}${yr}${prevMo2} (${daysOld + 60}d Old Stock) ⚠️ Urgent FIFO (Oldest Lot)`
-      });
-    }
-  }
-
-  return batches;
 }

@@ -182,7 +182,9 @@ function bindFilterEvents() {
     btnMonthPrev.addEventListener('click', () => {
       const monthInput = document.getElementById('filterMonthInput');
       if (monthInput) {
-        monthInput.value = '2026-09';
+        const d = new Date();
+        d.setMonth(d.getMonth() - 1);
+        monthInput.value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
         loadSalesReport();
       }
     });
@@ -213,12 +215,14 @@ function bindFilterEvents() {
     document.getElementById('filterCashier').value = 'all';
     document.getElementById('filterPayment').value = 'all';
     const now = new Date();
+    const curYear = String(now.getFullYear());
+    const curQuarter = String(Math.ceil((now.getMonth() + 1) / 3));
     document.getElementById('filterDailyDate').value = typeof getLocalDateString === 'function' ? getLocalDateString(now) : `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     document.getElementById('filterWeekInput').value = getCurrentISOWeek();
     document.getElementById('filterMonthInput').value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    document.getElementById('filterQuarter').value = '4';
-    document.getElementById('filterQuarterYear').value = '2026';
-    document.getElementById('filterYearInput').value = '2026';
+    document.getElementById('filterQuarter').value = curQuarter;
+    document.getElementById('filterQuarterYear').value = curYear;
+    document.getElementById('filterYearInput').value = curYear;
     setReportType('daily', true);
   });
 
@@ -326,6 +330,25 @@ function renderReportView(data) {
       opt.value = c.user_id !== undefined ? String(c.user_id) : c.cashier;
       opt.textContent = `${c.cashier} (${c.transactions} txns)`;
       cashierSelect.appendChild(opt);
+    });
+  }
+
+  // Populate Year Dropdowns dynamically from database transaction years
+  if (Array.isArray(data.availableYears) && data.availableYears.length > 0) {
+    ['filterQuarterYear', 'filterYearInput'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el && !el.dataset.dbPopulated) {
+        const curVal = el.value;
+        el.innerHTML = data.availableYears.map(yr => 
+          `<option value="${yr}">${yr}</option>`
+        ).join('');
+        if (data.availableYears.includes(Number(curVal))) {
+          el.value = curVal;
+        } else {
+          el.value = String(data.availableYears[0]);
+        }
+        el.dataset.dbPopulated = 'true';
+      }
     });
   }
 
