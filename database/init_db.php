@@ -43,10 +43,37 @@ try {
     if (!$hasTables || $isFresh) {
         $sqlFile = __DIR__ . '/roberice_db.sql';
         if (file_exists($sqlFile)) {
-            $sqlContent = file_get_contents($sqlFile);
-            $pdo->exec($sqlContent);
-            while ($pdo->nextRowset()) { /* flush remaining result sets */ }
+            $imported = false;
+            $mysqlBin = 'C:\\xampp\\mysql\\bin\\mysql.exe';
+            if (file_exists($mysqlBin) && function_exists('exec')) {
+                $cmd = sprintf('"%s" -h%s -P%d -u%s %s < "%s"', 
+                    $mysqlBin, 
+                    $host, 
+                    $port, 
+                    $user, 
+                    $dbname, 
+                    $sqlFile
+                );
+                @exec($cmd, $out, $ret);
+                if ($ret === 0) {
+                    $imported = true;
+                }
+            }
+
+            if (!$imported) {
+                $sqlContent = file_get_contents($sqlFile);
+                $pdo->exec($sqlContent);
+            }
         }
+    }
+
+    // CLI mode clean response
+    if (php_sapi_name() === 'cli') {
+        echo "[Roberice] Database initialization completed successfully.\n";
+        echo "Database: {$dbname}\n";
+        echo "Seed Data: roberice_db.sql (Data coverage: Oct 14, 2025 to Oct 21, 2026)\n";
+        echo "Status: Ready for live system demonstration.\n";
+        exit(0);
     }
 
     // Dynamic resolution of the login page path relative to project folder
@@ -79,6 +106,10 @@ try {
     exit;
 
 } catch (PDOException $e) {
+    if (php_sapi_name() === 'cli') {
+        fwrite(STDERR, "[Roberice Error] Database Setup Error: " . $e->getMessage() . "\n");
+        exit(1);
+    }
     ?>
     <!DOCTYPE html>
     <html lang="en">
@@ -100,5 +131,5 @@ try {
     </body>
     </html>
     <?php
-    exit;
+    exit(1);
 }
