@@ -24,12 +24,6 @@ async function initPOS() {
   document.getElementById('inputPaymentReceived').addEventListener('input', calculateChange);
   document.getElementById('btnCompleteSale').addEventListener('click', processSale);
 
-  renderActiveCashier();
-  const btnSwitch = document.getElementById('btnSwitchCashier');
-  if (btnSwitch) btnSwitch.addEventListener('click', openShiftHandoverModal);
-  const formHandover = document.getElementById('shiftHandoverForm');
-  if (formHandover) formHandover.addEventListener('submit', handleShiftHandoverSubmit);
-
   const pkgKgInp = document.getElementById('pkgCustomKgInput');
   if (pkgKgInp) {
     pkgKgInp.addEventListener('input', handleModalCustomKgInput);
@@ -1430,107 +1424,5 @@ async function handlePosOpenSackSubmit(e) {
     showPosOpenSackAlert('Failed to process sack opening.');
   } finally {
     hideTopLoader();
-  }
-}
-
-// ==========================================
-// Cashier Shift Handover Handlers
-// ==========================================
-
-function renderActiveCashier() {
-  const user = JSON.parse(sessionStorage.getItem('roberice_logged_user') || 'null');
-  const lbl = document.getElementById('lblPosActiveCashier');
-  if (lbl) {
-    if (user && user.username) {
-      lbl.textContent = `${user.name || user.full_name || user.username} (${user.role === 'admin' ? 'Admin' : 'Cashier'})`;
-    } else {
-      lbl.textContent = 'None (Please Log In)';
-    }
-  }
-}
-
-async function openShiftHandoverModal() {
-  const alertEl = document.getElementById('handoverAlert');
-  if (alertEl) alertEl.style.display = 'none';
-
-  const select = document.getElementById('handoverUsername');
-  const pwdInput = document.getElementById('handoverPassword');
-  if (pwdInput) pwdInput.value = '';
-
-  if (select) {
-    select.innerHTML = '<option value="" disabled selected>Loading active cashiers...</option>';
-    try {
-      const resp = await fetch('api/users.php');
-      const data = await resp.json();
-      if (data.success && Array.isArray(data.users)) {
-        select.innerHTML = '';
-        const current = JSON.parse(sessionStorage.getItem('roberice_logged_user') || '{}');
-        data.users.filter(u => u.account_status === 'Active').forEach(u => {
-          const opt = document.createElement('option');
-          opt.value = u.username;
-          opt.textContent = `${u.full_name} (${u.role})`;
-          if (u.username === current.username) {
-            opt.textContent += ' [Current Till Cashier]';
-          }
-          select.appendChild(opt);
-        });
-      }
-    } catch (e) {
-      select.innerHTML = '<option value="admin">Admin User</option><option value="cashier1">Maria Santos</option><option value="cashier2">Juan Dela Cruz</option>';
-    }
-  }
-
-  openModal('modalShiftHandover');
-}
-
-async function handleShiftHandoverSubmit(e) {
-  e.preventDefault();
-  const username = document.getElementById('handoverUsername')?.value;
-  const password = document.getElementById('handoverPassword')?.value;
-  const alertEl = document.getElementById('handoverAlert');
-
-  if (!username || !password) {
-    if (alertEl) {
-      alertEl.textContent = '⚠️ Please select a cashier and enter password.';
-      alertEl.style.display = 'block';
-    }
-    return;
-  }
-
-  const btn = document.getElementById('btnConfirmHandover');
-  if (btn) btn.disabled = true;
-
-  try {
-    const res = await fetch('api/login.php', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password })
-    });
-    const result = await res.json();
-
-    if (result.success && result.user) {
-      // Switch active session
-      sessionStorage.setItem('roberice_logged_user', JSON.stringify(result.user));
-      renderActiveCashier();
-
-      // Update sidebar username display if present
-      const sideUser = document.querySelector('.sidebar-user-card .user-name');
-      if (sideUser) sideUser.textContent = result.user.name || result.user.username;
-
-      closeModal('modalShiftHandover');
-      showToast(`Shift Handover Complete: Active Cashier is now ${result.user.name || result.user.username}.`, 'success');
-    } else {
-      if (alertEl) {
-        alertEl.textContent = '⚠️ ' + (result.message || 'Incorrect password.');
-        alertEl.style.display = 'block';
-      }
-    }
-  } catch (err) {
-    if (alertEl) {
-      alertEl.textContent = '⚠️ Error verifying credentials. Please try again.';
-      alertEl.style.display = 'block';
-    }
-  } finally {
-    if (btn) btn.disabled = false;
   }
 }
