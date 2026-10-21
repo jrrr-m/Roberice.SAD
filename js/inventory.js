@@ -836,7 +836,7 @@ async function handleAdjustSubmit(e) {
       }
     }
 
-    if (sacks <= 0 && kg <= 0 && packaged25kg <= 0 && packaged20kg <= 0 && packaged10kg <= 0 && packaged5kg <= 0) {
+    if (type !== 'correction' && sacks <= 0 && kg <= 0 && packaged25kg <= 0 && packaged20kg <= 0 && packaged10kg <= 0 && packaged5kg <= 0) {
       qtyInputs.forEach(item => { if (item.el) item.el.style.borderColor = '#dc2626'; });
       sacksInput.focus();
       showToast('Value must be greater than zero.', 'warning');

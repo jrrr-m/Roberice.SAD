@@ -250,8 +250,20 @@ try {
         }
 
         if ($cashierId !== "" && $cashierId !== "all") {
-            $where[] = "t.user_id = ?";
-            $params[] = $cashierId;
+            if (is_numeric($cashierId)) {
+                $where[] = "t.user_id = ?";
+                $params[] = (int)$cashierId;
+            } else {
+                $uStmt = $conn->prepare("SELECT user_id FROM users WHERE full_name = ? OR username = ? LIMIT 1");
+                $uStmt->execute([$cashierId, $cashierId]);
+                $foundUid = $uStmt->fetchColumn();
+                if ($foundUid) {
+                    $where[] = "t.user_id = ?";
+                    $params[] = (int)$foundUid;
+                } else {
+                    $where[] = "1 = 0";
+                }
+            }
         }
 
         if ($paymentMethod !== "" && $paymentMethod !== "all") {

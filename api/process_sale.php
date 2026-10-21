@@ -154,7 +154,19 @@ try {
                 $neededKg = max(0, $qty - $stockKg);
                 $openedSackDesc = "";
 
-                if ($openSackType === "25kg" || (empty($openSackType) && $p25 > 0)) {
+                if ($openSackType === "50kg" || $openSackType === "whole" || $openSackType === "sack" || (empty($openSackType) && $stockSacks > 0)) {
+                    $sacksToOpen = max(1, (int)ceil($neededKg / 50.0));
+                    if ($stockSacks < $sacksToOpen) {
+                        throw new Exception("Insufficient whole sacks in stock for " . $product["product_name"] . ".");
+                    }
+                    $stockSacks -= $sacksToOpen;
+                    $addedKg = $sacksToOpen * 50.0;
+                    $stockKg += $addedKg;
+                    $openedSackDesc = "{$sacksToOpen}x Whole Sack (50kg)";
+                    $openedSacksCount = $sacksToOpen;
+                    $openedKgAmount = $addedKg;
+                    $chosenSackToOpen = '50kg';
+                } elseif ($openSackType === "25kg" || $openSackType === "half" || $openSackType === "half_sack" || (empty($openSackType) && $p25 > 0)) {
                     $sacksToOpen = max(1, (int)ceil($neededKg / 25.0));
                     if ($p25 < $sacksToOpen) {
                         throw new Exception("Insufficient 25kg half sacks in stock for " . $product["product_name"] . ".");
@@ -202,18 +214,6 @@ try {
                     $openedSacksCount = $sacksToOpen;
                     $openedKgAmount = $addedKg;
                     $chosenSackToOpen = '5kg';
-                } elseif ($stockSacks > 0) {
-                    $sacksToOpen = max(1, (int)ceil($neededKg / 50.0));
-                    if ($stockSacks < $sacksToOpen) {
-                        throw new Exception("Insufficient whole sacks in stock for " . $product["product_name"] . ".");
-                    }
-                    $stockSacks -= $sacksToOpen;
-                    $addedKg = $sacksToOpen * 50.0;
-                    $stockKg += $addedKg;
-                    $openedSackDesc = "{$sacksToOpen}x Whole Sack (50kg)";
-                    $openedSacksCount = $sacksToOpen;
-                    $openedKgAmount = $addedKg;
-                    $chosenSackToOpen = '50kg';
                 } else {
                     throw new Exception("No sacks available to open for " . $product["product_name"] . ".");
                 }

@@ -127,6 +127,14 @@ if ($priceSack <= $price25kg) {
 }
 
 try {
+    $conn->beginTransaction();
+
+    $chkExists = $conn->prepare("SELECT product_id FROM product WHERE product_id = ? FOR UPDATE");
+    $chkExists->execute([$productId]);
+    if (!$chkExists->fetch()) {
+        throw new Exception("Product record not found.");
+    }
+
     $stmt = $conn->prepare("
         UPDATE product
         SET product_name = ?, category = ?, origin = ?, rice_type = ?, price_sack = ?, price_25kg = ?, price_kg = ?, price_5kg = ?, price_10kg = ?, price_20kg = ?, kg_per_sack = 50.00
@@ -158,12 +166,18 @@ try {
         $productId
     ]);
 
+    $conn->commit();
+
     echo json_encode([
         "success" => true,
         "message" => "Product updated successfully."
     ]);
 
-} catch (PDOException $e) {
+} catch (Exception $e) {
+    if ($conn->inTransaction()) {
+        $conn->rollBack();
+    }
+
     echo json_encode([
         "success" => false,
         "message" => $e->getMessage()

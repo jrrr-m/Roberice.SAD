@@ -234,8 +234,8 @@ try {
         $detailNote = !empty($note) ? $note : "Repacked stock into bags [25kg={$p25}, 20kg={$p20}, 10kg={$p10}, 5kg={$p5}]";
     } else {
         // Correction
-        $newSacks = max(0, $sacks);
-        $newKg = max(0, $kg);
+        if (isset($data['sacks'])) $newSacks = max(0, $sacks);
+        if (isset($data['kg'])) $newKg = max(0, $kg);
         if (isset($data['packaged5kg'])) $newPack5 = max(0, $p5);
         if (isset($data['packaged10kg'])) $newPack10 = max(0, $p10);
         if (isset($data['packaged20kg'])) $newPack20 = max(0, $p20);
@@ -313,8 +313,8 @@ try {
                     $bKg = max(0.0, ($bKg + ($actualBatchSacks * $kgPerSack)) - $totalRepackedKg);
                 }
             } elseif ($type === 'correction') {
-                $bSacks = max(0, $sacks);
-                $bKg = max(0, $kg);
+                if (isset($data['sacks'])) $bSacks = max(0, $sacks);
+                if (isset($data['kg'])) $bKg = max(0, $kg);
                 if (isset($data['packaged5kg'])) $b5 = max(0, $p5);
                 if (isset($data['packaged10kg'])) $b10 = max(0, $p10);
                 if (isset($data['packaged20kg'])) $b20 = max(0, $p20);

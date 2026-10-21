@@ -27,13 +27,13 @@ try {
     $stmtItems = $conn->query("
         SELECT
             ti.transaction_id,
-            p.product_name,
+            COALESCE(p.product_name, 'Unknown / Inactive Product') AS product_name,
             ti.unit,
             ti.quantity,
             ti.unit_price,
             ti.subtotal
         FROM transaction_item ti
-        JOIN product p ON ti.product_id = p.product_id
+        LEFT JOIN product p ON ti.product_id = p.product_id
         ORDER BY ti.transaction_item_id ASC
     ");
     $allItems = $stmtItems->fetchAll(PDO::FETCH_ASSOC);

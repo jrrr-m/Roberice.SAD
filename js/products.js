@@ -521,19 +521,30 @@ async function deleteProduct(productId) {
   const p = productsCache.find(product => product.id === productId);
   if (!p) return;
 
-  if (!confirm(`Are you sure you want to delete "${p.name}"?`)) return;
+  const totalVolume = (p.stockSacks * 50) + (p.packaged25kg * 25) + (p.packaged20kg * 20) + (p.packaged10kg * 10) + (p.packaged5kg * 5) + p.stockKg;
+  let confirmMsg = `Are you sure you want to deactivate "${p.name}"?`;
+  if (totalVolume > 0) {
+    confirmMsg = `⚠️ Attention: "${p.name}" still has ${formatNumber(totalVolume)} kg in physical warehouse stock (${p.stockSacks} sacks, ${formatNumber(p.stockKg)} kg loose).\n\nDeactivating this variety will remove it from the active POS register and inventory views.\n\nAre you sure you want to proceed?`;
+  }
+
+  if (!confirm(confirmMsg)) return;
+
+  const user = JSON.parse(sessionStorage.getItem('roberice_logged_user')) || {};
 
   try {
     const response = await fetch('api/delete_product.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ productId })
+      body: JSON.stringify({ 
+        productId,
+        user: user.name || user.username || 'Admin User'
+      })
     });
 
     const result = await response.json();
 
     if (result.success) {
-      showToast(`Deleted product "${p.name}".`, 'info');
+      showToast(result.message || `Deactivated product "${p.name}".`, 'info');
       renderProductsTable();
     } else {
       showToast(result.message || 'Unable to delete product.', 'warning');

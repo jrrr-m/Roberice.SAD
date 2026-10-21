@@ -1071,7 +1071,8 @@ async function processSale() {
           productId: item.productId,
           unit: item.unit,
           qty: item.qty,
-          batchNumber: item.batchNumber
+          batchNumber: item.batchNumber,
+          openSackType: item.openSackType || null
         }))
       })
     });

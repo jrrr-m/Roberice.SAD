@@ -125,7 +125,7 @@ function renderFilesTable() {
             <a href="../${f.file_path}" target="_blank" download class="btn btn-primary btn-sm" style="text-decoration:none;">
               Download
             </a>
-            <button class="btn btn-danger btn-sm" onclick="deleteFileRecord(${f.file_id}, '${f.original_name}')">
+            <button class="btn btn-danger btn-sm" onclick="deleteFileRecord(${f.file_id})">
               Delete
             </button>
           </div>
@@ -222,7 +222,9 @@ async function handleQuickBackup() {
   }
 }
 
-async function deleteFileRecord(fileId, fileName) {
+async function deleteFileRecord(fileId, customName = null) {
+  const file = filesCache.find(f => f.file_id == fileId);
+  const fileName = customName || (file ? file.original_name : 'this file');
   if (!confirm(`Are you sure you want to permanently delete "${fileName}"?`)) return;
 
   showPageLoader(`Deleting "${fileName}"...`);

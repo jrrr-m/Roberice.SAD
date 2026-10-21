@@ -12,9 +12,9 @@ try {
             a.kg,
             a.note,
             a.performed_by,
-            p.product_name
+            COALESCE(p.product_name, 'Unknown / Inactive Product') AS product_name
         FROM inventory_adjustment a
-        JOIN product p ON a.product_id = p.product_id
+        LEFT JOIN product p ON a.product_id = p.product_id
         ORDER BY a.adjustment_date DESC, a.adjustment_id DESC
     ");
     $stmt->execute();

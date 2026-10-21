@@ -35,13 +35,18 @@ async function loadDashboardData() {
       origin: p.origin || 'Local',
       riceType: p.rice_type || p.category || 'White Rice',
       priceSack: Number(p.price_sack || 0),
+      price25kg: Number(p.price_25kg || (p.price_sack ? p.price_sack / 2 : p.price_kg * 25)),
+      price20kg: Number(p.price_20kg || (p.price_kg * 20)),
+      price10kg: Number(p.price_10kg || (p.price_kg * 10)),
+      price5kg: Number(p.price_5kg || (p.price_kg * 5)),
       priceKg: Number(p.price_kg || 0),
       kgPerSack: Number(p.kg_per_sack || 50),
       stockSacks: Number(p.stock_sacks || 0),
-      stockKg: Number(p.stock_kg || 0),
-      packaged5kg: Number(p.packaged_5kg || 0),
-      packaged10kg: Number(p.packaged_10kg || 0),
+      packaged25kg: Number(p.packaged_25kg || 0),
       packaged20kg: Number(p.packaged_20kg || 0),
+      packaged10kg: Number(p.packaged_10kg || 0),
+      packaged5kg: Number(p.packaged_5kg || 0),
+      stockKg: Number(p.stock_kg || 0),
       thresholdKg: Number(p.reorder_level_kg || 0),
       daysOld: Number(p.days_old !== undefined ? p.days_old : 0),
       status: p.product_status
@@ -138,8 +143,17 @@ function renderTopSelling(transactions, products) {
     t.items.forEach(item => {
       if (!salesMap[item.productName]) return;
 
-      if (item.unit === 'sack') {
+      const unit = String(item.unit || '').toLowerCase().trim();
+      if (unit === 'sack' || unit === '50kg') {
         salesMap[item.productName].qtySacks += item.qty;
+      } else if (unit === '25kg' || unit === 'half' || unit === 'half_sack') {
+        salesMap[item.productName].qtyKg += (item.qty * 25);
+      } else if (unit === '20kg') {
+        salesMap[item.productName].qtyKg += (item.qty * 20);
+      } else if (unit === '10kg') {
+        salesMap[item.productName].qtyKg += (item.qty * 10);
+      } else if (unit === '5kg') {
+        salesMap[item.productName].qtyKg += (item.qty * 5);
       } else {
         salesMap[item.productName].qtyKg += item.qty;
       }

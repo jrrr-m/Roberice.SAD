@@ -323,7 +323,7 @@ function renderReportView(data) {
   if (cashierSelect.options.length <= 1 && data.cashierBreakdown) {
     data.cashierBreakdown.forEach(c => {
       const opt = document.createElement('option');
-      opt.value = c.cashier;
+      opt.value = c.user_id !== undefined ? String(c.user_id) : c.cashier;
       opt.textContent = `${c.cashier} (${c.transactions} txns)`;
       cashierSelect.appendChild(opt);
     });

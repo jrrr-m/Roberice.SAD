@@ -95,9 +95,19 @@ function renderCategoryPieChart(containerId, transactions = [], products = []) {
       const product = products.find(p => p.name === item.productName);
       if (!product) return;
 
-      const kg = item.unit === 'sack'
-        ? item.qty * product.kgPerSack
-        : item.qty;
+      const unit = String(item.unit || '').toLowerCase().trim();
+      let kg = item.qty;
+      if (unit === 'sack' || unit === '50kg') {
+        kg = item.qty * (product.kgPerSack || 50);
+      } else if (unit === '25kg' || unit === 'half' || unit === 'half_sack') {
+        kg = item.qty * 25;
+      } else if (unit === '20kg') {
+        kg = item.qty * 20;
+      } else if (unit === '10kg') {
+        kg = item.qty * 10;
+      } else if (unit === '5kg') {
+        kg = item.qty * 5;
+      }
 
       sales[item.productName] += kg;
     });

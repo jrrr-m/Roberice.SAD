@@ -148,6 +148,12 @@ if ($method === "POST") {
         $status = trim($input["account_status"] ?? "Active");
         $permissions = $input["permissions"] ?? [];
 
+        // Safeguard primary administrator account
+        if ($userId === 1) {
+            $role = "Admin";
+            $status = "Active";
+        }
+
         if ($userId <= 0 || $username === "" || $fullName === "") {
             echo json_encode([
                 "success" => false,
