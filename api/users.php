@@ -192,10 +192,10 @@ if ($method === "GET") {
             // Table might not exist yet if uninitialized
         }
 
-        // Fetch custom roles
+        // Fetch custom and system roles from database
         $customRoles = [];
         try {
-            $crStmt = $conn->query("SELECT role_id, role_name, default_permissions, created_at FROM custom_roles ORDER BY role_name ASC");
+            $crStmt = $conn->query("SELECT role_id, role_name, default_permissions, is_system, created_at FROM custom_roles ORDER BY is_system DESC, role_name ASC");
             $crRows = $crStmt->fetchAll(PDO::FETCH_ASSOC);
             foreach ($crRows as $cr) {
                 $decodedPerms = [];
@@ -207,6 +207,7 @@ if ($method === "GET") {
                     "role_id" => (int)$cr["role_id"],
                     "role_name" => $cr["role_name"],
                     "default_permissions" => $decodedPerms,
+                    "is_system" => (int)($cr["is_system"] ?? 0),
                     "created_at" => $cr["created_at"]
                 ];
             }
@@ -917,6 +918,80 @@ if ($method === "POST") {
     }
 
     // ---------------------------------------------------------
+    // ACTION: Update Role Default Permissions (Custom or System Role)
+    // ---------------------------------------------------------
+    if ($action === "update_role_permissions") {
+        $adminPassword = (string)($data["admin_password"] ?? "");
+        $adminUserId   = (int)($data["admin_user_id"] ?? 0);
+        $adminUsername = trim($data["admin_username"] ?? "");
+
+        // Authenticate Administrator via Password
+        $auth = authenticateAdmin($conn, $adminUserId, $adminUsername, $adminPassword);
+        if (!$auth["authenticated"]) {
+            echo json_encode(["success" => false, "message" => $auth["message"]]);
+            exit;
+        }
+
+        $roleId   = (int)($data["role_id"] ?? 0);
+        $roleName = trim($data["role_name"] ?? "");
+        $permissions = $data["permissions"] ?? [];
+        $applyToUsers = !empty($data["apply_to_users"]);
+
+        if ($roleId <= 0 && $roleName === "") {
+            echo json_encode(["success" => false, "message" => "Valid role ID or role name is required."]);
+            exit;
+        }
+
+        // Find role in custom_roles
+        if ($roleId > 0) {
+            $rStmt = $conn->prepare("SELECT role_id, role_name, is_system FROM custom_roles WHERE role_id = ? LIMIT 1");
+            $rStmt->execute([$roleId]);
+        } else {
+            $rStmt = $conn->prepare("SELECT role_id, role_name, is_system FROM custom_roles WHERE LOWER(role_name) = LOWER(?) LIMIT 1");
+            $rStmt->execute([$roleName]);
+        }
+        $role = $rStmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$role) {
+            echo json_encode(["success" => false, "message" => "Role not found in the database."]);
+            exit;
+        }
+
+        if (is_string($permissions)) {
+            $decoded = json_decode($permissions, true);
+            $permissions = is_array($decoded) ? $decoded : [];
+        } elseif (!is_array($permissions)) {
+            $permissions = [];
+        }
+        $permsJson = json_encode(array_values(array_unique($permissions)));
+
+        try {
+            $upd = $conn->prepare("UPDATE custom_roles SET default_permissions = ? WHERE role_id = ?");
+            $upd->execute([$permsJson, $role["role_id"]]);
+
+            $affectedUsers = 0;
+            if ($applyToUsers) {
+                $updUsers = $conn->prepare("UPDATE users SET permissions = ? WHERE LOWER(role) = LOWER(?)");
+                $updUsers->execute([$permsJson, $role["role_name"]]);
+                $affectedUsers = $updUsers->rowCount();
+            }
+
+            echo json_encode([
+                "success" => true,
+                "message" => "Default permissions for '{$role['role_name']}' updated successfully." . ($applyToUsers ? " Applied to {$affectedUsers} active user account(s)." : ""),
+                "role_id" => (int)$role["role_id"],
+                "role_name" => $role["role_name"],
+                "permissions" => $permissions,
+                "affected_users" => $affectedUsers
+            ]);
+            exit;
+        } catch (PDOException $e) {
+            echo json_encode(["success" => false, "message" => "Error updating role permissions: " . $e->getMessage()]);
+            exit;
+        }
+    }
+
+    // ---------------------------------------------------------
     // ACTION: Delete Custom Role (Requires Admin Password)
     // ---------------------------------------------------------
     if ($action === "delete_role") {
@@ -941,16 +1016,26 @@ if ($method === "POST") {
 
         // Find role
         if ($roleId > 0) {
-            $rStmt = $conn->prepare("SELECT role_id, role_name FROM custom_roles WHERE role_id = ? LIMIT 1");
+            $rStmt = $conn->prepare("SELECT role_id, role_name, is_system FROM custom_roles WHERE role_id = ? LIMIT 1");
             $rStmt->execute([$roleId]);
         } else {
-            $rStmt = $conn->prepare("SELECT role_id, role_name FROM custom_roles WHERE role_name = ? LIMIT 1");
+            $rStmt = $conn->prepare("SELECT role_id, role_name, is_system FROM custom_roles WHERE LOWER(role_name) = LOWER(?) LIMIT 1");
             $rStmt->execute([$roleName]);
         }
         $role = $rStmt->fetch(PDO::FETCH_ASSOC);
 
         if (!$role) {
             echo json_encode(["success" => false, "message" => "Custom role not found."]);
+            exit;
+        }
+
+        // Prevent deletion of standard system roles
+        $builtIn = ["admin", "administrator", "cashier", "store manager", "inventory clerk"];
+        if (!empty($role["is_system"]) || in_array(strtolower($role["role_name"]), $builtIn, true)) {
+            echo json_encode([
+                "success" => false,
+                "message" => "Standard system role '{$role['role_name']}' cannot be deleted. You can edit its default permissions instead."
+            ]);
             exit;
         }
 

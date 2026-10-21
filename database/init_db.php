@@ -102,9 +102,32 @@ try {
               `role_id` INT AUTO_INCREMENT PRIMARY KEY,
               `role_name` VARCHAR(50) NOT NULL UNIQUE,
               `default_permissions` TEXT DEFAULT NULL,
+              `is_system` TINYINT(1) NOT NULL DEFAULT 0,
               `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
         ");
+
+        $crCols = $pdo->query("SHOW COLUMNS FROM `custom_roles` LIKE 'is_system'")->fetchAll();
+        if (empty($crCols)) {
+            $pdo->exec("ALTER TABLE `custom_roles` ADD COLUMN `is_system` TINYINT(1) NOT NULL DEFAULT 0 AFTER `default_permissions`;");
+        }
+
+        $standardRoles = [
+            ['Admin', json_encode(["dashboard","pos","view-inventory","inventory","products","transactions","sales-report","file-manager","audit","users"])],
+            ['Cashier', json_encode(["pos","view-inventory","transactions","sales-report"])],
+            ['Inventory Clerk', json_encode(["view-inventory","inventory","products"])],
+            ['Store Manager', json_encode(["dashboard","pos","view-inventory","products","transactions","sales-report","file-manager","audit"])]
+        ];
+        foreach ($standardRoles as $sr) {
+            $rCheck = $pdo->prepare("SELECT role_id FROM `custom_roles` WHERE LOWER(role_name) = LOWER(?) LIMIT 1");
+            $rCheck->execute([$sr[0]]);
+            $foundR = $rCheck->fetch();
+            if ($foundR) {
+                $pdo->prepare("UPDATE `custom_roles` SET `is_system` = 1 WHERE `role_id` = ?")->execute([$foundR['role_id']]);
+            } else {
+                $pdo->prepare("INSERT INTO `custom_roles` (`role_name`, `default_permissions`, `is_system`, `created_at`) VALUES (?, ?, 1, NOW())")->execute([$sr[0], $sr[1]]);
+            }
+        }
     } catch (Exception $e) {
         // Schema already up to date
     }

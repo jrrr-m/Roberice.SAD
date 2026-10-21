@@ -125,7 +125,7 @@
               <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                 <button type="button" class="btn btn-secondary" id="btnOpenManageRoles" style="white-space: nowrap;">
                   <svg width="17" height="17" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
-                  Custom Roles
+                  Roles & Permissions
                 </button>
                 <button class="btn btn-primary" id="btnOpenAddUser" style="white-space: nowrap;">
                   <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path></svg>
@@ -581,18 +581,18 @@
         <div>
           <h3 style="margin:0; font-size:17px; font-weight:700; color:var(--text-main); display:flex; align-items:center; gap:8px;">
             <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
-            Custom Role Management
+            Role & Permissions Management
           </h3>
-          <p style="font-size:12px; color:var(--text-muted); margin:2px 0 0;">Create custom user roles, assign default module access, or remove obsolete roles.</p>
+          <p style="font-size:12px; color:var(--text-muted); margin:2px 0 0;">Customize default module permissions for both standard system roles and custom roles, or create new custom roles.</p>
         </div>
         <button class="modal-close" type="button" onclick="closeModal('modalManageRoles')">&times;</button>
       </div>
 
       <div class="modal-body" style="padding: 16px 20px; overflow-y: auto; flex: 1;">
-        <!-- Existing Custom Roles List Card -->
+        <!-- Configured Roles List Card -->
         <div style="margin-bottom: 20px;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px;">
-            <h4 style="margin:0; font-size: 13.5px; font-weight: 700; color: var(--text-main);">Configured Custom Roles</h4>
+            <h4 style="margin:0; font-size: 13.5px; font-weight: 700; color: var(--text-main);">Configured Roles & Default Permissions</h4>
             <span id="customRolesCountBadge" class="badge badge-info" style="font-size: 11px;">0 Roles</span>
           </div>
 
@@ -697,10 +697,91 @@
     </div>
   </div>
 
+  <!-- Modal: Edit Role Default Permissions (Works for ALL Custom and System Roles) -->
+  <div class="modal-overlay" id="modalEditRolePerms" style="z-index: 10001;">
+    <div class="modal-card" style="max-width: 620px; width: 95%; max-height: 90vh; display: flex; flex-direction: column;">
+      <div class="modal-header">
+        <div>
+          <h3 id="editRoleModalTitle" style="margin:0; font-size:17px; font-weight:700; color:var(--text-main); display:flex; align-items:center; gap:8px;">
+            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+            Edit Role Default Permissions
+          </h3>
+          <p id="editRoleModalSubtitle" style="font-size:12px; color:var(--text-muted); margin:2px 0 0;">Customize the default module access granted to this role in the database.</p>
+        </div>
+        <button class="modal-close" type="button" onclick="closeModal('modalEditRolePerms')">&times;</button>
+      </div>
+
+      <form id="formEditRolePermissions">
+        <input type="hidden" id="editRoleIdInput">
+        <input type="hidden" id="editRoleNameInput">
+
+        <div class="modal-body" style="padding: 16px 20px; overflow-y: auto; flex: 1;">
+          <div id="editRoleFormError" style="display:none; padding:10px 14px; border-radius:var(--radius-md); font-size:12px; margin-bottom:12px; background:var(--danger-bg); color:var(--danger-text); border:1px solid #e7a5a5;"></div>
+
+          <!-- Target Role Banner -->
+          <div style="background:var(--bg-main); border:1px solid var(--border-color); border-radius:var(--radius-md); padding:12px 14px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+            <div>
+              <div style="font-size:11px; text-transform:uppercase; color:var(--text-muted); font-weight:600; letter-spacing:0.5px;">Target Role</div>
+              <div id="editRoleDisplayName" style="font-size:16px; font-weight:700; color:var(--text-main); margin-top:2px;">Role Name</div>
+            </div>
+            <div id="editRoleBadgeContainer" style="display:flex; align-items:center; gap:6px;">
+              <!-- Role Badge & Count rendered dynamically -->
+            </div>
+          </div>
+
+          <!-- Permissions Checkboxes Matrix -->
+          <div style="margin-bottom: 14px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
+              <label style="font-size: 12.5px; font-weight: 600; color: var(--text-main); margin: 0;">Default Accessible Modules</label>
+              <div style="display: flex; gap: 4px;">
+                <button type="button" class="btn btn-secondary btn-sm" id="btnEditRolePermsSelectAll" style="padding: 2px 6px; font-size: 10.5px;">Select All</button>
+                <button type="button" class="btn btn-secondary btn-sm" id="btnEditRolePermsClear" style="padding: 2px 6px; font-size: 10.5px;">Clear</button>
+              </div>
+            </div>
+
+            <div class="permissions-grid" id="editRolePermsGrid" style="grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 8px;">
+              <!-- Rendered dynamically from MODULE_DEFINITIONS -->
+            </div>
+          </div>
+
+          <!-- Apply to existing active users checkbox -->
+          <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:var(--radius-md); padding:10px 12px; margin-bottom:14px;">
+            <label style="display:flex; align-items:flex-start; gap:8px; cursor:pointer; margin:0; font-size:12.5px; color:#1e40af;">
+              <input type="checkbox" id="editRoleApplyToUsers" style="margin-top:2px;" checked>
+              <div>
+                <strong>Apply to all existing active accounts with this role</strong>
+                <div id="editRoleApplyHelp" style="font-size:11px; color:#3b82f6; margin-top:2px;">
+                  Synchronizes these permissions immediately across all user accounts currently assigned to this role.
+                </div>
+              </div>
+            </label>
+          </div>
+
+          <!-- Admin Password Authentication -->
+          <div style="background:#fdfaf2; border:1px solid #e2d7bd; border-radius:var(--radius-md); padding:12px;">
+            <label for="editRoleAdminPassword" style="font-weight:700; color:var(--primary); font-size:12.5px; display:flex; align-items:center; gap:6px; margin-bottom:6px;">
+              <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+              Administrator Password Authentication <span style="color:var(--danger-text);">*</span>
+            </label>
+            <input type="password" id="editRoleAdminPassword" class="form-control" placeholder="Enter your administrator password to authorize permission changes" required autocomplete="current-password">
+          </div>
+        </div>
+
+        <div class="modal-footer" style="display:flex; justify-content:flex-end; gap:8px; padding:12px 20px; border-top:1px solid var(--border-color);">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('modalEditRolePerms')">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="btnSubmitEditRolePerms">
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+            Save Role Permissions
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- Scripts -->
-  <script src="../js/data.js?v=20261021_v7"></script>
-  <script src="../js/utils.js?v=20261021_v7"></script>
-  <script src="../js/auth.js?v=20261021_v7"></script>
-  <script src="../js/users.js?v=20261021_v7"></script>
+  <script src="../js/data.js?v=20261021_v8"></script>
+  <script src="../js/utils.js?v=20261021_v8"></script>
+  <script src="../js/auth.js?v=20261021_v8"></script>
+  <script src="../js/users.js?v=20261021_v8"></script>
 </body>
 </html>

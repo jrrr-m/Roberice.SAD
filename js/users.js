@@ -28,6 +28,22 @@ const PRESETS = {
   manager: ['dashboard', 'pos', 'view-inventory', 'products', 'transactions', 'sales-report', 'file-manager', 'audit']
 };
 
+function getRolePermissions(roleName) {
+  if (!roleName) return [];
+  const normalized = roleName.trim().toLowerCase();
+  // 1. Look up from database customRoles array
+  const cr = customRoles.find(r => (r.role_name || '').trim().toLowerCase() === normalized);
+  if (cr && Array.isArray(cr.default_permissions)) {
+    return cr.default_permissions;
+  }
+  // 2. Fallback to PRESETS
+  if (normalized === 'admin' || normalized === 'administrator') return PRESETS.admin;
+  if (normalized === 'cashier') return PRESETS.cashier;
+  if (normalized === 'inventory clerk' || normalized === 'clerk') return PRESETS.clerk;
+  if (normalized === 'store manager' || normalized === 'manager') return PRESETS.manager;
+  return [];
+}
+
 document.addEventListener('DOMContentLoaded', () => initUsers());
 
 async function initUsers() {
@@ -99,10 +115,10 @@ function bindEventListeners() {
   }
 
   // Permission Presets
-  document.getElementById('btnPresetAdmin')?.addEventListener('click', () => setPermissionCheckboxes(PRESETS.admin));
-  document.getElementById('btnPresetCashier')?.addEventListener('click', () => setPermissionCheckboxes(PRESETS.cashier));
-  document.getElementById('btnPresetClerk')?.addEventListener('click', () => setPermissionCheckboxes(PRESETS.clerk));
-  document.getElementById('btnPresetManager')?.addEventListener('click', () => setPermissionCheckboxes(PRESETS.manager));
+  document.getElementById('btnPresetAdmin')?.addEventListener('click', () => setPermissionCheckboxes(getRolePermissions('Admin')));
+  document.getElementById('btnPresetCashier')?.addEventListener('click', () => setPermissionCheckboxes(getRolePermissions('Cashier')));
+  document.getElementById('btnPresetClerk')?.addEventListener('click', () => setPermissionCheckboxes(getRolePermissions('Inventory Clerk')));
+  document.getElementById('btnPresetManager')?.addEventListener('click', () => setPermissionCheckboxes(getRolePermissions('Store Manager')));
   document.getElementById('btnClearPerms')?.addEventListener('click', () => setPermissionCheckboxes([]));
 
   // Role select changes preset automatically and toggles custom role input
@@ -119,21 +135,7 @@ function bindEventListeners() {
       } else {
         if (customRoleCont) customRoleCont.style.display = 'none';
         if (customRoleInput) customRoleInput.value = '';
-      }
-
-      if (val === 'Admin') {
-        setPermissionCheckboxes(PRESETS.admin);
-      } else if (val === 'Cashier') {
-        setPermissionCheckboxes(PRESETS.cashier);
-      } else if (val === 'Inventory Clerk') {
-        setPermissionCheckboxes(PRESETS.clerk);
-      } else if (val === 'Store Manager') {
-        setPermissionCheckboxes(PRESETS.manager);
-      } else if (val !== '__custom__') {
-        const cr = customRoles.find(r => r.role_name.toLowerCase() === val.toLowerCase());
-        if (cr && Array.isArray(cr.default_permissions) && cr.default_permissions.length > 0) {
-          setPermissionCheckboxes(cr.default_permissions);
-        }
+        setPermissionCheckboxes(getRolePermissions(val));
       }
     });
   }
@@ -156,7 +158,7 @@ function bindEventListeners() {
     });
   }
 
-  // Custom Roles Management Modal & Form
+  // Roles & Permissions Management Modal & Form
   const btnOpenRoles = document.getElementById('btnOpenManageRoles');
   if (btnOpenRoles) {
     btnOpenRoles.addEventListener('click', openManageRolesModal);
@@ -172,6 +174,19 @@ function bindEventListeners() {
   });
   document.getElementById('btnRolePermsClear')?.addEventListener('click', () => {
     document.querySelectorAll('input[name="newRolePerm"]').forEach(cb => cb.checked = false);
+  });
+
+  // Edit Role Permissions Modal & Form
+  const formEditRole = document.getElementById('formEditRolePermissions');
+  if (formEditRole) {
+    formEditRole.addEventListener('submit', handleEditRolePermsSubmit);
+  }
+
+  document.getElementById('btnEditRolePermsSelectAll')?.addEventListener('click', () => {
+    document.querySelectorAll('input[name="editRolePerm"]').forEach(cb => cb.checked = true);
+  });
+  document.getElementById('btnEditRolePermsClear')?.addEventListener('click', () => {
+    document.querySelectorAll('input[name="editRolePerm"]').forEach(cb => cb.checked = false);
   });
 }
 
@@ -1005,7 +1020,7 @@ function openAddUserModal() {
   const errAlert = document.getElementById('userFormErrorAlert');
   if (errAlert) errAlert.style.display = 'none';
 
-  setPermissionCheckboxes(PRESETS.cashier);
+  setPermissionCheckboxes(getRolePermissions('Cashier'));
   openModal('modalUserForm');
 }
 
@@ -1199,7 +1214,7 @@ function formatDateTime(dateStr) {
 }
 
 // -------------------------------------------------------------
-// CUSTOM ROLE MANAGEMENT FUNCTIONS
+// ROLE MANAGEMENT & PERMISSION CONFIGURATION FUNCTIONS
 // -------------------------------------------------------------
 function populateRoleOptions() {
   const filterRoleSelect = document.getElementById('filterUserRole');
@@ -1210,18 +1225,30 @@ function populateRoleOptions() {
   const currentRoleVal = roleSelect ? roleSelect.value : 'Cashier';
   const currentApproveVal = approveRoleSelect ? approveRoleSelect.value : 'Cashier';
 
+  // Separate system vs custom roles
+  const systemRolesList = customRoles.filter(r => r.is_system);
+  const userCustomRolesList = customRoles.filter(r => !r.is_system);
+
+  // Fallback defaults if table was empty
+  const defaultSysRoles = [
+    { role_name: 'Admin', label: 'Administrator (Full Access)' },
+    { role_name: 'Cashier', label: 'Cashier' },
+    { role_name: 'Store Manager', label: 'Store Manager' },
+    { role_name: 'Inventory Clerk', label: 'Inventory Clerk' }
+  ];
+
   // 1. Populate filterUserRole
   if (filterRoleSelect) {
-    let filterHtml = `
-      <option value="all">All Roles</option>
-      <option value="Admin">Administrator</option>
-      <option value="Cashier">Cashier</option>
-      <option value="Store Manager">Store Manager</option>
-      <option value="Inventory Clerk">Inventory Clerk</option>
-    `;
-    customRoles.forEach(cr => {
-      filterHtml += `<option value="${escapeHtml(cr.role_name)}">${escapeHtml(cr.role_name)}</option>`;
+    let filterHtml = `<option value="all">All Roles</option>`;
+    const sysToUse = systemRolesList.length > 0 ? systemRolesList : defaultSysRoles;
+    sysToUse.forEach(sr => {
+      filterHtml += `<option value="${escapeHtml(sr.role_name)}">${escapeHtml(sr.role_name)}</option>`;
     });
+    if (userCustomRolesList.length > 0) {
+      userCustomRolesList.forEach(cr => {
+        filterHtml += `<option value="${escapeHtml(cr.role_name)}">${escapeHtml(cr.role_name)}</option>`;
+      });
+    }
     filterRoleSelect.innerHTML = filterHtml;
     if ([...filterRoleSelect.options].some(o => o.value.toLowerCase() === currentFilterVal.toLowerCase())) {
       filterRoleSelect.value = currentFilterVal;
@@ -1230,15 +1257,18 @@ function populateRoleOptions() {
 
   // 2. Populate roleSelect (in User Add/Edit modal)
   if (roleSelect) {
-    let optsHtml = `
-      <option value="Admin">Administrator (Full Access)</option>
-      <option value="Cashier">Cashier</option>
-      <option value="Store Manager">Store Manager</option>
-      <option value="Inventory Clerk">Inventory Clerk</option>
-    `;
-    if (customRoles.length > 0) {
+    let optsHtml = '';
+    const sysToUse = systemRolesList.length > 0 ? systemRolesList : defaultSysRoles;
+    optsHtml += `<optgroup label="Standard System Roles">`;
+    sysToUse.forEach(sr => {
+      const label = sr.role_name === 'Admin' ? 'Administrator (Full Access)' : sr.role_name;
+      optsHtml += `<option value="${escapeHtml(sr.role_name)}">${escapeHtml(label)}</option>`;
+    });
+    optsHtml += `</optgroup>`;
+
+    if (userCustomRolesList.length > 0) {
       optsHtml += `<optgroup label="Custom Roles">`;
-      customRoles.forEach(cr => {
+      userCustomRolesList.forEach(cr => {
         optsHtml += `<option value="${escapeHtml(cr.role_name)}">${escapeHtml(cr.role_name)}</option>`;
       });
       optsHtml += `</optgroup>`;
@@ -1252,15 +1282,17 @@ function populateRoleOptions() {
 
   // 3. Populate approveRoleSelect (in Approve Request modal)
   if (approveRoleSelect) {
-    let approveOptsHtml = `
-      <option value="Cashier">Cashier</option>
-      <option value="Inventory Clerk">Inventory Clerk</option>
-      <option value="Store Manager">Store Manager</option>
-      <option value="Admin">Administrator</option>
-    `;
-    if (customRoles.length > 0) {
+    let approveOptsHtml = '';
+    const sysToUse = systemRolesList.length > 0 ? systemRolesList : defaultSysRoles;
+    approveOptsHtml += `<optgroup label="Standard System Roles">`;
+    sysToUse.forEach(sr => {
+      approveOptsHtml += `<option value="${escapeHtml(sr.role_name)}">${escapeHtml(sr.role_name)}</option>`;
+    });
+    approveOptsHtml += `</optgroup>`;
+
+    if (userCustomRolesList.length > 0) {
       approveOptsHtml += `<optgroup label="Custom Roles">`;
-      customRoles.forEach(cr => {
+      userCustomRolesList.forEach(cr => {
         approveOptsHtml += `<option value="${escapeHtml(cr.role_name)}">${escapeHtml(cr.role_name)}</option>`;
       });
       approveOptsHtml += `</optgroup>`;
@@ -1298,7 +1330,7 @@ function renderCustomRolesList() {
   const countBadge = document.getElementById('customRolesCountBadge');
 
   if (countBadge) {
-    countBadge.textContent = `${customRoles.length} Custom Role${customRoles.length === 1 ? '' : 's'}`;
+    countBadge.textContent = `${customRoles.length} Role${customRoles.length === 1 ? '' : 's'} Configured`;
   }
 
   if (!container) return;
@@ -1306,7 +1338,7 @@ function renderCustomRolesList() {
   if (customRoles.length === 0) {
     container.innerHTML = `
       <div style="font-size: 12.5px; color: var(--text-muted); padding: 14px; background: var(--bg-main); border-radius: var(--radius-md); text-align: center; border: 1px dashed var(--border-color);">
-        No custom roles configured yet. You can define one below.
+        No roles configured yet. You can define one below.
       </div>
     `;
     return;
@@ -1314,34 +1346,197 @@ function renderCustomRolesList() {
 
   container.innerHTML = customRoles.map(cr => {
     const perms = Array.isArray(cr.default_permissions) ? cr.default_permissions : [];
-    const permsBadges = perms.map(p => {
-      const def = MODULE_DEFINITIONS.find(m => m.id === p);
-      return `<span class="badge badge-secondary" style="font-size: 10.5px; padding: 2px 6px;">${def ? def.icon + ' ' + def.label : p}</span>`;
-    }).join(' ');
+    let permsBadges = '';
+    if (perms.length >= 10) {
+      permsBadges = `<span class="badge badge-success" style="font-size: 10.5px; padding: 2px 6px; font-weight:700;">★ Full System Access (10 Modules)</span>`;
+    } else if (perms.length === 0) {
+      permsBadges = `<span class="badge" style="background:#fee2e2; color:#b91c1c; font-size:10.5px;">No Default Permissions</span>`;
+    } else {
+      permsBadges = perms.map(p => {
+        const def = MODULE_DEFINITIONS.find(m => m.id === p);
+        return `<span class="badge badge-secondary" style="font-size: 10.5px; padding: 2px 6px;">${def ? def.icon + ' ' + def.label : p}</span>`;
+      }).join(' ');
+    }
 
     const assignedUserCount = allUsers.filter(u => (u.role || '').toLowerCase() === cr.role_name.toLowerCase()).length;
+    const isSys = Boolean(cr.is_system);
 
     return `
-      <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: var(--bg-main); border: 1px solid var(--border-color); border-radius: var(--radius-md); gap: 12px; flex-wrap: wrap;">
-        <div style="flex: 1; min-width: 200px;">
-          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-            <strong style="font-size: 13.5px; color: var(--text-main);">${escapeHtml(cr.role_name)}</strong>
-            <span class="badge badge-info" style="font-size: 10.5px;">${assignedUserCount} User${assignedUserCount === 1 ? '' : 's'} Assigned</span>
+      <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; background: var(--bg-main); border: 1px solid var(--border-color); border-radius: var(--radius-md); gap: 12px; flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 220px;">
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px; flex-wrap: wrap;">
+            <strong style="font-size: 14px; color: var(--text-main);">${escapeHtml(cr.role_name)}</strong>
+            <span class="badge ${isSys ? 'badge-primary' : 'badge-info'}" style="font-size: 10px;">
+              ${isSys ? 'System Role' : 'Custom Role'}
+            </span>
+            <span class="badge badge-secondary" style="font-size: 10px;">
+              ${assignedUserCount} User${assignedUserCount === 1 ? '' : 's'} Assigned
+            </span>
           </div>
-          <div style="display: flex; flex-wrap: wrap; gap: 4px; align-items: center;">
-            <span style="font-size: 11px; color: var(--text-muted);">Default:</span>
-            ${permsBadges || '<span style="font-size: 11px; color: var(--text-muted); font-style: italic;">No permissions</span>'}
+          <div style="display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin-top: 4px;">
+            <span style="font-size: 11px; color: var(--text-muted); font-weight:600;">Default Access:</span>
+            ${permsBadges}
           </div>
         </div>
-        <div>
-          <button type="button" class="btn btn-secondary btn-sm" onclick="promptDeleteCustomRole(${cr.role_id}, '${escapeHtml(cr.role_name)}')" title="Delete custom role" style="color: var(--danger-text); padding: 4px 8px; font-size: 11.5px;">
-            <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-            Delete
+        <div style="display: inline-flex; gap: 6px; align-items: center;">
+          <button type="button" class="btn btn-secondary btn-sm" onclick="openEditRolePermsModal(${cr.role_id})" title="Edit Default Permissions for ${escapeHtml(cr.role_name)}" style="padding: 5px 10px; font-size: 11.5px; font-weight: 600; color: var(--primary);">
+            <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+            Edit Permissions
           </button>
+          ${!isSys ? `
+            <button type="button" class="btn btn-secondary btn-sm" onclick="promptDeleteCustomRole(${cr.role_id}, '${escapeHtml(cr.role_name)}')" title="Delete custom role" style="color: var(--danger-text); padding: 5px 8px; font-size: 11.5px;">
+              <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+              Delete
+            </button>
+          ` : ''}
         </div>
       </div>
     `;
   }).join('');
+}
+
+function openEditRolePermsModal(roleId) {
+  const role = customRoles.find(r => r.role_id === roleId);
+  if (!role) {
+    showToast('Role not found.', 'danger');
+    return;
+  }
+
+  document.getElementById('editRoleIdInput').value = role.role_id;
+  document.getElementById('editRoleNameInput').value = role.role_name;
+  document.getElementById('editRoleDisplayName').textContent = role.role_name;
+
+  const assignedUsers = allUsers.filter(u => (u.role || '').toLowerCase() === role.role_name.toLowerCase());
+  const assignedCount = assignedUsers.length;
+
+  const badgeCont = document.getElementById('editRoleBadgeContainer');
+  if (badgeCont) {
+    const isSys = Boolean(role.is_system);
+    badgeCont.innerHTML = `
+      <span class="badge ${isSys ? 'badge-primary' : 'badge-info'}" style="font-size: 11px;">
+        ${isSys ? 'Standard System Role' : 'Custom Role'}
+      </span>
+      <span class="badge badge-secondary" style="font-size: 11px;">
+        ${assignedCount} User${assignedCount === 1 ? '' : 's'} Assigned
+      </span>
+    `;
+  }
+
+  const applyHelp = document.getElementById('editRoleApplyHelp');
+  if (applyHelp) {
+    applyHelp.textContent = assignedCount > 0 
+      ? `Synchronizes these permissions immediately across all ${assignedCount} active user account(s) currently assigned the '${role.role_name}' role.`
+      : `No user accounts are currently assigned to this role. When new accounts are given this role, they will receive these permissions by default.`;
+  }
+
+  const applyCheckbox = document.getElementById('editRoleApplyToUsers');
+  if (applyCheckbox) {
+    applyCheckbox.checked = true;
+  }
+
+  // Populate Permissions Grid
+  const grid = document.getElementById('editRolePermsGrid');
+  if (grid) {
+    const rolePerms = Array.isArray(role.default_permissions) ? role.default_permissions : [];
+    grid.innerHTML = MODULE_DEFINITIONS.map(m => {
+      const isChecked = rolePerms.includes(m.id);
+      return `
+        <label class="permission-item" style="cursor: pointer; display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: #fff; border: 1px solid var(--border-color); border-radius: var(--radius-md); font-size: 12.5px;">
+          <input type="checkbox" name="editRolePerm" value="${m.id}" ${isChecked ? 'checked' : ''} style="cursor: pointer;">
+          <span>${m.icon} <strong>${escapeHtml(m.label)}</strong></span>
+        </label>
+      `;
+    }).join('');
+  }
+
+  const errAlert = document.getElementById('editRoleFormError');
+  if (errAlert) errAlert.style.display = 'none';
+
+  const passInput = document.getElementById('editRoleAdminPassword');
+  if (passInput) passInput.value = '';
+
+  openModal('modalEditRolePerms');
+  setTimeout(() => passInput?.focus(), 150);
+}
+
+async function handleEditRolePermsSubmit(e) {
+  e.preventDefault();
+
+  const roleId = parseInt(document.getElementById('editRoleIdInput').value, 10);
+  const roleName = document.getElementById('editRoleNameInput').value;
+  const adminPassword = document.getElementById('editRoleAdminPassword').value;
+  const applyToUsers = document.getElementById('editRoleApplyToUsers')?.checked ? 1 : 0;
+  const errBox = document.getElementById('editRoleFormError');
+  const btnSubmit = document.getElementById('btnSubmitEditRolePerms');
+
+  if (errBox) errBox.style.display = 'none';
+
+  if (!adminPassword) {
+    if (errBox) {
+      errBox.textContent = 'Administrator password is required to authorize modifying role permissions.';
+      errBox.style.display = 'block';
+    }
+    document.getElementById('editRoleAdminPassword')?.focus();
+    return;
+  }
+
+  const selectedPerms = [];
+  document.querySelectorAll('input[name="editRolePerm"]:checked').forEach(cb => {
+    selectedPerms.push(cb.value);
+  });
+
+  const currentUser = JSON.parse(sessionStorage.getItem('roberice_logged_user')) || {};
+
+  btnSubmit.disabled = true;
+  btnSubmit.textContent = 'Verifying Admin Password...';
+  showTopLoader();
+
+  try {
+    const res = await fetch('../api/users.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'update_role_permissions',
+        role_id: roleId,
+        role_name: roleName,
+        permissions: selectedPerms,
+        apply_to_users: applyToUsers,
+        admin_password: adminPassword,
+        admin_user_id: currentUser.id || 1,
+        admin_username: currentUser.username || 'admin'
+      })
+    });
+
+    const result = await res.json();
+
+    if (!result.success) {
+      if (errBox) {
+        errBox.textContent = result.message || 'Failed to update role permissions. Check administrator password.';
+        errBox.style.display = 'block';
+      }
+      document.getElementById('editRoleAdminPassword')?.select();
+      return;
+    }
+
+    showToast(result.message || 'Role permissions updated successfully!', 'success');
+    closeModal('modalEditRolePerms');
+
+    // Reload users and custom roles from server
+    await loadUsers();
+  } catch (err) {
+    console.error('Error updating role permissions:', err);
+    if (errBox) {
+      errBox.textContent = 'Server error: ' + err.message;
+      errBox.style.display = 'block';
+    }
+  } finally {
+    btnSubmit.disabled = false;
+    btnSubmit.innerHTML = `
+      <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+      Save Role Permissions
+    `;
+    hideTopLoader();
+  }
 }
 
 async function handleCreateCustomRoleSubmit(e) {
