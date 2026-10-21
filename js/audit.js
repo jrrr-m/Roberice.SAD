@@ -4,24 +4,63 @@
  */
 
 let auditLogsCache = [];
+let currentAuditPage = 1;
+const auditPageSize = 150;
+let totalAuditRecords = 0;
 
 document.addEventListener('DOMContentLoaded', async () => {
-  await loadAuditLogs();
+  await loadAuditLogs(1);
 
+  let searchTimeout = null;
   const searchInput = document.getElementById('searchAudit');
-  if (searchInput) searchInput.addEventListener('input', renderAuditTable);
+  if (searchInput) {
+    searchInput.addEventListener('input', () => {
+      clearTimeout(searchTimeout);
+      searchTimeout = setTimeout(async () => {
+        await loadAuditLogs(1);
+      }, 300);
+    });
+  }
 
   const filterType = document.getElementById('filterEventType');
-  if (filterType) filterType.addEventListener('change', renderAuditTable);
+  if (filterType) {
+    filterType.addEventListener('change', async () => {
+      await loadAuditLogs(1);
+    });
+  }
 
   const filterDate = document.getElementById('filterDateRange');
-  if (filterDate) filterDate.addEventListener('change', renderAuditTable);
+  if (filterDate) {
+    filterDate.addEventListener('change', async () => {
+      await loadAuditLogs(1);
+    });
+  }
+
+  const btnPrev = document.getElementById('btnPrevAuditPage');
+  if (btnPrev) {
+    btnPrev.addEventListener('click', async () => {
+      if (currentAuditPage > 1) {
+        btnPrev.disabled = true;
+        await loadAuditLogs(currentAuditPage - 1);
+      }
+    });
+  }
+
+  const btnNext = document.getElementById('btnNextAuditPage');
+  if (btnNext) {
+    btnNext.addEventListener('click', async () => {
+      if (currentAuditPage * auditPageSize < totalAuditRecords) {
+        btnNext.disabled = true;
+        await loadAuditLogs(currentAuditPage + 1);
+      }
+    });
+  }
 
   const btnRefresh = document.getElementById('btnRefreshAudit');
   if (btnRefresh) {
     btnRefresh.addEventListener('click', async () => {
       btnRefresh.disabled = true;
-      await loadAuditLogs();
+      await loadAuditLogs(1);
       btnRefresh.disabled = false;
       showToast('Audit logs refreshed.', 'info');
     });
@@ -31,9 +70,20 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (btnExport) btnExport.addEventListener('click', exportAuditLogsToCsv);
 });
 
-async function loadAuditLogs() {
+async function loadAuditLogs(page = 1) {
   try {
-    const response = await fetch('api/get_audit_logs.php');
+    currentAuditPage = page;
+    const offset = (page - 1) * auditPageSize;
+    const search = (document.getElementById('searchAudit')?.value || '').trim();
+    const typeFilter = document.getElementById('filterEventType')?.value || 'all';
+    const dateFilter = document.getElementById('filterDateRange')?.value || 'all';
+
+    let url = `api/get_audit_logs.php?limit=${auditPageSize}&offset=${offset}`;
+    if (typeFilter !== 'all') url += `&type=${encodeURIComponent(typeFilter)}`;
+    if (dateFilter !== 'all') url += `&date=${encodeURIComponent(dateFilter)}`;
+    if (search !== '') url += `&search=${encodeURIComponent(search)}`;
+
+    const response = await fetch(url);
     if (!response.ok) throw new Error('Failed to load audit history.');
 
     const data = await response.json();
@@ -42,20 +92,21 @@ async function loadAuditLogs() {
     }
 
     auditLogsCache = data.logs || [];
+    totalAuditRecords = data.summary?.total_events || data.total || auditLogsCache.length;
 
     // Update KPI summary cards
     if (data.summary) {
       const elTotal = document.getElementById('kpiTotalEvents');
-      if (elTotal) elTotal.textContent = data.summary.total_events || 0;
+      if (elTotal) elTotal.textContent = Number(data.summary.total_events || 0).toLocaleString();
 
       const elSacks = document.getElementById('kpiSacksOpened');
-      if (elSacks) elSacks.textContent = data.summary.sacks_opened || 0;
+      if (elSacks) elSacks.textContent = Number(data.summary.sacks_opened || 0).toLocaleString();
 
       const elBatches = document.getElementById('kpiBatchesDepleted');
-      if (elBatches) elBatches.textContent = data.summary.batches_depleted || 0;
+      if (elBatches) elBatches.textContent = Number(data.summary.batches_depleted || 0).toLocaleString();
 
       const elRestocks = document.getElementById('kpiRestocks');
-      if (elRestocks) elRestocks.textContent = data.summary.restocks || 0;
+      if (elRestocks) elRestocks.textContent = Number(data.summary.restocks || 0).toLocaleString();
     }
 
     renderAuditTable();
@@ -168,45 +219,78 @@ function renderAuditTable() {
     `;
   }).join('');
 
-  if (filtered.length > displayLimit) {
-    rowsHtml += `
-      <tr>
-        <td colspan="7" style="text-align:center;padding:12px;color:var(--text-muted);background:var(--bg-subtle, #f9fafb);font-size:12px;">
-          Showing latest ${displayLimit} of ${filtered.length} matching audit events. Use search or filters above to narrow your query.
-        </td>
-      </tr>
-    `;
-  }
-
   tbody.innerHTML = rowsHtml;
+
+  // Synchronize pagination controls
+  const paginationBar = document.getElementById('auditPaginationBar');
+  const paginationInfo = document.getElementById('auditPaginationInfo');
+  const btnPrev = document.getElementById('btnPrevAuditPage');
+  const btnNext = document.getElementById('btnNextAuditPage');
+
+  if (paginationBar) {
+    if (totalAuditRecords > 0) {
+      paginationBar.style.display = 'flex';
+      const startIdx = (currentAuditPage - 1) * auditPageSize + 1;
+      const endIdx = Math.min(currentAuditPage * auditPageSize, totalAuditRecords);
+      if (paginationInfo) {
+        paginationInfo.textContent = `Showing ${startIdx.toLocaleString()}–${endIdx.toLocaleString()} of ${totalAuditRecords.toLocaleString()} audit events (Page ${currentAuditPage})`;
+      }
+      if (btnPrev) btnPrev.disabled = currentAuditPage <= 1;
+      if (btnNext) btnNext.disabled = endIdx >= totalAuditRecords;
+    } else {
+      paginationBar.style.display = 'none';
+    }
+  }
 }
 
-function exportAuditLogsToCsv() {
-  if (auditLogsCache.length === 0) {
-    showToast('No audit logs available to export.', 'warning');
-    return;
+async function exportAuditLogsToCsv() {
+  const btnExport = document.getElementById('btnExportAuditCsv');
+  if (btnExport) btnExport.disabled = true;
+
+  try {
+    const search = (document.getElementById('searchAudit')?.value || '').trim();
+    const typeFilter = document.getElementById('filterEventType')?.value || 'all';
+    const dateFilter = document.getElementById('filterDateRange')?.value || 'all';
+
+    let url = `api/get_audit_logs.php?limit=all`;
+    if (typeFilter !== 'all') url += `&type=${encodeURIComponent(typeFilter)}`;
+    if (dateFilter !== 'all') url += `&date=${encodeURIComponent(dateFilter)}`;
+    if (search !== '') url += `&search=${encodeURIComponent(search)}`;
+
+    const res = await fetch(url);
+    const data = await res.json();
+    const exportList = data.logs || auditLogsCache;
+
+    if (exportList.length === 0) {
+      showToast('No audit logs available to export.', 'warning');
+      return;
+    }
+
+    const headers = ['Audit ID', 'Timestamp', 'Action Type', 'Item / Variety', 'Batch / Reference', 'Quantity Shift', 'Reason / Note', 'Performed By'];
+    const rows = exportList.map(i => [
+      `"${i.id}"`,
+      `"${i.raw_date}"`,
+      `"${i.label}"`,
+      `"${(i.product_name || '').replace(/"/g, '""')}"`,
+      `"${i.batch_code || ''}"`,
+      `"${(i.qty_impact || '').replace(/"/g, '""')}"`,
+      `"${(i.note || '').replace(/"/g, '""')}"`,
+      `"${(i.user || '').replace(/"/g, '""')}"`
+    ]);
+
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    const dateStr = typeof getLocalDateString === 'function' ? getLocalDateString() : new Date().toLocaleDateString('en-CA');
+    link.setAttribute('download', `Roberice_Audit_Log_${dateStr}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast(`Audit history CSV (${exportList.length} records) exported successfully.`, 'success');
+  } catch (err) {
+    showToast('Failed to export audit logs: ' + err.message, 'danger');
+  } finally {
+    if (btnExport) btnExport.disabled = false;
   }
-
-  const headers = ['Audit ID', 'Timestamp', 'Action Type', 'Item / Variety', 'Batch / Reference', 'Quantity Shift', 'Reason / Note', 'Performed By'];
-  const rows = auditLogsCache.map(i => [
-    `"${i.id}"`,
-    `"${i.raw_date}"`,
-    `"${i.label}"`,
-    `"${(i.product_name || '').replace(/"/g, '""')}"`,
-    `"${i.batch_code || ''}"`,
-    `"${(i.qty_impact || '').replace(/"/g, '""')}"`,
-    `"${(i.note || '').replace(/"/g, '""')}"`,
-    `"${(i.user || '').replace(/"/g, '""')}"`
-  ]);
-
-  const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
-  const encodedUri = encodeURI(csvContent);
-  const link = document.createElement('a');
-  link.setAttribute('href', encodedUri);
-  const dateStr = typeof getLocalDateString === 'function' ? getLocalDateString() : new Date().toLocaleDateString('en-CA');
-  link.setAttribute('download', `Roberice_Audit_Log_${dateStr}.csv`);
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  showToast('Audit history CSV exported successfully.', 'success');
 }

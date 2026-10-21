@@ -53,6 +53,12 @@ try {
     ");
     $upd->execute([$productId]);
 
+    // Also mark active batches for this deactivated product as Depleted
+    $hasBatches = $conn->query("SHOW TABLES LIKE 'inventory_batch'")->fetchAll();
+    if (count($hasBatches) > 0) {
+        $conn->prepare("UPDATE inventory_batch SET status = 'Depleted', updated_at = NOW() WHERE product_id = ? AND status = 'Active'")->execute([$productId]);
+    }
+
     $sacks = (int)$prod['stock_sacks'];
     $p25 = (int)$prod['packaged_25kg'];
     $p20 = (int)$prod['packaged_20kg'];

@@ -6,6 +6,21 @@
   <title>Dashboard - Roberice POS & Inventory System</title>
   <link rel="icon" type="image/png" href="../assets/roberice-logo.png">
   <link rel="stylesheet" href="../css/styles.css?v=2">
+  <script>
+    (function() {
+      try {
+        var raw = sessionStorage.getItem('roberice_logged_user');
+        if (!raw) { window.location.replace('login.html'); return; }
+        var u = JSON.parse(raw);
+        if ((u.role || '').toLowerCase() !== 'admin') {
+          sessionStorage.setItem('roberice_auth_alert', 'Access Restricted: Admin privileges required to access Store Dashboard.');
+          window.location.replace('pos.html');
+        }
+      } catch (e) {
+        window.location.replace('login.html');
+      }
+    })();
+  </script>
 </head>
 <body>
 

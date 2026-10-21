@@ -22,11 +22,12 @@ async function loadDashboardData() {
   try {
     const [productResponse, transactionResponse] = await Promise.all([
       fetch('api/get_products.php'),
-      fetch('api/get_transactions.php')
+      fetch('api/get_transactions.php?days=30&limit=300')
     ]);
 
     const products = await productResponse.json();
-    const transactions = await transactionResponse.json();
+    const rawTx = await transactionResponse.json();
+    const transactions = Array.isArray(rawTx) ? rawTx : (rawTx.transactions || []);
 
     dashboardProducts = products.map(p => ({
       id: String(p.product_id),

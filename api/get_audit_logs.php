@@ -3,54 +3,135 @@ header("Content-Type: application/json");
 require_once "db.php";
 
 try {
+    // 1. Pagination parameters
+    $isAll = isset($_GET['limit']) && strtolower($_GET['limit']) === 'all';
+    $limit = $isAll ? 5000 : (isset($_GET['limit']) ? max(1, min(500, (int)$_GET['limit'])) : 150);
+    $offset = max(0, (int)($_GET['offset'] ?? 0));
+    if (isset($_GET['page'])) {
+        $page = max(1, (int)$_GET['page']);
+        $offset = ($page - 1) * $limit;
+    }
+
     $typeFilter = $_GET['type'] ?? 'all';
     $search = trim($_GET['search'] ?? '');
     $dateFilter = $_GET['date'] ?? 'all';
 
-    // 1. Fetch from inventory_adjustment joined with product
-    $queryAdj = "
+    // 2. High-performance aggregate KPI computation directly in SQL (O(1) memory)
+    $kpiAdjStmt = $conn->query("
         SELECT 
-            a.adjustment_id,
-            a.adjustment_date,
-            a.adjustment_type,
-            a.batch_code,
-            a.sacks,
-            a.kg,
-            a.note,
-            a.performed_by,
-            p.product_id,
-            p.product_name,
-            p.origin,
-            p.rice_type
-        FROM inventory_adjustment a
-        LEFT JOIN product p ON a.product_id = p.product_id
-        ORDER BY a.adjustment_date DESC, a.adjustment_id DESC
-    ";
-    $adjStmt = $conn->prepare($queryAdj);
-    $adjStmt->execute();
-    $adjustments = $adjStmt->fetchAll(PDO::FETCH_ASSOC);
+            COUNT(*) AS total_adj,
+            SUM(CASE WHEN adjustment_type = 'open_sack' THEN 1 ELSE 0 END) AS sacks_opened,
+            SUM(CASE WHEN adjustment_type = 'batch_depleted' THEN 1 ELSE 0 END) AS batches_depleted,
+            SUM(CASE WHEN adjustment_type = 'restock' THEN 1 ELSE 0 END) AS restocks
+        FROM inventory_adjustment
+    ");
+    $kpiAdj = $kpiAdjStmt->fetch(PDO::FETCH_ASSOC);
 
-    // 2. Fetch from sales_transaction joined with users and transaction items
-    $querySales = "
-        SELECT 
-            s.transaction_id,
-            s.transaction_date,
-            s.total_amount,
-            s.payment_method,
-            COALESCE(u.full_name, 'Cashier') AS cashier_name,
-            COUNT(ti.transaction_item_id) AS item_count,
-            GROUP_CONCAT(CONCAT(p.product_name, ' (', ti.quantity, ' ', ti.unit, ')') SEPARATOR ', ') AS item_summary
-        FROM sales_transaction s
-        LEFT JOIN users u ON s.user_id = u.user_id
-        LEFT JOIN transaction_item ti ON s.transaction_id = ti.transaction_id
-        LEFT JOIN product p ON ti.product_id = p.product_id
-        WHERE s.transaction_status = 'Completed'
-        GROUP BY s.transaction_id
-        ORDER BY s.transaction_date DESC
-    ";
-    $salesStmt = $conn->prepare($querySales);
-    $salesStmt->execute();
-    $sales = $salesStmt->fetchAll(PDO::FETCH_ASSOC);
+    $totalSales = (int)$conn->query("SELECT COUNT(*) FROM sales_transaction WHERE transaction_status = 'Completed'")->fetchColumn();
+
+    $totalEvents = ((int)($kpiAdj['total_adj'] ?? 0)) + $totalSales;
+    $totalSacksOpened = (int)($kpiAdj['sacks_opened'] ?? 0);
+    $totalBatchesDepleted = (int)($kpiAdj['batches_depleted'] ?? 0);
+    $totalRestocks = (int)($kpiAdj['restocks'] ?? 0);
+
+    // 3. Date filtering clause helper
+    $dateAdjClause = "";
+    $dateSaleClause = "";
+    if ($dateFilter === 'today') {
+        $dateAdjClause = "AND DATE(a.adjustment_date) = CURDATE()";
+        $dateSaleClause = "AND DATE(s.transaction_date) = CURDATE()";
+    } elseif ($dateFilter === 'week') {
+        $dateAdjClause = "AND a.adjustment_date >= DATE_SUB(NOW(), INTERVAL 7 DAY)";
+        $dateSaleClause = "AND s.transaction_date >= DATE_SUB(NOW(), INTERVAL 7 DAY)";
+    } elseif ($dateFilter === 'month') {
+        $dateAdjClause = "AND a.adjustment_date >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
+        $dateSaleClause = "AND s.transaction_date >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
+    }
+
+    $adjustments = [];
+    $sales = [];
+
+    // 4. Selective fetching based on $typeFilter
+    if ($typeFilter !== 'sale') {
+        $adjWhere = "1=1 $dateAdjClause";
+        $adjParams = [];
+
+        if ($typeFilter !== 'all') {
+            $adjWhere .= " AND a.adjustment_type = ?";
+            $adjParams[] = $typeFilter;
+        }
+
+        if ($search !== '') {
+            $adjWhere .= " AND (CONCAT('ADJ-', a.adjustment_id) LIKE ? OR p.product_name LIKE ? OR a.batch_code LIKE ? OR a.performed_by LIKE ? OR a.note LIKE ?)";
+            $wild = "%{$search}%";
+            $adjParams[] = $wild;
+            $adjParams[] = $wild;
+            $adjParams[] = $wild;
+            $adjParams[] = $wild;
+            $adjParams[] = $wild;
+        }
+
+        // Limit query to needed window
+        $queryAdj = "
+            SELECT 
+                a.adjustment_id,
+                a.adjustment_date,
+                a.adjustment_type,
+                a.batch_code,
+                a.sacks,
+                a.kg,
+                a.note,
+                a.performed_by,
+                p.product_id,
+                p.product_name,
+                p.origin,
+                p.rice_type
+            FROM inventory_adjustment a
+            LEFT JOIN product p ON a.product_id = p.product_id
+            WHERE $adjWhere
+            ORDER BY a.adjustment_date DESC, a.adjustment_id DESC
+            LIMIT " . ($limit + $offset) . "
+        ";
+        $adjStmt = $conn->prepare($queryAdj);
+        $adjStmt->execute($adjParams);
+        $adjustments = $adjStmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    if ($typeFilter === 'all' || $typeFilter === 'sale') {
+        $saleWhere = "s.transaction_status = 'Completed' $dateSaleClause";
+        $saleParams = [];
+
+        if ($search !== '') {
+            $saleWhere .= " AND (CONCAT('REC-', LPAD(s.transaction_id, 6, '0')) LIKE ? OR u.full_name LIKE ? OR u.username LIKE ? OR s.payment_method LIKE ?)";
+            $wild = "%{$search}%";
+            $saleParams[] = $wild;
+            $saleParams[] = $wild;
+            $saleParams[] = $wild;
+            $saleParams[] = $wild;
+        }
+
+        $querySales = "
+            SELECT 
+                s.transaction_id,
+                s.transaction_date,
+                s.total_amount,
+                s.payment_method,
+                COALESCE(u.full_name, 'Cashier') AS cashier_name,
+                COUNT(ti.transaction_item_id) AS item_count,
+                GROUP_CONCAT(CONCAT(p.product_name, ' (', ti.quantity, ' ', ti.unit, ')') SEPARATOR ', ') AS item_summary
+            FROM sales_transaction s
+            LEFT JOIN users u ON s.user_id = u.user_id
+            LEFT JOIN transaction_item ti ON s.transaction_id = ti.transaction_id
+            LEFT JOIN product p ON ti.product_id = p.product_id
+            WHERE $saleWhere
+            GROUP BY s.transaction_id
+            ORDER BY s.transaction_date DESC
+            LIMIT " . ($limit + $offset) . "
+        ";
+        $salesStmt = $conn->prepare($querySales);
+        $salesStmt->execute($saleParams);
+        $sales = $salesStmt->fetchAll(PDO::FETCH_ASSOC);
+    }
 
     $logs = [];
 
@@ -130,22 +211,17 @@ try {
         ];
     }
 
-    // Sort all logs newest first
+    // Sort combined window newest first
     usort($logs, function ($a, $b) {
         return strtotime($b['raw_date']) - strtotime($a['raw_date']);
     });
 
-    // Summary KPIs
-    $totalEvents = count($logs);
-    $totalSacksOpened = 0;
-    $totalBatchesDepleted = 0;
-    $totalRestocks = 0;
+    // Apply offset and limit to the sorted window
+    $paginatedLogs = array_slice($logs, $offset, $limit);
 
-    foreach ($adjustments as $a) {
-        if ($a['adjustment_type'] === 'open_sack') $totalSacksOpened++;
-        elseif ($a['adjustment_type'] === 'batch_depleted') $totalBatchesDepleted++;
-        elseif ($a['adjustment_type'] === 'restock') $totalRestocks++;
-    }
+    header("X-Total-Events: " . $totalEvents);
+    header("X-Limit: " . $limit);
+    header("X-Offset: " . $offset);
 
     echo json_encode([
         'success' => true,
@@ -155,9 +231,13 @@ try {
             'batches_depleted' => $totalBatchesDepleted,
             'restocks' => $totalRestocks
         ],
-        'logs' => $logs
+        'total' => count($logs),
+        'limit' => $limit,
+        'offset' => $offset,
+        'logs' => $paginatedLogs
     ]);
 } catch (Exception $e) {
+    http_response_code(500);
     echo json_encode([
         'success' => false,
         'error' => $e->getMessage()

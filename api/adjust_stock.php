@@ -242,14 +242,7 @@ try {
         if (isset($data['packaged25kg'])) $newPack25 = max(0, $p25);
     }
 
-    $stmt = $conn->prepare("
-        UPDATE inventory
-        SET stock_sacks = ?, packaged_25kg = ?, stock_kg = ?, packaged_5kg = ?, packaged_10kg = ?, packaged_20kg = ?, received_date = ?, batch_number = ?
-        WHERE product_id = ?
-    ");
-    $stmt->execute([$newSacks, $newPack25, $newKg, $newPack5, $newPack10, $newPack20, $receivedDate, $batchNumber, $productId]);
-
-    // Sync with inventory_batch table if exists
+    // 1. Process batch-level adjustment first in inventory_batch
     $hasBatches = $conn->query("SHOW TABLES LIKE 'inventory_batch'")->fetchAll();
     if (count($hasBatches) > 0 && !empty($batchNumber)) {
         $bStmt = $conn->prepare("SELECT * FROM inventory_batch WHERE product_id = ? AND batch_code = ? LIMIT 1");
@@ -319,6 +312,11 @@ try {
                 if (isset($data['packaged10kg'])) $b10 = max(0, $p10);
                 if (isset($data['packaged20kg'])) $b20 = max(0, $p20);
                 if (isset($data['packaged25kg'])) $b25 = max(0, $p25);
+
+                // If user counted 0 across all units, also mark all other active batches for this product depleted
+                if ($bSacks === 0 && $b25 === 0 && $b20 === 0 && $b10 === 0 && $b5 === 0 && $bKg <= 0.0) {
+                    $conn->prepare("UPDATE inventory_batch SET stock_sacks = 0, packaged_25kg = 0, packaged_20kg = 0, packaged_10kg = 0, packaged_5kg = 0, stock_kg = 0.0, status = 'Depleted' WHERE product_id = ?")->execute([$productId]);
+                }
             }
 
             $bVol = ($bSacks * 50) + ($b25 * 25) + ($b20 * 20) + ($b10 * 10) + ($b5 * 5) + $bKg;
@@ -327,7 +325,6 @@ try {
             $upd = $conn->prepare("UPDATE inventory_batch SET stock_sacks = ?, packaged_25kg = ?, packaged_20kg = ?, packaged_10kg = ?, packaged_5kg = ?, stock_kg = ?, status = ? WHERE batch_id = ?");
             $upd->execute([$bSacks, $b25, $b20, $b10, $b5, $bKg, $newStatus, $bId]);
 
-            // If batch depleted, log to audit history!
             if ($newStatus === 'Depleted' && $bRow['status'] === 'Active') {
                 $depStmt = $conn->prepare("
                     INSERT INTO inventory_adjustment
@@ -342,7 +339,7 @@ try {
                 ]);
             }
         } else {
-            // If batch record does not exist yet, create a new active batch row in inventory_batch
+            // New batch entry
             if ($type === 'restock' || $type === 'correction' || $type === 'repack') {
                 $bSacks = abs($sacks);
                 $b25 = abs($p25);
@@ -361,6 +358,48 @@ try {
                 $insBatch->execute([$productId, $batchNumber, $receivedDate, $bSacks, $b25, $b20, $b10, $b5, $bKg, $newStatus]);
             }
         }
+
+        // 2. Recalculate inventory table from the exact sums of all active batches
+        $syncStmt = $conn->prepare("
+            SELECT
+                COALESCE(SUM(stock_sacks), 0) AS sum_sacks,
+                COALESCE(SUM(packaged_25kg), 0) AS sum_25kg,
+                COALESCE(SUM(packaged_20kg), 0) AS sum_20kg,
+                COALESCE(SUM(packaged_10kg), 0) AS sum_10kg,
+                COALESCE(SUM(packaged_5kg), 0) AS sum_5kg,
+                COALESCE(SUM(stock_kg), 0.0) AS sum_kg,
+                MAX(batch_code) AS latest_batch,
+                MAX(received_date) AS latest_date
+            FROM inventory_batch
+            WHERE product_id = ? AND status = 'Active'
+        ");
+        $syncStmt->execute([$productId]);
+        $totals = $syncStmt->fetch(PDO::FETCH_ASSOC);
+
+        $newSacks = (int)$totals['sum_sacks'];
+        $newPack25 = (int)$totals['sum_25kg'];
+        $newPack20 = (int)$totals['sum_20kg'];
+        $newPack10 = (int)$totals['sum_10kg'];
+        $newPack5 = (int)$totals['sum_5kg'];
+        $newKg = round((float)$totals['sum_kg'], 2);
+        if (!empty($totals['latest_batch'])) $batchNumber = $totals['latest_batch'];
+        if (!empty($totals['latest_date'])) $receivedDate = $totals['latest_date'];
+
+        $updInv = $conn->prepare("
+            UPDATE inventory
+            SET stock_sacks = ?, packaged_25kg = ?, stock_kg = ?, packaged_5kg = ?, packaged_10kg = ?, packaged_20kg = ?, received_date = ?, batch_number = ?
+            WHERE product_id = ?
+        ");
+        $updInv->execute([$newSacks, $newPack25, $newKg, $newPack5, $newPack10, $newPack20, $receivedDate, $batchNumber, $productId]);
+
+    } else {
+        // Fallback for installations without inventory_batch table
+        $stmt = $conn->prepare("
+            UPDATE inventory
+            SET stock_sacks = ?, packaged_25kg = ?, stock_kg = ?, packaged_5kg = ?, packaged_10kg = ?, packaged_20kg = ?, received_date = ?, batch_number = ?
+            WHERE product_id = ?
+        ");
+        $stmt->execute([$newSacks, $newPack25, $newKg, $newPack5, $newPack10, $newPack20, $receivedDate, $batchNumber, $productId]);
     }
 
     $logSacks = abs($sacks);

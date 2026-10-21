@@ -6,6 +6,16 @@
   <title>Sales Report - Roberice POS & Inventory System</title>
   <link rel="icon" type="image/png" href="../assets/roberice-logo.png">
   <link rel="stylesheet" href="../css/styles.css">
+  <script>
+    (function() {
+      try {
+        var raw = sessionStorage.getItem('roberice_logged_user');
+        if (!raw) { window.location.replace('login.html'); }
+      } catch (e) {
+        window.location.replace('login.html');
+      }
+    })();
+  </script>
 </head>
 <body>
 

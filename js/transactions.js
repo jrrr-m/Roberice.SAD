@@ -4,39 +4,97 @@
 
 let transactionsCache = [];
 
+let currentTxnPage = 1;
+const txnPageSize = 150;
+let totalTxnRecords = 0;
+
 document.addEventListener('DOMContentLoaded', () => initTransactionsPage());
 
 async function initTransactionsPage() {
-  await loadTransactions();
+  await loadTransactions(1);
 
   const currentUser = JSON.parse(sessionStorage.getItem('roberice_logged_user')) || {};
   const filterCashier = document.getElementById('filterCashier');
 
   if (currentUser.role === 'cashier') {
-    document.getElementById('txnPageSubtitle').textContent =
-      `Showing your transactions for today's shift reconciliation (${currentUser.name || currentUser.username}).`;
-
-    filterCashier.style.display = 'none';
+    const subtitle = document.getElementById('txnPageSubtitle');
+    if (subtitle) {
+      subtitle.textContent =
+        `Showing your transactions for today's shift reconciliation (${currentUser.name || currentUser.username}).`;
+    }
+    if (filterCashier) filterCashier.style.display = 'none';
   } else {
     populateCashiers();
   }
 
   renderTransactions();
 
-  document.getElementById('searchTxn').addEventListener('input', renderTransactions);
-  document.getElementById('filterCashier').addEventListener('change', renderTransactions);
-  document.getElementById('filterMethod').addEventListener('change', renderTransactions);
+  // Debounced filter listeners that trigger server-side reload
+  let searchTimeout = null;
+  document.getElementById('searchTxn').addEventListener('input', () => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(async () => {
+      await loadTransactions(1);
+      renderTransactions();
+    }, 300);
+  });
+
+  document.getElementById('filterCashier').addEventListener('change', async () => {
+    await loadTransactions(1);
+    renderTransactions();
+  });
+
+  document.getElementById('filterMethod').addEventListener('change', async () => {
+    await loadTransactions(1);
+    renderTransactions();
+  });
+
+  // Pagination button listeners
+  const btnPrev = document.getElementById('btnPrevTxnPage');
+  if (btnPrev) {
+    btnPrev.addEventListener('click', async () => {
+      if (currentTxnPage > 1) {
+        btnPrev.disabled = true;
+        await loadTransactions(currentTxnPage - 1);
+        renderTransactions();
+      }
+    });
+  }
+
+  const btnNext = document.getElementById('btnNextTxnPage');
+  if (btnNext) {
+    btnNext.addEventListener('click', async () => {
+      if (currentTxnPage * txnPageSize < totalTxnRecords) {
+        btnNext.disabled = true;
+        await loadTransactions(currentTxnPage + 1);
+        renderTransactions();
+      }
+    });
+  }
 }
 
-async function loadTransactions() {
+async function loadTransactions(page = 1) {
   try {
-    const response = await fetch('api/get_transactions.php');
+    currentTxnPage = page;
+    const offset = (page - 1) * txnPageSize;
+    const search = (document.getElementById('searchTxn')?.value || '').trim();
+    const cashier = document.getElementById('filterCashier')?.value || 'all';
+    const method = document.getElementById('filterMethod')?.value || 'all';
+
+    let url = `api/get_transactions.php?limit=${txnPageSize}&offset=${offset}&format=paged`;
+    if (cashier !== 'all') url += `&cashier=${encodeURIComponent(cashier)}`;
+    if (method !== 'all') url += `&method=${encodeURIComponent(method)}`;
+    if (search !== '') url += `&search=${encodeURIComponent(search)}`;
+
+    const response = await fetch(url);
 
     if (!response.ok) {
       throw new Error('Failed to load transactions.');
     }
 
-    const data = await response.json();
+    const raw = await response.json();
+    const data = Array.isArray(raw) ? raw : (raw.transactions || []);
+    totalTxnRecords = raw.total !== undefined ? raw.total : data.length;
 
     transactionsCache = data.map(t => ({
       id: 'TXN-' + String(t.transaction_id).padStart(4, '0'),
@@ -65,8 +123,28 @@ async function loadTransactions() {
   }
 }
 
-function populateCashiers() {
+async function populateCashiers() {
   const select = document.getElementById('filterCashier');
+  if (!select) return;
+
+  try {
+    const res = await fetch('api/users.php');
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && Array.isArray(data.users)) {
+        select.innerHTML = '<option value="all">All Cashiers</option>';
+        data.users.forEach(u => {
+          const opt = document.createElement('option');
+          opt.value = u.user_id;
+          opt.textContent = `${u.full_name} (${u.role})`;
+          select.appendChild(opt);
+        });
+        return;
+      }
+    }
+  } catch (e) {
+    // Fallback to cache
+  }
 
   const cashiers = [
     ...new Map(
@@ -177,17 +255,28 @@ function renderTransactions() {
     `;
   }).join('');
 
-  if (filtered.length > displayLimit) {
-    rowsHtml += `
-      <tr>
-        <td colspan="7" style="text-align:center;padding:12px;color:var(--text-muted);background:var(--bg-subtle, #f9fafb);font-size:12px;">
-          Showing latest ${displayLimit} of ${filtered.length} matching transactions. Use filters above to narrow your query.
-        </td>
-      </tr>
-    `;
-  }
-
   tbody.innerHTML = rowsHtml;
+
+  // Synchronize pagination controls
+  const paginationBar = document.getElementById('txnPaginationBar');
+  const paginationInfo = document.getElementById('txnPaginationInfo');
+  const btnPrev = document.getElementById('btnPrevTxnPage');
+  const btnNext = document.getElementById('btnNextTxnPage');
+
+  if (paginationBar) {
+    if (totalTxnRecords > 0) {
+      paginationBar.style.display = 'flex';
+      const startIdx = (currentTxnPage - 1) * txnPageSize + 1;
+      const endIdx = Math.min(currentTxnPage * txnPageSize, totalTxnRecords);
+      if (paginationInfo) {
+        paginationInfo.textContent = `Showing ${startIdx.toLocaleString()}–${endIdx.toLocaleString()} of ${totalTxnRecords.toLocaleString()} transactions (Page ${currentTxnPage})`;
+      }
+      if (btnPrev) btnPrev.disabled = currentTxnPage <= 1;
+      if (btnNext) btnNext.disabled = endIdx >= totalTxnRecords;
+    } else {
+      paginationBar.style.display = 'none';
+    }
+  }
 }
 
 function viewTxnReceipt(transactionId) {

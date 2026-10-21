@@ -6,6 +6,16 @@
   <title>Transaction History - Roberice POS & Inventory System</title>
   <link rel="icon" type="image/png" href="../assets/roberice-logo.png">
   <link rel="stylesheet" href="../css/styles.css">
+  <script>
+    (function() {
+      try {
+        var raw = sessionStorage.getItem('roberice_logged_user');
+        if (!raw) { window.location.replace('login.html'); }
+      } catch (e) {
+        window.location.replace('login.html');
+      }
+    })();
+  </script>
 </head>
 <body>
 
@@ -86,6 +96,14 @@
                 <!-- Rendered via JS -->
               </tbody>
             </table>
+          </div>
+          <!-- Pagination Bar -->
+          <div class="pagination-bar" id="txnPaginationBar" style="display:flex; justify-content:space-between; align-items:center; padding:12px 16px; border-top:1px solid var(--border-color); font-size:13px;">
+            <div id="txnPaginationInfo" style="color:var(--text-muted);">Showing 1–150 of transactions</div>
+            <div style="display:flex; gap:8px;">
+              <button class="btn btn-secondary btn-sm" id="btnPrevTxnPage" disabled>← Previous</button>
+              <button class="btn btn-secondary btn-sm" id="btnNextTxnPage">Next →</button>
+            </div>
           </div>
         </div>
 

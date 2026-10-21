@@ -1,6 +1,44 @@
-/**
- * Roberice POS & Inventory System - General Helper Utilities
- */
+// Global Handler for Database Connection Status
+function showDatabaseOfflineAlert(msg) {
+  let banner = document.getElementById('robericeDbOfflineBanner');
+  if (!banner) {
+    banner = document.createElement('div');
+    banner.id = 'robericeDbOfflineBanner';
+    banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:999999;background:#b91c1c;color:#ffffff;padding:12px 20px;font-family:system-ui,sans-serif;font-size:14px;font-weight:600;display:flex;align-items:center;justify-content:space-between;box-shadow:0 4px 12px rgba(0,0,0,0.25);';
+    if (document.body) {
+      document.body.prepend(banner);
+    } else {
+      document.addEventListener('DOMContentLoaded', () => document.body.prepend(banner));
+    }
+  }
+  banner.innerHTML = `
+    <div style="display:flex;align-items:center;gap:12px;">
+      <span style="font-size:20px;">⚠️</span>
+      <span><strong>Database Connection Notice:</strong> ${msg || 'Cannot connect to MySQL. Please ensure MySQL is started in the XAMPP Control Panel on port 3306.'}</span>
+    </div>
+    <button onclick="window.location.reload()" style="background:#ffffff;color:#b91c1c;border:none;padding:6px 14px;border-radius:6px;font-weight:bold;cursor:pointer;">Retry Connection</button>
+  `;
+}
+
+// Automatically intercept API responses and display user-friendly notice if MySQL is stopped in XAMPP
+if (typeof window !== 'undefined' && window.fetch) {
+  const _origFetch = window.fetch;
+  window.fetch = async function(...args) {
+    try {
+      const resp = await _origFetch.apply(this, args);
+      if (resp && resp.status === 503) {
+        resp.clone().json().then(data => {
+          if (data && data.error === 'DATABASE_CONNECTION_ERROR') {
+            showDatabaseOfflineAlert(data.message);
+          }
+        }).catch(() => {});
+      }
+      return resp;
+    } catch (e) {
+      throw e;
+    }
+  };
+}
 
 // Format numbers into Philippine Peso currency format: ₱1,250.00
 function formatCurrency(amount) {

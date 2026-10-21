@@ -94,7 +94,7 @@ function checkAuth() {
   
   if (!userJson) {
     if (!isLoginPage) {
-      window.location.href = 'login.html';
+      window.location.replace('login.html');
     }
     return null;
   }
@@ -104,10 +104,10 @@ function checkAuth() {
   if (isLoginPage) {
     // If logged in and on login page, redirect to appropriate home
     if (user.role === 'admin') {
-      window.location.href = 'dashboard.html';
+      window.location.replace('dashboard.html');
     } else {
       const firstAllowed = NAV_ITEMS.find(item => hasPermission(user, item));
-      window.location.href = firstAllowed ? firstAllowed.url : 'pos.html';
+      window.location.replace(firstAllowed ? firstAllowed.url : 'pos.html');
     }
     return user;
   }
@@ -118,9 +118,9 @@ function checkAuth() {
 
   if (navItem && !hasPermission(user, navItem)) {
     // Unauthorized access attempt
-    showToast('Access Restricted: You do not have permission to view that page.', 'danger');
+    sessionStorage.setItem('roberice_auth_alert', 'Access Restricted: You do not have permission to view that page.');
     const firstAllowed = NAV_ITEMS.find(item => hasPermission(user, item));
-    window.location.href = firstAllowed ? firstAllowed.url : 'login.html';
+    window.location.replace(firstAllowed ? firstAllowed.url : 'pos.html');
     return null;
   }
 
@@ -335,12 +335,24 @@ function logout() {
     addAuditLog('User Logout', `${user.name || user.username} logged out.`);
   }
   sessionStorage.removeItem('roberice_logged_user');
-  window.location.href = 'login.html';
+  window.location.replace('login.html');
 }
 
-// Execute checkAuth and render on DOM ready
+// Immediate check on script load
+const earlyAuthUser = checkAuth();
+
+// Execute render on DOM ready
 document.addEventListener('DOMContentLoaded', () => {
-  const user = checkAuth();
+  // Show any queued auth alert toast
+  const authAlert = sessionStorage.getItem('roberice_auth_alert');
+  if (authAlert) {
+    sessionStorage.removeItem('roberice_auth_alert');
+    if (typeof showToast === 'function') {
+      showToast(authAlert, 'danger');
+    }
+  }
+
+  const user = earlyAuthUser || checkAuth();
   if (user && !window.location.pathname.endsWith('login.html')) {
     renderAppFrame(user);
     updateStickyHeaderOffset();
