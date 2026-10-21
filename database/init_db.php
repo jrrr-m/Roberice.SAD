@@ -67,6 +67,48 @@ try {
         }
     }
 
+    // 5. Ensure account requests and email columns exist
+    try {
+        $colCheck = $pdo->query("SHOW COLUMNS FROM `users` LIKE 'email'")->fetchAll();
+        if (empty($colCheck)) {
+            $pdo->exec("ALTER TABLE `users` ADD COLUMN `email` VARCHAR(150) NULL AFTER `full_name`;");
+            $pdo->exec("UPDATE `users` SET `email` = 'admin@roberice.com' WHERE `username` = 'admin';");
+            $pdo->exec("UPDATE `users` SET `email` = 'maria.santos@roberice.com' WHERE `username` = 'cashier1';");
+            $pdo->exec("UPDATE `users` SET `email` = 'juan.delacruz@roberice.com' WHERE `username` = 'cashier2';");
+            $pdo->exec("UPDATE `users` SET `email` = 'juan.inv@roberice.com' WHERE `username` = 'juan_inv';");
+        }
+
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS `account_requests` (
+              `request_id` INT AUTO_INCREMENT PRIMARY KEY,
+              `full_name` VARCHAR(100) NOT NULL,
+              `username` VARCHAR(50) NOT NULL,
+              `email` VARCHAR(150) NOT NULL,
+              `password` VARCHAR(255) NOT NULL,
+              `role` VARCHAR(50) NOT NULL DEFAULT 'Cashier',
+              `status` ENUM('Pending', 'Approved', 'Rejected') NOT NULL DEFAULT 'Pending',
+              `rejection_reason` VARCHAR(255) DEFAULT NULL,
+              `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              `reviewed_at` DATETIME DEFAULT NULL,
+              `reviewed_by` INT DEFAULT NULL,
+              INDEX `idx_req_status` (`status`),
+              INDEX `idx_req_username` (`username`),
+              INDEX `idx_req_email` (`email`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+        ");
+
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS `custom_roles` (
+              `role_id` INT AUTO_INCREMENT PRIMARY KEY,
+              `role_name` VARCHAR(50) NOT NULL UNIQUE,
+              `default_permissions` TEXT DEFAULT NULL,
+              `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+        ");
+    } catch (Exception $e) {
+        // Schema already up to date
+    }
+
     // CLI mode clean response
     if (php_sapi_name() === 'cli') {
         echo "[Roberice] Database initialization completed successfully.\n";

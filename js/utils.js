@@ -300,10 +300,19 @@ document.addEventListener('DOMContentLoaded', () => {
 const _originalFetch = window.fetch ? window.fetch.bind(window) : null;
 window.fetch = async function(...args) {
   if (typeof args[0] === 'string') {
-    if (args[0].startsWith('api/')) {
-      args[0] = '../' + args[0];
-    } else if (args[0].startsWith('uploads/')) {
-      args[0] = '../' + args[0];
+    const inPages = typeof window !== 'undefined' && window.location && window.location.pathname.includes('/pages/');
+    if (inPages) {
+      if (args[0].startsWith('api/')) {
+        args[0] = '../' + args[0];
+      } else if (args[0].startsWith('uploads/')) {
+        args[0] = '../' + args[0];
+      }
+    } else {
+      if (args[0].startsWith('../api/')) {
+        args[0] = args[0].substring(3);
+      } else if (args[0].startsWith('../uploads/')) {
+        args[0] = args[0].substring(3);
+      }
     }
   }
   const url = typeof args[0] === 'string' ? args[0] : (args[0] && args[0].url) || '';

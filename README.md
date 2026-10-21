@@ -181,7 +181,7 @@ The Sales Report module ([`pages/sales-report.html`](pages/sales-report.html)) p
 ## Recent Updates & Performance Enhancements
 
 ### 1. Full 1-Year Operational Store Dataset
-The database now contains **365 days of continuous operations** (spanning **October 14, 2025 to October 13, 2026**):
+The database now contains **365 days of continuous operations** (spanning **October 14, 2025 to October 21, 2026**):
 - **3,727 Completed Sales Transactions**: Totals **₱3,409,087.00** in gross store revenue across all 12 operational months.
 - **4,806 Itemized Order Lines**: Reflects realistic retail basket compositions across all package tiers (`50Kg Whole Sack`, `25Kg Half`, `20Kg`, `10Kg`, `5Kg`, and per-Kg `Tinatakal` loose sales).
 - **Realistic Sales Seasonality**: Incorporates holiday surges (December peak with 400 transactions & ₱362,710.50 revenue), weekend volume increases (Saturdays & Sundays), and mid-month / month-end payday spikes.

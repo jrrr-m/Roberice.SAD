@@ -4,8 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Login - Roberice POS & Inventory System</title>
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <link rel="icon" type="image/png" href="../assets/roberice-logo.png">
-  <link rel="stylesheet" href="../css/styles.css">
+  <link rel="stylesheet" href="../css/styles.css?v=20261021_v6">
 </head>
 <body class="login-screen">
 
@@ -18,14 +21,13 @@
       <p style="font-size:13px;color:var(--text-muted);">POS & Inventory Management System</p>
     </div>
 
-    <div id="loginAlert" style="display:none;padding:10px 14px;border-radius:var(--radius-md);font-size:12px;margin-bottom:16px;background:var(--danger-bg);color:var(--danger-text);border:1px solid #e7a5a5;">
-      Invalid username or password.
-    </div>
+    <!-- Login Alert Box (For errors or registration success) -->
+    <div id="loginAlert" style="display:none;padding:12px 14px;border-radius:var(--radius-md);font-size:12.5px;margin-bottom:16px;line-height:1.45;"></div>
 
     <form id="loginForm">
       <div class="form-group">
-        <label for="username">Username</label>
-        <input type="text" id="username" class="form-control" placeholder="Enter your username" required autofocus>
+        <label for="username">Username or Email</label>
+        <input type="text" id="username" class="form-control" placeholder="Enter username or email" required autofocus>
       </div>
 
       <div class="form-group">
@@ -36,16 +38,205 @@
       <button type="submit" id="btnLogin" class="btn btn-primary btn-block btn-lg" style="margin-top:8px;">
         Sign In
       </button>
+
+      <div style="text-align:center; margin-top:18px; padding-top:14px; border-top:1px solid #e5e7eb; font-size:13px; color:var(--text-muted);">
+        Don't have an account? 
+        <a href="#" id="btnOpenRegisterModal" style="color:var(--primary); font-weight:700; text-decoration:none; margin-left:3px;">
+          Sign up
+        </a>
+      </div>
     </form>
   </div>
 
-  <script src="../js/utils.js"></script>
+  <!-- Account Creation Request Modal -->
+  <div class="modal-overlay" id="modalRegister" style="z-index: 9999;">
+    <div class="modal-card" style="max-width: 500px; width: 95%;">
+      <div class="modal-header">
+        <div>
+          <h3 style="font-size: 17px; font-weight: 700; color: var(--text-main); margin: 0;">Request Staff Account</h3>
+          <p style="font-size: 12px; color: var(--text-muted); margin: 3px 0 0;">Submit your details. An administrator will review and authorize your account.</p>
+        </div>
+        <button class="modal-close" id="btnCloseRegisterModal" type="button" aria-label="Close dialog">&times;</button>
+      </div>
+
+      <form id="registerForm">
+        <div class="modal-body" style="padding: 16px 20px;">
+          <div id="registerAlert" style="display:none; padding:10px 14px; border-radius:var(--radius-md); font-size:12px; margin-bottom:14px; background:var(--danger-bg); color:var(--danger-text); border:1px solid #e7a5a5;"></div>
+
+          <div class="form-group" style="margin-bottom: 12px;">
+            <label for="regFullName">Full Name <span style="color:var(--danger-text);">*</span></label>
+            <input type="text" id="regFullName" class="form-control" placeholder="e.g. Maria Clara" required autocomplete="name">
+          </div>
+
+          <div class="form-group" style="margin-bottom: 12px;">
+            <label for="regEmail">Email Address <span style="color:var(--danger-text);">*</span></label>
+            <input type="email" id="regEmail" class="form-control" placeholder="e.g. maria.clara@example.com" required autocomplete="email">
+            <small style="font-size:11px; color:var(--text-muted); display:block; margin-top:2px;">Required for account registration and administrator communication.</small>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="regUsername">Username <span style="color:var(--danger-text);">*</span></label>
+              <input type="text" id="regUsername" class="form-control" placeholder="e.g. maria_clara" required autocomplete="username">
+            </div>
+
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="regRole">Requested Role</label>
+              <select id="regRole" class="form-select">
+                <option value="Cashier" selected>Cashier</option>
+                <option value="Inventory Clerk">Inventory Clerk</option>
+                <option value="Store Manager">Store Manager</option>
+                <option value="Custom Staff">Custom Staff</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 6px;">
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="regPassword">Password <span style="color:var(--danger-text);">*</span></label>
+              <input type="password" id="regPassword" class="form-control" placeholder="Min. 6 chars" required autocomplete="new-password">
+            </div>
+
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="regConfirmPassword">Confirm Password <span style="color:var(--danger-text);">*</span></label>
+              <input type="password" id="regConfirmPassword" class="form-control" placeholder="Re-type password" required autocomplete="new-password">
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center;">
+          <a href="#" id="btnBackToLogin" style="font-size: 12.5px; color: var(--text-muted); text-decoration: none;">Already have an account? Sign In</a>
+          <div style="display: flex; gap: 8px;">
+            <button type="button" class="btn btn-secondary" id="btnCancelRegister">Cancel</button>
+            <button type="submit" class="btn btn-primary" id="btnSubmitRegister">Submit Request</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="../js/utils.js?v=20261021_v6"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       const loginForm = document.getElementById('loginForm');
       const loginAlert = document.getElementById('loginAlert');
       const btnLogin = document.getElementById('btnLogin');
 
+      // Modal elements
+      const modalRegister = document.getElementById('modalRegister');
+      const btnOpenRegister = document.getElementById('btnOpenRegisterModal');
+      const btnCloseRegister = document.getElementById('btnCloseRegisterModal');
+      const btnCancelRegister = document.getElementById('btnCancelRegister');
+      const btnBackToLogin = document.getElementById('btnBackToLogin');
+      const registerForm = document.getElementById('registerForm');
+      const registerAlert = document.getElementById('registerAlert');
+      const btnSubmitRegister = document.getElementById('btnSubmitRegister');
+
+      function showLoginMessage(msg, isSuccess = false) {
+        loginAlert.textContent = msg;
+        if (isSuccess) {
+          loginAlert.style.background = 'var(--success-bg)';
+          loginAlert.style.color = 'var(--success-text)';
+          loginAlert.style.border = '1px solid #a7f3d0';
+        } else {
+          loginAlert.style.background = 'var(--danger-bg)';
+          loginAlert.style.color = 'var(--danger-text)';
+          loginAlert.style.border = '1px solid #e7a5a5';
+        }
+        loginAlert.style.display = 'block';
+      }
+
+      function openRegister() {
+        registerForm.reset();
+        registerAlert.style.display = 'none';
+        modalRegister.classList.add('active');
+        document.getElementById('regFullName').focus();
+      }
+
+      function closeRegister() {
+        modalRegister.classList.remove('active');
+      }
+
+      btnOpenRegister?.addEventListener('click', (e) => {
+        e.preventDefault();
+        openRegister();
+      });
+
+      btnCloseRegister?.addEventListener('click', closeRegister);
+      btnCancelRegister?.addEventListener('click', closeRegister);
+      btnBackToLogin?.addEventListener('click', (e) => {
+        e.preventDefault();
+        closeRegister();
+        document.getElementById('username').focus();
+      });
+
+      // Handle Sign Up Form Submit
+      registerForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const fullName = document.getElementById('regFullName').value.trim();
+        const email = document.getElementById('regEmail').value.trim();
+        const username = document.getElementById('regUsername').value.trim();
+        const role = document.getElementById('regRole').value;
+        const password = document.getElementById('regPassword').value;
+        const confirmPassword = document.getElementById('regConfirmPassword').value;
+
+        registerAlert.style.display = 'none';
+
+        if (password !== confirmPassword) {
+          registerAlert.textContent = 'Passwords do not match. Please re-enter.';
+          registerAlert.style.display = 'block';
+          return;
+        }
+
+        if (password.length < 6) {
+          registerAlert.textContent = 'Password must be at least 6 characters long.';
+          registerAlert.style.display = 'block';
+          return;
+        }
+
+        btnSubmitRegister.disabled = true;
+        btnSubmitRegister.textContent = 'Submitting Request...';
+
+        try {
+          const res = await fetch('../api/register.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              full_name: fullName,
+              email: email,
+              username: username,
+              role: role,
+              password: password
+            })
+          });
+
+          const data = await res.json();
+
+          if (!data.success) {
+            registerAlert.textContent = data.message || 'Unable to submit account request.';
+            registerAlert.style.display = 'block';
+            return;
+          }
+
+          // Registration request accepted!
+          closeRegister();
+          showLoginMessage('✓ Account request submitted successfully! An administrator will review and authorize your account before you can sign in.', true);
+          document.getElementById('username').value = username;
+          document.getElementById('password').value = '';
+          document.getElementById('password').focus();
+
+        } catch (err) {
+          console.error('Registration error:', err);
+          registerAlert.textContent = 'Unable to connect to the server. Please check your network or try again.';
+          registerAlert.style.display = 'block';
+        } finally {
+          btnSubmitRegister.disabled = false;
+          btnSubmitRegister.textContent = 'Submit Request';
+        }
+      });
+
+      // Handle Login Form Submit
       loginForm.addEventListener('submit', async e => {
         e.preventDefault();
 
@@ -73,8 +264,7 @@
 
           if (!result.success) {
             hidePageLoader();
-            loginAlert.textContent = result.message || 'Invalid username or password.';
-            loginAlert.style.display = 'block';
+            showLoginMessage(result.message || 'Invalid username or password.', false);
             return;
           }
 
@@ -85,9 +275,12 @@
 
           showPageLoader('Welcome back! Loading system...');
 
+          sessionStorage.removeItem('roberice_auth_alert');
+
           setTimeout(() => {
-            if (result.user.role === 'admin') {
-              window.location.href = 'dashboard.html';
+            const role = (result.user.role || '').toLowerCase().trim();
+            if (role === 'admin') {
+              window.location.href = 'dashboard.html?v=20261021_v6';
             } else if (Array.isArray(result.user.permissions) && result.user.permissions.length > 0) {
               const permPages = {
                 'pos': 'pos.html',
@@ -98,20 +291,21 @@
                 'transactions': 'transactions.html',
                 'sales-report': 'sales-report.html',
                 'file-manager': 'file-manager.html',
-                'audit': 'audit.html'
+                'audit': 'audit.html',
+                'users': 'users.html'
               };
               const firstPerm = result.user.permissions.find(p => permPages[p]);
-              window.location.href = firstPerm ? permPages[firstPerm] : 'pos.html';
+              const target = firstPerm ? permPages[firstPerm] : 'pos.html';
+              window.location.href = `${target}?v=20261021_v6`;
             } else {
-              window.location.href = 'pos.html';
+              window.location.href = 'pos.html?v=20261021_v6';
             }
           }, 350);
 
         } catch (error) {
           hidePageLoader();
           console.error('Login error:', error);
-          loginAlert.textContent = 'Unable to connect to the server.';
-          loginAlert.style.display = 'block';
+          showLoginMessage('Unable to connect to the server.', false);
         } finally {
           btnLogin.disabled = false;
           btnLogin.textContent = 'Sign In';

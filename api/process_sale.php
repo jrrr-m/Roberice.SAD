@@ -3,6 +3,9 @@ header("Content-Type: application/json");
 require_once "db.php";
 
 $data = json_decode(file_get_contents("php://input"), true);
+if (!is_array($data)) {
+    $data = $_POST;
+}
 
 $items = $data["items"] ?? [];
 $username = trim($data["username"] ?? "");
@@ -17,39 +20,72 @@ if (empty($items)) {
 try {
     $conn->beginTransaction();
 
-    $stmt = $conn->prepare("
-        SELECT user_id, full_name
-        FROM users
-        WHERE username = ? AND account_status = 'Active'
-    ");
-    $stmt->execute([$username]);
-    $user = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    if (!$user) {
-        throw new Exception("Cashier account was not found in the database.");
+    // Cashier lookup with defensive fallback to prevent foreign key constraint crashes on sales_transaction
+    $user = null;
+    if (!empty($username)) {
+        $stmt = $conn->prepare("
+            SELECT user_id, username, full_name, role
+            FROM users
+            WHERE username = ? AND account_status = 'Active'
+            LIMIT 1
+        ");
+        $stmt->execute([$username]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
-    $total = 0;
+    if (!$user) {
+        // Fallback to active admin or any active user
+        $stmt = $conn->prepare("
+            SELECT user_id, username, full_name, role
+            FROM users
+            WHERE account_status = 'Active'
+            ORDER BY CASE WHEN LOWER(role) = 'admin' THEN 1 ELSE 2 END, user_id ASC
+            LIMIT 1
+        ");
+        $stmt->execute();
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    if (!$user) {
+        throw new Exception("No active cashier or administrator account found in the database.");
+    }
+
+    // Check if table inventory_batch exists in the database
+    $hasBatchTable = false;
+    try {
+        $tblCheck = $conn->query("SHOW TABLES LIKE 'inventory_batch'")->fetchAll();
+        $hasBatchTable = (count($tblCheck) > 0);
+    } catch (Exception $e) {
+        $hasBatchTable = false;
+    }
+
+    $total = 0.0;
     $processedItems = [];
 
     foreach ($items as $item) {
-        $productId = (int)$item["productId"];
-        $unit = $item["unit"];
-        $qty = (float)$item["qty"];
-        $openedSacksCount = 0;
-        $openedKgAmount = 0.0;
-        $chosenSackToOpen = null;
+        $productId = (int)($item["productId"] ?? 0);
+        $unit = trim($item["unit"] ?? "tinatakal");
+        $qty = (float)($item["qty"] ?? 0);
+        $batchNumber = trim($item["batchNumber"] ?? "");
 
-        if ($qty <= 0) {
-            throw new Exception("Invalid quantity.");
+        if ($productId <= 0) {
+            throw new Exception("Invalid product specified in transaction.");
         }
 
-        if ($unit === "sack" && floor($qty) != $qty) {
+        if ($qty <= 0) {
+            throw new Exception("Invalid quantity for product ID {$productId}.");
+        }
+
+        $unitLower = strtolower($unit);
+
+        if (($unitLower === "sack" || $unitLower === "50kg") && floor($qty) != $qty) {
             throw new Exception("Sack quantity must be a whole number.");
         }
 
+        // Lock product and inventory records
         $stmt = $conn->prepare("
             SELECT
+                p.product_id,
                 p.product_name,
                 p.price_sack,
                 p.price_25kg,
@@ -58,15 +94,16 @@ try {
                 p.price_10kg,
                 p.price_20kg,
                 p.kg_per_sack,
-                i.stock_sacks,
-                i.packaged_25kg,
-                i.stock_kg,
-                i.packaged_5kg,
-                i.packaged_10kg,
-                i.packaged_20kg,
-                i.batch_number
+                COALESCE(i.stock_sacks, 0) AS stock_sacks,
+                COALESCE(i.packaged_25kg, 0) AS packaged_25kg,
+                COALESCE(i.stock_kg, 0.00) AS stock_kg,
+                COALESCE(i.packaged_5kg, 0) AS packaged_5kg,
+                COALESCE(i.packaged_10kg, 0) AS packaged_10kg,
+                COALESCE(i.packaged_20kg, 0) AS packaged_20kg,
+                i.batch_number,
+                i.received_date
             FROM product p
-            JOIN inventory i ON p.product_id = i.product_id
+            LEFT JOIN inventory i ON p.product_id = i.product_id
             WHERE p.product_id = ?
             AND p.product_status = 'Active'
             FOR UPDATE
@@ -75,47 +112,33 @@ try {
         $product = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if (!$product) {
-            throw new Exception("Product not found.");
+            throw new Exception("Product ID {$productId} was not found or is currently inactive.");
         }
 
         $stockSacks = (int)$product["stock_sacks"];
-        $p25 = (int)($product["packaged_25kg"] ?? 0);
-        $stockKg = (float)$product["stock_kg"];
-        $p5 = (int)$product["packaged_5kg"];
-        $p10 = (int)$product["packaged_10kg"];
+        $p25 = (int)$product["packaged_25kg"];
         $p20 = (int)$product["packaged_20kg"];
-        $kgPerSack = 50.0;
+        $p10 = (int)$product["packaged_10kg"];
+        $p5 = (int)$product["packaged_5kg"];
+        $stockKg = (float)$product["stock_kg"];
 
-        // Fetch all active batches for this product in strict FIFO order (oldest received date first)
-        $batchStmt = $conn->prepare("
-            SELECT * 
-            FROM inventory_batch 
-            WHERE product_id = ? AND status = 'Active'
-            ORDER BY received_date ASC, batch_id ASC
-            FOR UPDATE
-        ");
-        $batchStmt->execute([$productId]);
-        $batches = $batchStmt->fetchAll(PDO::FETCH_ASSOC);
-
-        $unitLower = strtolower(trim($unit));
-
-        // 1. Determine Unit Price
+        // 1. Determine Unit Price & Subtotal based on packaging unit
         if ($unitLower === "sack" || $unitLower === "50kg") {
             $unitPrice = (float)$product["price_sack"];
         } elseif ($unitLower === "25kg" || $unitLower === "half_sack" || $unitLower === "half") {
-            $unitPrice = !empty($product["price_25kg"]) && (float)$product["price_25kg"] > 0
+            $unitPrice = (!empty($product["price_25kg"]) && (float)$product["price_25kg"] > 0)
                 ? (float)$product["price_25kg"]
                 : ((float)$product["price_sack"] / 2);
         } elseif ($unitLower === "20kg") {
-            $unitPrice = !empty($product["price_20kg"]) && (float)$product["price_20kg"] > 0
+            $unitPrice = (!empty($product["price_20kg"]) && (float)$product["price_20kg"] > 0)
                 ? (float)$product["price_20kg"]
                 : ((float)$product["price_kg"] * 20);
         } elseif ($unitLower === "10kg") {
-            $unitPrice = !empty($product["price_10kg"]) && (float)$product["price_10kg"] > 0
+            $unitPrice = (!empty($product["price_10kg"]) && (float)$product["price_10kg"] > 0)
                 ? (float)$product["price_10kg"]
                 : ((float)$product["price_kg"] * 10);
         } elseif ($unitLower === "5kg") {
-            $unitPrice = !empty($product["price_5kg"]) && (float)$product["price_5kg"] > 0
+            $unitPrice = (!empty($product["price_5kg"]) && (float)$product["price_5kg"] > 0)
                 ? (float)$product["price_5kg"]
                 : ((float)$product["price_kg"] * 5);
         } else {
@@ -123,8 +146,31 @@ try {
             $unitPrice = (float)$product["price_kg"];
         }
 
-        // 2. Perform Stock Validation and FIFO Deduction across Active Batches
+        // 2. Real-time Stock Deduction
+        $batches = [];
+        if ($hasBatchTable) {
+            $batchStmt = $conn->prepare("
+                SELECT * 
+                FROM inventory_batch 
+                WHERE product_id = ? AND status = 'Active'
+                ORDER BY received_date ASC, batch_id ASC
+                FOR UPDATE
+            ");
+            $batchStmt->execute([$productId]);
+            $batches = $batchStmt->fetchAll(PDO::FETCH_ASSOC);
+
+            // If a specific batch was passed, prioritize it in the deduction order
+            if (!empty($batchNumber) && !empty($batches)) {
+                usort($batches, function($a, $b) use ($batchNumber) {
+                    if ($a['batch_code'] === $batchNumber) return -1;
+                    if ($b['batch_code'] === $batchNumber) return 1;
+                    return strcmp($a['received_date'], $b['received_date']);
+                });
+            }
+        }
+
         if (!empty($batches)) {
+            // Batch-driven FIFO inventory deduction
             if ($unitLower === "sack" || $unitLower === "50kg") {
                 $totalAvailable = array_sum(array_column($batches, 'stock_sacks'));
                 if ($qty > $totalAvailable) {
@@ -207,108 +253,42 @@ try {
 
             } else {
                 // Tinatakal (loose per kg)
-                $totalAvailableKg = 0.0;
-                $totalLooseKg = 0.0;
-                foreach ($batches as $b) {
-                    $totalAvailableKg += ($b['stock_sacks'] * 50.0) + ($b['packaged_25kg'] * 25.0) + ($b['packaged_20kg'] * 20.0) + ($b['packaged_10kg'] * 10.0) + ($b['packaged_5kg'] * 5.0) + (float)$b['stock_kg'];
-                    $totalLooseKg += (float)$b['stock_kg'];
-                }
+                $totalLooseKg = (float)array_sum(array_column($batches, 'stock_kg'));
 
-                if ($qty > $totalAvailableKg) {
-                    throw new Exception("Insufficient stock for {$product['product_name']}. Total available is " . number_format($totalAvailableKg, 2) . " kg.");
-                }
+                // Auto-open whole sack(s) in FIFO order if requested kg exceeds current loose stock
+                if ($totalLooseKg < $qty) {
+                    $neededKg = $qty - $totalLooseKg;
+                    $sacksNeeded = (int)ceil($neededKg / 50.0);
 
-                $openSackType = !empty($item["openSackType"]) ? strtolower(trim($item["openSackType"])) : null;
+                    $adjStmt = $conn->prepare("
+                        INSERT INTO inventory_adjustment
+                        (product_id, batch_code, adjustment_date, adjustment_type, sacks, kg, note, performed_by)
+                        VALUES (?, ?, NOW(), 'open_sack', ?, ?, ?, ?)
+                    ");
 
-                // Auto-open a sack in FIFO order if loose kg is insufficient or explicitly requested
-                if ($totalLooseKg < $qty || !empty($openSackType)) {
-                    $neededKg = max(0.0, $qty - $totalLooseKg);
-                    $openedDesc = "";
-                    $openedBatchCode = "";
-                    $openedCount = 0;
-                    $openedAddedKg = 0.0;
-
-                    // Open from oldest batch that has whole sacks (or requested package tier)
                     foreach ($batches as &$b) {
-                        if ($openSackType === '25kg' || $openSackType === 'half') {
-                            if ($b['packaged_25kg'] > 0) {
-                                $sacksToOpen = max(1, (int)ceil($neededKg / 25.0));
-                                $actualOpen = min($sacksToOpen, (int)$b['packaged_25kg']);
-                                $b['packaged_25kg'] -= $actualOpen;
-                                $b['stock_kg'] += ($actualOpen * 25.0);
-                                $openedDesc = "{$actualOpen}x 25kg half sack";
-                                $openedBatchCode = $b['batch_code'];
-                                $openedCount = $actualOpen;
-                                $openedAddedKg = $actualOpen * 25.0;
-                                break;
-                            }
-                        } elseif ($openSackType === '20kg') {
-                            if ($b['packaged_20kg'] > 0) {
-                                $sacksToOpen = max(1, (int)ceil($neededKg / 20.0));
-                                $actualOpen = min($sacksToOpen, (int)$b['packaged_20kg']);
-                                $b['packaged_20kg'] -= $actualOpen;
-                                $b['stock_kg'] += ($actualOpen * 20.0);
-                                $openedDesc = "{$actualOpen}x 20kg sack";
-                                $openedBatchCode = $b['batch_code'];
-                                $openedCount = $actualOpen;
-                                $openedAddedKg = $actualOpen * 20.0;
-                                break;
-                            }
-                        } elseif ($openSackType === '10kg') {
-                            if ($b['packaged_10kg'] > 0) {
-                                $sacksToOpen = max(1, (int)ceil($neededKg / 10.0));
-                                $actualOpen = min($sacksToOpen, (int)$b['packaged_10kg']);
-                                $b['packaged_10kg'] -= $actualOpen;
-                                $b['stock_kg'] += ($actualOpen * 10.0);
-                                $openedDesc = "{$actualOpen}x 10kg sack";
-                                $openedBatchCode = $b['batch_code'];
-                                $openedCount = $actualOpen;
-                                $openedAddedKg = $actualOpen * 10.0;
-                                break;
-                            }
-                        } elseif ($openSackType === '5kg') {
-                            if ($b['packaged_5kg'] > 0) {
-                                $sacksToOpen = max(1, (int)ceil($neededKg / 5.0));
-                                $actualOpen = min($sacksToOpen, (int)$b['packaged_5kg']);
-                                $b['packaged_5kg'] -= $actualOpen;
-                                $b['stock_kg'] += ($actualOpen * 5.0);
-                                $openedDesc = "{$actualOpen}x 5kg sack";
-                                $openedBatchCode = $b['batch_code'];
-                                $openedCount = $actualOpen;
-                                $openedAddedKg = $actualOpen * 5.0;
-                                break;
-                            }
-                        } else {
-                            // Default: open 50kg whole sack from oldest batch
-                            if ($b['stock_sacks'] > 0) {
-                                $sacksToOpen = max(1, (int)ceil($neededKg / 50.0));
-                                $actualOpen = min($sacksToOpen, (int)$b['stock_sacks']);
-                                $b['stock_sacks'] -= $actualOpen;
-                                $b['stock_kg'] += ($actualOpen * 50.0);
-                                $openedDesc = "{$actualOpen}x Whole Sack (50kg)";
-                                $openedBatchCode = $b['batch_code'];
-                                $openedCount = $actualOpen;
-                                $openedAddedKg = $actualOpen * 50.0;
-                                break;
-                            }
-                        }
+                        if ($sacksNeeded <= 0) break;
+                        if ((int)$b['stock_sacks'] <= 0) continue;
+
+                        $openThisBatch = min($sacksNeeded, (int)$b['stock_sacks']);
+                        $b['stock_sacks'] -= $openThisBatch;
+                        $addedKg = $openThisBatch * 50.0;
+                        $b['stock_kg'] = (float)$b['stock_kg'] + $addedKg;
+                        $sacksNeeded -= $openThisBatch;
+
+                        $adjStmt->execute([
+                            $productId,
+                            $b['batch_code'],
+                            $openThisBatch,
+                            $addedKg,
+                            "Auto-opened {$openThisBatch}x Whole Sack (50kg) from Batch {$b['batch_code']} for {$qty} kg retail sale.",
+                            $user["full_name"]
+                        ]);
                     }
                     unset($b);
 
-                    if (!empty($openedBatchCode)) {
-                        $adjStmt = $conn->prepare("
-                            INSERT INTO inventory_adjustment
-                            (product_id, batch_code, adjustment_date, adjustment_type, sacks, kg, note, performed_by)
-                            VALUES (?, ?, NOW(), 'open_sack', ?, ?, ?, ?)
-                        ");
-                        $adjStmt->execute([
-                            $productId,
-                            $openedBatchCode,
-                            $openedCount,
-                            $openedAddedKg,
-                            "Auto-opened {$openedDesc} from Batch {$openedBatchCode} (FIFO rotation) for {$qty} kg retail sale.",
-                            $user["full_name"]
-                        ]);
+                    if ($sacksNeeded > 0) {
+                        throw new Exception("Cannot process sale: Insufficient loose stock and whole sacks for {$product['product_name']}.");
                     }
                 }
 
@@ -319,7 +299,7 @@ try {
                     $deduct = min($remKg, (float)$b['stock_kg']);
                     $b['stock_kg'] = max(0.0, (float)$b['stock_kg'] - $deduct);
                     $remKg -= $deduct;
-                    if ($remKg <= 0.0) break;
+                    if ($remKg <= 0.0001) break;
                 }
                 unset($b);
             }
@@ -348,7 +328,7 @@ try {
 
             foreach ($batches as $b) {
                 $bVol = ($b['stock_sacks'] * 50) + ($b['packaged_25kg'] * 25) + ($b['packaged_20kg'] * 20) + ($b['packaged_10kg'] * 10) + ($b['packaged_5kg'] * 5) + (float)$b['stock_kg'];
-                $newStatus = ($bVol <= 0) ? 'Depleted' : 'Active';
+                $newStatus = ($bVol <= 0.001) ? 'Depleted' : 'Active';
 
                 $updBatchStmt->execute([
                     $b['stock_sacks'],
@@ -382,7 +362,7 @@ try {
                 }
             }
 
-            // Synchronize inventory table directly from batch sums
+            // Synchronize inventory table directly from active batch sums
             $updInv = $conn->prepare("
                 UPDATE inventory
                 SET stock_sacks = ?, packaged_25kg = ?, stock_kg = ?, packaged_5kg = ?, packaged_10kg = ?, packaged_20kg = ?, batch_number = ?, received_date = ?
@@ -391,42 +371,72 @@ try {
             $updInv->execute([$totalSacks, $total25, round($totalKg, 2), $total5, $total10, $total20, $latestBatchCode, $latestRecDate, $productId]);
 
         } else {
-            // Legacy / standalone inventory table fallback
+            // Standalone inventory table fallback
             if ($unitLower === "sack" || $unitLower === "50kg") {
-                if ($qty > $stockSacks) throw new Exception("Insufficient whole sacks in stock for {$product['product_name']}.");
+                if ($qty > $stockSacks) {
+                    throw new Exception("Insufficient whole sacks in stock for {$product['product_name']}. Only {$stockSacks} sacks available.");
+                }
                 $stockSacks -= (int)$qty;
-            } elseif ($unitLower === "25kg") {
-                if ($qty > $p25) throw new Exception("Insufficient 25kg half sacks in stock for {$product['product_name']}.");
+            } elseif ($unitLower === "25kg" || $unitLower === "half_sack" || $unitLower === "half") {
+                if ($qty > $p25) {
+                    throw new Exception("Insufficient 25kg half sacks in stock for {$product['product_name']}. Only {$p25} available.");
+                }
                 $p25 -= (int)$qty;
             } elseif ($unitLower === "20kg") {
-                if ($qty > $p20) throw new Exception("Insufficient 20kg sacks in stock for {$product['product_name']}.");
+                if ($qty > $p20) {
+                    throw new Exception("Insufficient 20kg sacks in stock for {$product['product_name']}. Only {$p20} available.");
+                }
                 $p20 -= (int)$qty;
             } elseif ($unitLower === "10kg") {
-                if ($qty > $p10) throw new Exception("Insufficient 10kg sacks in stock for {$product['product_name']}.");
+                if ($qty > $p10) {
+                    throw new Exception("Insufficient 10kg sacks in stock for {$product['product_name']}. Only {$p10} available.");
+                }
                 $p10 -= (int)$qty;
             } elseif ($unitLower === "5kg") {
-                if ($qty > $p5) throw new Exception("Insufficient 5kg sacks in stock for {$product['product_name']}.");
+                if ($qty > $p5) {
+                    throw new Exception("Insufficient 5kg sacks in stock for {$product['product_name']}. Only {$p5} available.");
+                }
                 $p5 -= (int)$qty;
             } else {
+                // Tinatakal (loose per kg)
                 if ($stockKg >= $qty) {
                     $stockKg -= $qty;
-                } elseif ($stockSacks > 0) {
-                    $stockSacks -= 1;
-                    $stockKg = max(0.0, ($stockKg + 50.0) - $qty);
                 } else {
-                    throw new Exception("Insufficient loose stock for {$product['product_name']}.");
+                    $neededKg = $qty - $stockKg;
+                    $sacksNeeded = (int)ceil($neededKg / 50.0);
+                    if ($sacksNeeded > $stockSacks) {
+                        $totalKgAvail = $stockKg + ($stockSacks * 50.0);
+                        throw new Exception("Insufficient stock for {$product['product_name']}. Only " . number_format($totalKgAvail, 2) . " kg available.");
+                    }
+                    $stockSacks -= $sacksNeeded;
+                    $addedKg = $sacksNeeded * 50.0;
+                    $stockKg = ($stockKg + $addedKg) - $qty;
+
+                    $adjStmt = $conn->prepare("
+                        INSERT INTO inventory_adjustment
+                        (product_id, batch_code, adjustment_date, adjustment_type, sacks, kg, note, performed_by)
+                        VALUES (?, ?, NOW(), 'open_sack', ?, ?, ?, ?)
+                    ");
+                    $adjStmt->execute([
+                        $productId,
+                        $product['batch_number'] ?? null,
+                        $sacksNeeded,
+                        $addedKg,
+                        "Auto-opened {$sacksNeeded}x Whole Sack (50kg) for {$qty} kg retail sale.",
+                        $user["full_name"]
+                    ]);
                 }
             }
 
-            $stmt = $conn->prepare("
+            $updInv = $conn->prepare("
                 UPDATE inventory
                 SET stock_sacks = ?, packaged_25kg = ?, stock_kg = ?, packaged_5kg = ?, packaged_10kg = ?, packaged_20kg = ?
                 WHERE product_id = ?
             ");
-            $stmt->execute([$stockSacks, $p25, $stockKg, $p5, $p10, $p20, $productId]);
+            $updInv->execute([$stockSacks, $p25, round($stockKg, 2), $p5, $p10, $p20, $productId]);
         }
 
-        $subtotal = $unitPrice * $qty;
+        $subtotal = round($unitPrice * $qty, 2);
         $total += $subtotal;
 
         $processedItems[] = [
@@ -440,11 +450,12 @@ try {
     }
 
     if ($paymentReceived < $total) {
-        throw new Exception("Payment received is insufficient.");
+        throw new Exception("Payment received (₱" . number_format($paymentReceived, 2) . ") is less than the total sale amount (₱" . number_format($total, 2) . ").");
     }
 
-    $change = $paymentReceived - $total;
+    $change = round($paymentReceived - $total, 2);
 
+    // Insert completed sales transaction
     $stmt = $conn->prepare("
         INSERT INTO sales_transaction
         (user_id, total_amount, payment_amount, change_amount, payment_method, transaction_status)
@@ -453,14 +464,15 @@ try {
 
     $stmt->execute([
         $user["user_id"],
-        $total,
-        $paymentReceived,
+        round($total, 2),
+        round($paymentReceived, 2),
         $change,
         $paymentMethod
     ]);
 
-    $transactionId = $conn->lastInsertId();
+    $transactionId = (int)$conn->lastInsertId();
 
+    // Insert transaction line items
     $itemStmt = $conn->prepare("
         INSERT INTO transaction_item
         (transaction_id, product_id, unit, quantity, unit_price, subtotal)
@@ -486,15 +498,15 @@ try {
         "cashierId" => (int)$user["user_id"],
         "cashierUsername" => $user["username"],
         "cashierName" => $user["full_name"],
-        "totalAmount" => $total,
-        "paymentReceived" => $paymentReceived,
+        "totalAmount" => round($total, 2),
+        "paymentReceived" => round($paymentReceived, 2),
         "changeAmount" => $change,
         "paymentMethod" => $paymentMethod,
         "items" => $processedItems
     ]);
 
 } catch (Exception $e) {
-    if ($conn->inTransaction()) {
+    if (isset($conn) && $conn->inTransaction()) {
         $conn->rollBack();
     }
 

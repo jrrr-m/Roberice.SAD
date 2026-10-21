@@ -9,63 +9,63 @@ const NAV_ITEMS = [
     label: 'Dashboard',
     url: 'dashboard.html',
     icon: `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>`,
-    roles: ['admin']
+    roles: ['admin', 'manager', 'store manager']
   },
   {
     id: 'pos',
     label: 'Point of Sale',
     url: 'pos.html',
     icon: `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>`,
-    roles: ['admin', 'cashier']
+    roles: ['admin', 'cashier', 'manager', 'store manager']
   },
   {
     id: 'view-inventory',
     label: 'View Inventory',
     url: 'view-inventory.html',
     icon: `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>`,
-    roles: ['admin', 'cashier']
+    roles: ['admin', 'cashier', 'clerk', 'inventory clerk', 'manager', 'store manager']
   },
   {
     id: 'inventory',
     label: 'Manage Inventory',
     url: 'inventory.html',
     icon: `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>`,
-    roles: ['admin']
+    roles: ['admin', 'clerk', 'inventory clerk']
   },
   {
     id: 'products',
     label: 'Products & Pricing',
     url: 'products.html',
     icon: `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 11h.01M7 15h.01M11 7h8M11 11h8M11 15h8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>`,
-    roles: ['admin']
+    roles: ['admin', 'clerk', 'inventory clerk', 'manager', 'store manager']
   },
   {
     id: 'transactions',
     label: 'Transaction History',
     url: 'transactions.html',
     icon: `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>`,
-    roles: ['admin', 'cashier']
+    roles: ['admin', 'cashier', 'manager', 'store manager']
   },
   {
     id: 'sales-report',
     label: 'Sales Report',
     url: 'sales-report.html',
     icon: `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>`,
-    roles: ['admin', 'cashier']
+    roles: ['admin', 'cashier', 'manager', 'store manager']
   },
   {
     id: 'file-manager',
     label: 'File Management',
     url: 'file-manager.html',
     icon: `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path></svg>`,
-    roles: ['admin']
+    roles: ['admin', 'manager', 'store manager']
   },
   {
     id: 'audit',
     label: 'Audit History',
     url: 'audit.html',
     icon: `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>`,
-    roles: ['admin']
+    roles: ['admin', 'manager', 'store manager']
   },
   {
     id: 'users',
@@ -78,13 +78,30 @@ const NAV_ITEMS = [
 
 // Check if user has permission to view a nav item or module
 function hasPermission(user, item) {
-  if (!user) return false;
-  const role = (user.role || '').toLowerCase();
+  if (!user || !item) return false;
+
+  const role = (user.role || '').toLowerCase().trim();
   if (role === 'admin') return true;
-  if (Array.isArray(user.permissions) && user.permissions.length > 0) {
-    return user.permissions.includes(item.id);
+
+  let perms = user.permissions;
+  if (typeof perms === 'string') {
+    try {
+      perms = JSON.parse(perms);
+    } catch (e) {
+      perms = [];
+    }
   }
-  return item.roles && item.roles.map(r => r.toLowerCase()).includes(role);
+
+  if (Array.isArray(perms) && perms.length > 0) {
+    return perms.includes(item.id);
+  }
+
+  // Fallback to role-based check
+  if (item.roles && Array.isArray(item.roles)) {
+    return item.roles.map(r => String(r).toLowerCase().trim()).includes(role);
+  }
+
+  return false;
 }
 
 // Verify Authentication & Role Access Control
@@ -99,28 +116,51 @@ function checkAuth() {
     return null;
   }
 
-  const user = JSON.parse(userJson);
+  let user = null;
+  try {
+    user = JSON.parse(userJson);
+  } catch (e) {
+    user = null;
+  }
+
+  if (!user) {
+    if (!isLoginPage) {
+      window.location.replace('login.html');
+    }
+    return null;
+  }
+
+  // Normalize permissions property if stringified
+  if (typeof user.permissions === 'string') {
+    try {
+      user.permissions = JSON.parse(user.permissions);
+    } catch (e) {
+      user.permissions = [];
+    }
+  }
 
   if (isLoginPage) {
     // If logged in and on login page, redirect to appropriate home
-    if (user.role === 'admin') {
-      window.location.replace('dashboard.html');
+    const role = (user.role || '').toLowerCase().trim();
+    if (role === 'admin') {
+      window.location.replace('dashboard.html?v=20261021_v5');
     } else {
       const firstAllowed = NAV_ITEMS.find(item => hasPermission(user, item));
-      window.location.replace(firstAllowed ? firstAllowed.url : 'pos.html');
+      window.location.replace(firstAllowed ? `${firstAllowed.url}?v=20261021_v5` : 'pos.html');
     }
     return user;
   }
 
   // Check page permission
-  const currentPage = window.location.pathname.split('/').pop() || 'index.html';
+  const rawPage = window.location.pathname.split('/').pop() || 'index.html';
+  const currentPage = rawPage.split('?')[0].split('#')[0];
   const navItem = NAV_ITEMS.find(item => item.url === currentPage);
 
   if (navItem && !hasPermission(user, navItem)) {
     // Unauthorized access attempt
     sessionStorage.setItem('roberice_auth_alert', 'Access Restricted: You do not have permission to view that page.');
     const firstAllowed = NAV_ITEMS.find(item => hasPermission(user, item));
-    window.location.replace(firstAllowed ? firstAllowed.url : 'pos.html');
+    window.location.replace(firstAllowed ? `${firstAllowed.url}?v=20261021_v5` : 'pos.html');
     return null;
   }
 
@@ -134,16 +174,17 @@ function renderAppFrame(user) {
   const appContainer = document.querySelector('.app-container');
   if (!appContainer) return;
 
-  const currentPage = window.location.pathname.split('/').pop() || 'dashboard.html';
+  const rawCurrentPage = window.location.pathname.split('/').pop() || 'dashboard.html';
+  const currentPage = rawCurrentPage.split('?')[0].split('#')[0];
   const userName = user.full_name || user.name || user.username || (user.role === 'admin' ? 'Admin User' : 'Cashier');
 
-  // Build Sidebar HTML
+  // Build Sidebar HTML with cache-busting version query
   const sidebarNavHtml = NAV_ITEMS
     .filter(item => hasPermission(user, item))
     .map(item => {
       const isActive = currentPage === item.url ? 'active' : '';
       return `
-        <a href="${item.url}" class="nav-item ${isActive}">
+        <a href="${item.url}?v=20261021_v5" class="nav-item ${isActive}">
           ${item.icon}
           <span>${item.label}</span>
         </a>
@@ -356,5 +397,28 @@ document.addEventListener('DOMContentLoaded', () => {
   if (user && !window.location.pathname.endsWith('login.html')) {
     renderAppFrame(user);
     updateStickyHeaderOffset();
+
+    // Dynamically refresh permissions from DB if user ID is known
+    if (user.id) {
+      const apiPath = window.location.pathname.includes('/pages/') ? '../api/users.php' : 'api/users.php';
+      fetch(`${apiPath}?sync_user_id=${encodeURIComponent(user.id)}`)
+        .then(r => r.json())
+        .then(res => {
+          if (res && res.success && res.user && Array.isArray(res.user.permissions)) {
+            let needsRerender = false;
+            const currentPerms = Array.isArray(user.permissions) ? user.permissions : [];
+            if (JSON.stringify(currentPerms.sort()) !== JSON.stringify(res.user.permissions.slice().sort())) {
+              needsRerender = true;
+            }
+            user.permissions = res.user.permissions;
+            user.role = res.user.role;
+            sessionStorage.setItem('roberice_logged_user', JSON.stringify(user));
+            if (needsRerender) {
+              renderAppFrame(user);
+            }
+          }
+        })
+        .catch(() => {});
+    }
   }
 });

@@ -10,14 +10,31 @@
   <script>
     const userJson = sessionStorage.getItem('roberice_logged_user');
     if (userJson) {
-      const user = JSON.parse(userJson);
-      if (user.role === 'admin') {
-        window.location.href = 'pages/dashboard.html';
-      } else {
-        window.location.href = 'pages/pos.html';
+      try {
+        const user = JSON.parse(userJson);
+        const role = (user.role || '').toLowerCase().trim();
+        let perms = user.permissions;
+        if (typeof perms === 'string') {
+          try { perms = JSON.parse(perms); } catch (e) { perms = []; }
+        }
+
+        if (role === 'admin' || (Array.isArray(perms) && perms.includes('dashboard'))) {
+          window.location.href = 'pages/dashboard.html?v=20261021_v5';
+        } else if (Array.isArray(perms) && perms.length > 0) {
+          const pageOrder = [
+            'dashboard', 'pos', 'view-inventory', 'inventory', 'products',
+            'transactions', 'sales-report', 'file-manager', 'audit', 'users'
+          ];
+          const firstAllowed = pageOrder.find(id => perms.includes(id)) || 'pos';
+          window.location.href = 'pages/' + firstAllowed + '.html?v=20261021_v5';
+        } else {
+          window.location.href = 'pages/pos.html?v=20261021_v5';
+        }
+      } catch (e) {
+        window.location.href = 'pages/login.html?v=20261021_v5';
       }
     } else {
-      window.location.href = 'pages/login.html';
+      window.location.href = 'pages/login.html?v=20261021_v5';
     }
   </script>
 </body>

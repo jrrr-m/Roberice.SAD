@@ -273,12 +273,13 @@ CREATE TABLE `users` (
   `username` varchar(50) NOT NULL,
   `password` varchar(255) NOT NULL,
   `full_name` varchar(100) NOT NULL,
+  `email` varchar(150) DEFAULT NULL,
   `role` varchar(50) NOT NULL DEFAULT 'Cashier',
   `account_status` enum('Active','Inactive') DEFAULT 'Active',
   `permissions` text DEFAULT NULL,
   PRIMARY KEY (`user_id`),
   UNIQUE KEY `username` (`username`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -287,9 +288,53 @@ CREATE TABLE `users` (
 
 LOCK TABLES `users` WRITE;
 /*!40000 ALTER TABLE `users` DISABLE KEYS */;
-INSERT INTO `users` VALUES (1,'admin','$2y$10$H1Gvo388mvZGq3XOSsepCeX2xMSwf0kR5rKJJJqcSJ3fGu5whyPO6','Admin User','Admin','Active','[\"dashboard\",\"pos\",\"view-inventory\",\"inventory\",\"products\",\"transactions\",\"sales-report\",\"file-manager\",\"audit\",\"users\"]'),(2,'cashier1','$2y$10$RuTRrM9eyIIIw0hqlF50wuHl2aHq3iQGC7SvprF/zJlCo78DRBkYi','Maria Santos','Cashier','Active','[\"pos\",\"view-inventory\",\"transactions\",\"sales-report\"]'),(3,'cashier2','$2y$10$QbscdAndZI4wzJgp3qtrwepvww.I058rK4BWq3NJ0pS5lworkEkjK','Juan Dela Cruz','Cashier','Active','[\"pos\",\"view-inventory\",\"transactions\",\"sales-report\"]');
+INSERT INTO `users` VALUES (1,'admin','$2y$10$H1Gvo388mvZGq3XOSsepCeX2xMSwf0kR5rKJJJqcSJ3fGu5whyPO6','Admin User','admin@roberice.com','Admin','Active','[\"dashboard\",\"pos\",\"view-inventory\",\"inventory\",\"products\",\"transactions\",\"sales-report\",\"file-manager\",\"audit\",\"users\"]'),(2,'cashier1','$2y$10$RuTRrM9eyIIIw0hqlF50wuHl2aHq3iQGC7SvprF/zJlCo78DRBkYi','Maria Santos','maria.santos@roberice.com','Cashier','Active','[\"pos\",\"view-inventory\",\"transactions\",\"sales-report\"]'),(3,'cashier2','$2y$10$QbscdAndZI4wzJgp3qtrwepvww.I058rK4BWq3NJ0pS5lworkEkjK','Juan Dela Cruz','juan.delacruz@roberice.com','Cashier','Active','[\"pos\",\"view-inventory\",\"transactions\",\"sales-report\"]');
 /*!40000 ALTER TABLE `users` ENABLE KEYS */;
 UNLOCK TABLES;
+
+--
+-- Table structure for table `account_requests`
+--
+
+DROP TABLE IF EXISTS `account_requests`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `account_requests` (
+  `request_id` int(11) NOT NULL AUTO_INCREMENT,
+  `full_name` varchar(100) NOT NULL,
+  `username` varchar(50) NOT NULL,
+  `email` varchar(150) NOT NULL,
+  `password` varchar(255) NOT NULL,
+  `role` varchar(50) NOT NULL DEFAULT 'Cashier',
+  `status` enum('Pending','Approved','Rejected') NOT NULL DEFAULT 'Pending',
+  `rejection_reason` varchar(255) DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `reviewed_at` datetime DEFAULT NULL,
+  `reviewed_by` int(11) DEFAULT NULL,
+  PRIMARY KEY (`request_id`),
+  KEY `idx_req_status` (`status`),
+  KEY `idx_req_username` (`username`),
+  KEY `idx_req_email` (`email`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `custom_roles`
+--
+
+DROP TABLE IF EXISTS `custom_roles`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `custom_roles` (
+  `role_id` int(11) NOT NULL AUTO_INCREMENT,
+  `role_name` varchar(50) NOT NULL,
+  `default_permissions` text DEFAULT NULL,
+  `created_at` datetime DEFAULT current_timestamp(),
+  PRIMARY KEY (`role_id`),
+  UNIQUE KEY `idx_role_name` (`role_name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;

@@ -3,6 +3,10 @@
  */
 
 let allUsers = [];
+let allRequests = [];
+let customRoles = [];
+let currentTab = 'users';
+let pendingAdminAction = null;
 
 const MODULE_DEFINITIONS = [
   { id: 'dashboard', label: 'Dashboard', icon: '📊' },
@@ -28,23 +32,29 @@ document.addEventListener('DOMContentLoaded', () => initUsers());
 
 async function initUsers() {
   bindEventListeners();
-  await loadUsers();
+  await Promise.all([loadUsers(), loadRequests()]);
 }
 
 function bindEventListeners() {
-  // Modal Open
+  // Modal Open for Add User
   const btnOpenAdd = document.getElementById('btnOpenAddUser');
   if (btnOpenAdd) {
     btnOpenAdd.addEventListener('click', openAddUserModal);
   }
 
-  // Form Submit
+  // Form Submit for Add/Edit User (Admin password authenticated)
   const formUser = document.getElementById('formUser');
   if (formUser) {
     formUser.addEventListener('submit', handleUserFormSubmit);
   }
 
-  // Filter & Search
+  // Universal Quick Action Admin Authentication Form
+  const formAdminAction = document.getElementById('formAdminActionAuth');
+  if (formAdminAction) {
+    formAdminAction.addEventListener('submit', handleAdminActionSubmit);
+  }
+
+  // Filter & Search for Users
   const searchInput = document.getElementById('searchUserInput');
   if (searchInput) {
     searchInput.addEventListener('input', filterUsers);
@@ -60,6 +70,34 @@ function bindEventListeners() {
     statusFilter.addEventListener('change', filterUsers);
   }
 
+  // Filter & Search for Requests
+  const searchReqInput = document.getElementById('searchReqInput');
+  if (searchReqInput) {
+    searchReqInput.addEventListener('input', filterRequests);
+  }
+
+  const statusReqFilter = document.getElementById('filterReqStatus');
+  if (statusReqFilter) {
+    statusReqFilter.addEventListener('change', filterRequests);
+  }
+
+  const btnRefreshRequests = document.getElementById('btnRefreshRequests');
+  if (btnRefreshRequests) {
+    btnRefreshRequests.addEventListener('click', () => loadRequests(true));
+  }
+
+  // Approval Form Submit (Admin Password Authenticated)
+  const formApprove = document.getElementById('formApproveRequest');
+  if (formApprove) {
+    formApprove.addEventListener('submit', handleApproveSubmit);
+  }
+
+  // Rejection Form Submit (Admin Password Authenticated)
+  const formReject = document.getElementById('formRejectRequest');
+  if (formReject) {
+    formReject.addEventListener('submit', handleRejectSubmit);
+  }
+
   // Permission Presets
   document.getElementById('btnPresetAdmin')?.addEventListener('click', () => setPermissionCheckboxes(PRESETS.admin));
   document.getElementById('btnPresetCashier')?.addEventListener('click', () => setPermissionCheckboxes(PRESETS.cashier));
@@ -67,19 +105,104 @@ function bindEventListeners() {
   document.getElementById('btnPresetManager')?.addEventListener('click', () => setPermissionCheckboxes(PRESETS.manager));
   document.getElementById('btnClearPerms')?.addEventListener('click', () => setPermissionCheckboxes([]));
 
-  // Role select changes preset automatically
+  // Role select changes preset automatically and toggles custom role input
   const roleSelect = document.getElementById('roleSelect');
   if (roleSelect) {
     roleSelect.addEventListener('change', () => {
       const val = roleSelect.value;
-      if (val === 'Admin') setPermissionCheckboxes(PRESETS.admin);
-      else if (val === 'Cashier') setPermissionCheckboxes(PRESETS.cashier);
-      else if (val === 'Inventory Clerk') setPermissionCheckboxes(PRESETS.clerk);
-      else if (val === 'Store Manager') setPermissionCheckboxes(PRESETS.manager);
+      const customRoleCont = document.getElementById('customRoleInputContainer');
+      const customRoleInput = document.getElementById('customRoleNameInput');
+
+      if (val === '__custom__') {
+        if (customRoleCont) customRoleCont.style.display = 'block';
+        setTimeout(() => customRoleInput?.focus(), 100);
+      } else {
+        if (customRoleCont) customRoleCont.style.display = 'none';
+        if (customRoleInput) customRoleInput.value = '';
+      }
+
+      if (val === 'Admin') {
+        setPermissionCheckboxes(PRESETS.admin);
+      } else if (val === 'Cashier') {
+        setPermissionCheckboxes(PRESETS.cashier);
+      } else if (val === 'Inventory Clerk') {
+        setPermissionCheckboxes(PRESETS.clerk);
+      } else if (val === 'Store Manager') {
+        setPermissionCheckboxes(PRESETS.manager);
+      } else if (val !== '__custom__') {
+        const cr = customRoles.find(r => r.role_name.toLowerCase() === val.toLowerCase());
+        if (cr && Array.isArray(cr.default_permissions) && cr.default_permissions.length > 0) {
+          setPermissionCheckboxes(cr.default_permissions);
+        }
+      }
     });
+  }
+
+  // Approve modal role select toggle custom role input
+  const approveRoleSelect = document.getElementById('approveRoleSelect');
+  if (approveRoleSelect) {
+    approveRoleSelect.addEventListener('change', () => {
+      const val = approveRoleSelect.value;
+      const approveCustomCont = document.getElementById('approveCustomRoleInputContainer');
+      const approveCustomInput = document.getElementById('approveCustomRoleNameInput');
+
+      if (val === '__custom__') {
+        if (approveCustomCont) approveCustomCont.style.display = 'block';
+        setTimeout(() => approveCustomInput?.focus(), 100);
+      } else {
+        if (approveCustomCont) approveCustomCont.style.display = 'none';
+        if (approveCustomInput) approveCustomInput.value = '';
+      }
+    });
+  }
+
+  // Custom Roles Management Modal & Form
+  const btnOpenRoles = document.getElementById('btnOpenManageRoles');
+  if (btnOpenRoles) {
+    btnOpenRoles.addEventListener('click', openManageRolesModal);
+  }
+
+  const formCreateRole = document.getElementById('formCreateCustomRole');
+  if (formCreateRole) {
+    formCreateRole.addEventListener('submit', handleCreateCustomRoleSubmit);
+  }
+
+  document.getElementById('btnRolePermsSelectAll')?.addEventListener('click', () => {
+    document.querySelectorAll('input[name="newRolePerm"]').forEach(cb => cb.checked = true);
+  });
+  document.getElementById('btnRolePermsClear')?.addEventListener('click', () => {
+    document.querySelectorAll('input[name="newRolePerm"]').forEach(cb => cb.checked = false);
+  });
+}
+
+// -------------------------------------------------------------
+// TAB SWITCHING: Users vs Account Creation Requests
+// -------------------------------------------------------------
+function switchUserTab(tab) {
+  currentTab = tab;
+  const tabUsersBtn = document.getElementById('tabUsersBtn');
+  const tabRequestsBtn = document.getElementById('tabRequestsBtn');
+  const panelUsers = document.getElementById('panelUsers');
+  const panelRequests = document.getElementById('panelRequests');
+
+  if (tab === 'requests') {
+    tabUsersBtn?.classList.remove('active');
+    tabRequestsBtn?.classList.add('active');
+    if (panelUsers) panelUsers.style.display = 'none';
+    if (panelRequests) panelRequests.style.display = 'block';
+    loadRequests();
+  } else {
+    tabRequestsBtn?.classList.remove('active');
+    tabUsersBtn?.classList.add('active');
+    if (panelRequests) panelRequests.style.display = 'none';
+    if (panelUsers) panelUsers.style.display = 'block';
+    filterUsers();
   }
 }
 
+// -------------------------------------------------------------
+// DATA LOADING: System Users
+// -------------------------------------------------------------
 async function loadUsers() {
   showTopLoader();
   try {
@@ -90,7 +213,10 @@ async function loadUsers() {
     if (!data.success) throw new Error(data.message || 'Server error.');
 
     allUsers = data.users || [];
-    updateKpis(allUsers);
+    customRoles = data.custom_roles || [];
+    populateRoleOptions();
+    renderCustomRolesList();
+    updateKpis();
     filterUsers();
   } catch (err) {
     console.error('Error loading users:', err);
@@ -101,18 +227,82 @@ async function loadUsers() {
   }
 }
 
-function updateKpis(users) {
-  const total = users.length;
-  const active = users.filter(u => (u.account_status || 'Active').toLowerCase() === 'active').length;
-  const admins = users.filter(u => (u.role || '').toLowerCase() === 'admin').length;
-  const staff = total - admins;
+// -------------------------------------------------------------
+// DATA LOADING: Account Creation Requests
+// -------------------------------------------------------------
+async function loadRequests(showFeedback = false) {
+  showTopLoader();
+  try {
+    const res = await fetch('../api/users.php?requests=1');
+    if (!res.ok) throw new Error('Failed to retrieve account creation requests.');
 
-  document.getElementById('kpiTotalUsers').textContent = total;
-  document.getElementById('kpiActiveUsers').textContent = active;
-  document.getElementById('kpiAdminUsers').textContent = admins;
-  document.getElementById('kpiStaffUsers').textContent = staff;
+    const data = await res.json();
+    if (!data.success) throw new Error(data.message || 'Server error.');
+
+    allRequests = data.requests || [];
+    updateKpis();
+    filterRequests();
+
+    if (showFeedback) {
+      showToast('Account creation requests refreshed.', 'info');
+    }
+  } catch (err) {
+    console.error('Error loading account requests:', err);
+    showToast('Failed to load account requests: ' + err.message, 'danger');
+  } finally {
+    hideTopLoader();
+  }
 }
 
+// -------------------------------------------------------------
+// UPDATE KPIS
+// -------------------------------------------------------------
+function updateKpis() {
+  const total = allUsers.length;
+  const active = allUsers.filter(u => (u.account_status || 'Active').toLowerCase() === 'active').length;
+  const admins = allUsers.filter(u => (u.role || '').toLowerCase() === 'admin').length;
+  const pendingRequests = allRequests.filter(r => (r.status || 'Pending').toLowerCase() === 'pending').length;
+
+  // KPI Cards
+  const kpiTotal = document.getElementById('kpiTotalUsers');
+  const kpiActive = document.getElementById('kpiActiveUsers');
+  const kpiAdmin = document.getElementById('kpiAdminUsers');
+  const kpiPending = document.getElementById('kpiPendingRequests');
+  const kpiPendingSub = document.getElementById('kpiPendingSubtext');
+
+  if (kpiTotal) kpiTotal.textContent = total;
+  if (kpiActive) kpiActive.textContent = active;
+  if (kpiAdmin) kpiAdmin.textContent = admins;
+
+  if (kpiPending) {
+    kpiPending.textContent = pendingRequests;
+    if (pendingRequests > 0) {
+      kpiPending.style.color = '#d97706';
+      if (kpiPendingSub) kpiPendingSub.textContent = 'Action required: Review requests';
+    } else {
+      kpiPending.style.color = 'var(--text-muted)';
+      if (kpiPendingSub) kpiPendingSub.textContent = 'All requests reviewed';
+    }
+  }
+
+  // Tab count badges
+  const tabUsersBadge = document.getElementById('tabUsersCountBadge');
+  const tabRequestsBadge = document.getElementById('tabRequestsPendingBadge');
+
+  if (tabUsersBadge) tabUsersBadge.textContent = total;
+  if (tabRequestsBadge) {
+    tabRequestsBadge.textContent = `${pendingRequests} Pending`;
+    if (pendingRequests > 0) {
+      tabRequestsBadge.className = 'badge badge-warning';
+    } else {
+      tabRequestsBadge.className = 'badge badge-secondary';
+    }
+  }
+}
+
+// -------------------------------------------------------------
+// FILTER & RENDER: System Users Table
+// -------------------------------------------------------------
 function filterUsers() {
   const query = (document.getElementById('searchUserInput')?.value || '').toLowerCase().trim();
   const roleVal = document.getElementById('filterUserRole')?.value || 'all';
@@ -121,7 +311,8 @@ function filterUsers() {
   const filtered = allUsers.filter(u => {
     const matchQuery = !query || 
       (u.full_name || '').toLowerCase().includes(query) || 
-      (u.username || '').toLowerCase().includes(query);
+      (u.username || '').toLowerCase().includes(query) || 
+      (u.email || '').toLowerCase().includes(query);
 
     const matchRole = (roleVal === 'all') || 
       (u.role || '').toLowerCase() === roleVal.toLowerCase();
@@ -211,17 +402,17 @@ function renderUsersTable(users) {
             <div class="user-avatar">${initials}</div>
             <div>
               <div style="font-weight:700; color:var(--text-main); font-size:13.5px;">
-                ${u.full_name}
+                ${escapeHtml(u.full_name)}
                 ${isSelf ? '<span class="badge badge-info" style="font-size:10px; margin-left:4px;">You</span>' : ''}
               </div>
-              <div style="font-size:11.5px; color:var(--text-muted);">
-                User ID: #${u.user_id} &bull; ${u.transaction_count || 0} sales recorded
+              <div style="font-size:12px; color:var(--text-muted); margin-top:1px;">
+                ${u.email ? `<span title="Email: ${escapeHtml(u.email)}">✉ ${escapeHtml(u.email)}</span>` : '<span style="font-style:italic;">No email registered</span>'}
               </div>
             </div>
           </div>
         </td>
-        <td><code>${u.username}</code></td>
-        <td><span class="badge ${roleBadgeClass}">${u.role}</span></td>
+        <td><code>${escapeHtml(u.username)}</code></td>
+        <td><span class="badge ${roleBadgeClass}">${escapeHtml(u.role)}</span></td>
         <td>${permsHtml}</td>
         <td>${statusBadge}</td>
         <td style="text-align: right;">
@@ -232,13 +423,13 @@ function renderUsersTable(users) {
             </button>
 
             ${!isPrimaryAdmin ? `
-              <button class="btn btn-secondary btn-sm" onclick="toggleUserStatus(${u.user_id}, '${u.account_status}')" title="${toggleBtnTitle}" style="${isActive ? 'color:var(--danger-text);' : 'color:#059669;'}">
+              <button class="btn btn-secondary btn-sm" onclick="promptToggleUserStatus(${u.user_id}, '${escapeHtml(u.full_name)}', '${u.account_status}')" title="${toggleBtnTitle}" style="${isActive ? 'color:var(--danger-text);' : 'color:#059669;'}">
                 ${toggleBtnIcon}
                 ${isActive ? 'Deactivate' : 'Activate'}
               </button>
 
               ${u.transaction_count === 0 ? `
-                <button class="btn btn-secondary btn-sm" onclick="deleteUser(${u.user_id}, '${encodeURIComponent(u.full_name)}')" title="Delete Account" style="color:var(--danger-text);">
+                <button class="btn btn-secondary btn-sm" onclick="promptDeleteUser(${u.user_id}, '${escapeHtml(u.full_name)}')" title="Delete Account" style="color:var(--danger-text);">
                   <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                 </button>
               ` : ''}
@@ -250,6 +441,530 @@ function renderUsersTable(users) {
   }).join('');
 }
 
+// -------------------------------------------------------------
+// FILTER & RENDER: Account Creation Requests Table
+// -------------------------------------------------------------
+function filterRequests() {
+  const query = (document.getElementById('searchReqInput')?.value || '').toLowerCase().trim();
+  const statusVal = document.getElementById('filterReqStatus')?.value || 'all';
+
+  const filtered = allRequests.filter(r => {
+    const matchQuery = !query || 
+      (r.full_name || '').toLowerCase().includes(query) || 
+      (r.username || '').toLowerCase().includes(query) || 
+      (r.email || '').toLowerCase().includes(query);
+
+    const matchStatus = (statusVal === 'all') || 
+      (r.status || 'Pending').toLowerCase() === statusVal.toLowerCase();
+
+    return matchQuery && matchStatus;
+  });
+
+  renderRequestsTable(filtered);
+}
+
+function renderRequestsTable(requests) {
+  const tbody = document.getElementById('requestsTableBody');
+  const badge = document.getElementById('requestsCountBadge');
+
+  if (badge) {
+    const pendingTotal = allRequests.filter(r => (r.status || '').toLowerCase() === 'pending').length;
+    badge.textContent = `Showing ${requests.length} of ${allRequests.length} request${allRequests.length === 1 ? '' : 's'} (${pendingTotal} pending)`;
+  }
+
+  if (!requests.length) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="7" class="empty-state">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+          <div>No account creation requests match the search or filter criteria.</div>
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  tbody.innerHTML = requests.map(r => {
+    const initials = (r.full_name || r.username || 'R')
+      .split(' ')
+      .map(p => p[0])
+      .slice(0, 2)
+      .join('')
+      .toUpperCase();
+
+    // Status Badge
+    const status = r.status || 'Pending';
+    let statusBadge = '';
+    if (status === 'Pending') {
+      statusBadge = `<span class="badge badge-warning" style="font-weight:700;">⏳ Pending Approval</span>`;
+    } else if (status === 'Approved') {
+      statusBadge = `<span class="badge badge-success">✓ Approved</span>`;
+    } else {
+      statusBadge = `<span class="badge" style="background:var(--danger-bg); color:var(--danger-text); border:1px solid #fca5a5;">✗ Rejected</span>`;
+    }
+
+    // Formatted dates
+    const dateFormatted = formatDateTime(r.created_at);
+    const reviewDateFormatted = r.reviewed_at ? formatDateTime(r.reviewed_at) : '';
+
+    // Review details
+    let reviewDetails = '';
+    if (status === 'Pending') {
+      reviewDetails = `<span style="color:var(--text-muted); font-size:12px;">Awaiting administrator review</span>`;
+    } else if (status === 'Approved') {
+      reviewDetails = `
+        <div style="font-size:12px; color:var(--text-main);">
+          Authorized by: <strong>${escapeHtml(r.reviewer_name || r.reviewer_username || 'Admin')}</strong>
+          <div style="font-size:11px; color:var(--text-muted);">${reviewDateFormatted}</div>
+        </div>
+      `;
+    } else if (status === 'Rejected') {
+      reviewDetails = `
+        <div style="font-size:12px; color:var(--danger-text);">
+          Declined by: <strong>${escapeHtml(r.reviewer_name || r.reviewer_username || 'Admin')}</strong>
+          ${r.rejection_reason ? `<div style="font-size:11.5px; color:var(--text-muted); margin-top:2px;">Reason: <em>${escapeHtml(r.rejection_reason)}</em></div>` : ''}
+          <div style="font-size:11px; color:var(--text-muted); margin-top:1px;">${reviewDateFormatted}</div>
+        </div>
+      `;
+    }
+
+    // Action buttons
+    let actionButtons = '';
+    if (status === 'Pending') {
+      actionButtons = `
+        <div style="display:inline-flex; gap:6px; justify-content:flex-end;">
+          <button class="btn btn-primary btn-sm" onclick="openApproveModal(${r.request_id})" title="Authorize and approve this account" style="background:#059669; border-color:#047857;">
+            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+            Approve
+          </button>
+          <button class="btn btn-secondary btn-sm" onclick="openRejectModal(${r.request_id})" title="Decline this account request" style="color:var(--danger-text);">
+            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            Decline
+          </button>
+        </div>
+      `;
+    } else {
+      actionButtons = `
+        <div style="display:inline-flex; gap:6px; justify-content:flex-end;">
+          <button class="btn btn-secondary btn-sm" onclick="promptDeleteRequestRecord(${r.request_id})" title="Remove record from request history" style="color:var(--text-muted);">
+            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+          </button>
+        </div>
+      `;
+    }
+
+    return `
+      <tr>
+        <td>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <div class="user-avatar" style="background:var(--brand-gold-light); color:var(--brand-gold-hover);">${initials}</div>
+            <div>
+              <div style="font-weight:700; color:var(--text-main); font-size:13.5px;">${escapeHtml(r.full_name)}</div>
+              <div style="font-size:11.5px; color:var(--text-muted);"><code>@${escapeHtml(r.username)}</code></div>
+            </div>
+          </div>
+        </td>
+        <td>
+          <a href="mailto:${escapeHtml(r.email)}" style="color:var(--primary); text-decoration:none; font-weight:600;">
+            ${escapeHtml(r.email)}
+          </a>
+        </td>
+        <td><span class="badge badge-info">${escapeHtml(r.role || 'Cashier')}</span></td>
+        <td style="font-size:12px; color:var(--text-muted);">${dateFormatted}</td>
+        <td>${statusBadge}</td>
+        <td>${reviewDetails}</td>
+        <td style="text-align: right;">${actionButtons}</td>
+      </tr>
+    `;
+  }).join('');
+}
+
+// -------------------------------------------------------------
+// UNIVERSAL ACTION AUTHORIZATION PROMPT (Password Required)
+// -------------------------------------------------------------
+function promptAdminPasswordAction({ title, promptText, confirmBtnText, btnColor, onConfirm }) {
+  pendingAdminAction = onConfirm;
+  document.getElementById('adminActionModalTitle').textContent = title || 'Administrator Authorization';
+  document.getElementById('adminActionPromptText').innerHTML = promptText;
+
+  const btnConfirm = document.getElementById('btnAdminActionConfirm');
+  btnConfirm.textContent = confirmBtnText || 'Confirm Authorization';
+  if (btnColor) {
+    btnConfirm.style.background = btnColor;
+    btnConfirm.style.borderColor = btnColor;
+  } else {
+    btnConfirm.style.background = 'var(--primary)';
+    btnConfirm.style.borderColor = 'var(--primary)';
+  }
+
+  const passInput = document.getElementById('adminActionPasswordInput');
+  if (passInput) passInput.value = '';
+
+  const alertBox = document.getElementById('adminActionErrorAlert');
+  if (alertBox) alertBox.style.display = 'none';
+
+  openModal('modalAdminActionAuth');
+  setTimeout(() => passInput?.focus(), 150);
+}
+
+async function handleAdminActionSubmit(e) {
+  e.preventDefault();
+
+  const adminPassword = document.getElementById('adminActionPasswordInput').value;
+  const alertBox = document.getElementById('adminActionErrorAlert');
+  const btnConfirm = document.getElementById('btnAdminActionConfirm');
+
+  if (!adminPassword) {
+    if (alertBox) {
+      alertBox.textContent = 'Please enter your administrator password to proceed.';
+      alertBox.style.display = 'block';
+    }
+    return;
+  }
+
+  if (typeof pendingAdminAction !== 'function') {
+    closeModal('modalAdminActionAuth');
+    return;
+  }
+
+  btnConfirm.disabled = true;
+  btnConfirm.textContent = 'Verifying Password...';
+
+  try {
+    const success = await pendingAdminAction(adminPassword);
+    if (success) {
+      closeModal('modalAdminActionAuth');
+      pendingAdminAction = null;
+    }
+  } catch (err) {
+    if (alertBox) {
+      alertBox.textContent = err.message || 'Authorization failed. Incorrect administrator password.';
+      alertBox.style.display = 'block';
+    }
+    document.getElementById('adminActionPasswordInput')?.select();
+  } finally {
+    btnConfirm.disabled = false;
+    btnConfirm.textContent = 'Confirm Authorization';
+  }
+}
+
+// -------------------------------------------------------------
+// QUICK ACTIONS WITH PASSWORD PROMPT: Toggle Status, Delete User, Delete Request
+// -------------------------------------------------------------
+function promptToggleUserStatus(userId, fullName, currentStatus) {
+  const isActivating = (currentStatus || 'Active').toLowerCase() !== 'active';
+  const actionText = isActivating ? 'activate' : 'deactivate';
+
+  promptAdminPasswordAction({
+    title: `${isActivating ? 'Activate' : 'Deactivate'} User Account`,
+    promptText: `Are you sure you want to <strong>${actionText}</strong> the account for <strong>${fullName}</strong>? Enter your administrator password to authorize this status change:`,
+    confirmBtnText: `Authorize & ${isActivating ? 'Activate' : 'Deactivate'}`,
+    btnColor: isActivating ? '#059669' : 'var(--danger-text)',
+    onConfirm: async (adminPassword) => {
+      const currentUser = JSON.parse(sessionStorage.getItem('roberice_logged_user')) || {};
+      const res = await fetch('../api/users.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'toggle_status',
+          user_id: userId,
+          admin_password: adminPassword,
+          admin_user_id: currentUser.id || 1,
+          admin_username: currentUser.username || 'admin'
+        })
+      });
+
+      const result = await res.json();
+      if (!result.success) throw new Error(result.message || 'Authorization failed.');
+
+      showToast(result.message || 'Status updated successfully.', 'success');
+      await loadUsers();
+      return true;
+    }
+  });
+}
+
+function promptDeleteUser(userId, fullName) {
+  promptAdminPasswordAction({
+    title: 'Delete System User Account',
+    promptText: `Are you sure you want to permanently delete the account for <strong>${fullName}</strong>? This action cannot be undone. Enter your administrator password to authorize deletion:`,
+    confirmBtnText: 'Authorize & Delete Account',
+    btnColor: 'var(--danger-text)',
+    onConfirm: async (adminPassword) => {
+      const currentUser = JSON.parse(sessionStorage.getItem('roberice_logged_user')) || {};
+      const res = await fetch('../api/users.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'delete',
+          user_id: userId,
+          admin_password: adminPassword,
+          admin_user_id: currentUser.id || 1,
+          admin_username: currentUser.username || 'admin'
+        })
+      });
+
+      const result = await res.json();
+      if (!result.success) throw new Error(result.message || 'Authorization failed.');
+
+      showToast(result.message || 'User deleted successfully.', 'success');
+      await loadUsers();
+      return true;
+    }
+  });
+}
+
+function promptDeleteRequestRecord(requestId) {
+  promptAdminPasswordAction({
+    title: 'Remove Request Record',
+    promptText: `Remove this account request record from historical logs? Enter your administrator password to authorize removal:`,
+    confirmBtnText: 'Authorize & Remove',
+    btnColor: 'var(--danger-text)',
+    onConfirm: async (adminPassword) => {
+      const currentUser = JSON.parse(sessionStorage.getItem('roberice_logged_user')) || {};
+      const res = await fetch('../api/users.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'delete_request',
+          request_id: requestId,
+          admin_password: adminPassword,
+          admin_user_id: currentUser.id || 1,
+          admin_username: currentUser.username || 'admin'
+        })
+      });
+
+      const result = await res.json();
+      if (!result.success) throw new Error(result.message || 'Authorization failed.');
+
+      showToast(result.message || 'Record removed.', 'success');
+      await loadRequests();
+      return true;
+    }
+  });
+}
+
+// -------------------------------------------------------------
+// APPROVAL MODAL (WITH ADMIN PASSWORD AUTHENTICATION)
+// -------------------------------------------------------------
+function openApproveModal(requestId) {
+  const req = allRequests.find(r => r.request_id === requestId);
+  if (!req) {
+    showToast('Account request not found.', 'danger');
+    return;
+  }
+
+  document.getElementById('approveReqId').value = req.request_id;
+  document.getElementById('approveApplicantName').textContent = req.full_name;
+  document.getElementById('approveApplicantUsername').textContent = `@${req.username}`;
+  document.getElementById('approveApplicantEmail').textContent = req.email;
+  document.getElementById('approveApplicantRole').textContent = req.role || 'Cashier';
+
+  const roleSelect = document.getElementById('approveRoleSelect');
+  const approveCustomCont = document.getElementById('approveCustomRoleInputContainer');
+  const approveCustomInput = document.getElementById('approveCustomRoleNameInput');
+
+  const reqRole = req.role || 'Cashier';
+  const roleExists = roleSelect && [...roleSelect.options].some(o => o.value.toLowerCase() === reqRole.toLowerCase());
+
+  if (roleSelect) {
+    if (roleExists) {
+      roleSelect.value = reqRole;
+      if (approveCustomCont) approveCustomCont.style.display = 'none';
+      if (approveCustomInput) approveCustomInput.value = '';
+    } else {
+      roleSelect.value = '__custom__';
+      if (approveCustomCont) approveCustomCont.style.display = 'block';
+      if (approveCustomInput) approveCustomInput.value = reqRole;
+    }
+  }
+
+  const passInput = document.getElementById('approveAdminPassword');
+  if (passInput) passInput.value = '';
+
+  const alertBox = document.getElementById('approveErrorAlert');
+  if (alertBox) alertBox.style.display = 'none';
+
+  openModal('modalApproveRequest');
+  setTimeout(() => passInput?.focus(), 150);
+}
+
+async function handleApproveSubmit(e) {
+  e.preventDefault();
+
+  const requestId = parseInt(document.getElementById('approveReqId').value, 10);
+  const adminPassword = document.getElementById('approveAdminPassword').value;
+  let assignedRole = document.getElementById('approveRoleSelect').value;
+  const alertBox = document.getElementById('approveErrorAlert');
+  const btnConfirm = document.getElementById('btnConfirmApprove');
+
+  if (assignedRole === '__custom__') {
+    const customRoleName = document.getElementById('approveCustomRoleNameInput').value.trim();
+    if (!customRoleName) {
+      if (alertBox) {
+        alertBox.textContent = 'Please enter a name for the custom role.';
+        alertBox.style.display = 'block';
+      }
+      document.getElementById('approveCustomRoleNameInput')?.focus();
+      return;
+    }
+    assignedRole = customRoleName;
+  }
+
+  if (!adminPassword) {
+    if (alertBox) {
+      alertBox.textContent = 'Please enter your administrator password to confirm approval.';
+      alertBox.style.display = 'block';
+    }
+    return;
+  }
+
+  const currentUser = JSON.parse(sessionStorage.getItem('roberice_logged_user')) || {};
+
+  btnConfirm.disabled = true;
+  btnConfirm.textContent = 'Verifying Admin Password...';
+  if (alertBox) alertBox.style.display = 'none';
+
+  try {
+    const res = await fetch('../api/users.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'approve_request',
+        request_id: requestId,
+        admin_password: adminPassword,
+        admin_user_id: currentUser.id || 1,
+        admin_username: currentUser.username || 'admin',
+        role: assignedRole
+      })
+    });
+
+    const result = await res.json();
+
+    if (!result.success) {
+      if (alertBox) {
+        alertBox.textContent = result.message || 'Authorization failed. Incorrect administrator password.';
+        alertBox.style.display = 'block';
+      }
+      document.getElementById('approveAdminPassword')?.select();
+      return;
+    }
+
+    closeModal('modalApproveRequest');
+    showToast(result.message || 'Account approved successfully!', 'success');
+
+    // Reload both requests and users
+    await Promise.all([loadRequests(), loadUsers()]);
+
+  } catch (err) {
+    console.error('Approval error:', err);
+    if (alertBox) {
+      alertBox.textContent = 'Server error during approval: ' + err.message;
+      alertBox.style.display = 'block';
+    }
+  } finally {
+    btnConfirm.disabled = false;
+    btnConfirm.innerHTML = `
+      <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+      Authorize & Approve Account
+    `;
+  }
+}
+
+// -------------------------------------------------------------
+// REJECTION MODAL (WITH ADMIN PASSWORD AUTHENTICATION)
+// -------------------------------------------------------------
+function openRejectModal(requestId) {
+  const req = allRequests.find(r => r.request_id === requestId);
+  if (!req) {
+    showToast('Account request not found.', 'danger');
+    return;
+  }
+
+  document.getElementById('rejectReqId').value = req.request_id;
+  document.getElementById('rejectApplicantName').textContent = req.full_name;
+  document.getElementById('rejectApplicantUsername').textContent = `@${req.username}`;
+
+  const reasonInput = document.getElementById('rejectReasonInput');
+  if (reasonInput) reasonInput.value = '';
+
+  const passInput = document.getElementById('rejectAdminPassword');
+  if (passInput) passInput.value = '';
+
+  const alertBox = document.getElementById('rejectErrorAlert');
+  if (alertBox) alertBox.style.display = 'none';
+
+  openModal('modalRejectRequest');
+  setTimeout(() => passInput?.focus(), 150);
+}
+
+async function handleRejectSubmit(e) {
+  e.preventDefault();
+
+  const requestId = parseInt(document.getElementById('rejectReqId').value, 10);
+  const adminPassword = document.getElementById('rejectAdminPassword').value;
+  const reason = document.getElementById('rejectReasonInput').value.trim();
+  const alertBox = document.getElementById('rejectErrorAlert');
+  const btnConfirm = document.getElementById('btnConfirmReject');
+
+  if (!adminPassword) {
+    if (alertBox) {
+      alertBox.textContent = 'Please enter your administrator password to authenticate.';
+      alertBox.style.display = 'block';
+    }
+    return;
+  }
+
+  const currentUser = JSON.parse(sessionStorage.getItem('roberice_logged_user')) || {};
+
+  btnConfirm.disabled = true;
+  btnConfirm.textContent = 'Verifying Admin Password...';
+  if (alertBox) alertBox.style.display = 'none';
+
+  try {
+    const res = await fetch('../api/users.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'reject_request',
+        request_id: requestId,
+        admin_password: adminPassword,
+        admin_user_id: currentUser.id || 1,
+        admin_username: currentUser.username || 'admin',
+        rejection_reason: reason || 'Declined by administrator'
+      })
+    });
+
+    const result = await res.json();
+
+    if (!result.success) {
+      if (alertBox) {
+        alertBox.textContent = result.message || 'Authorization failed. Incorrect administrator password.';
+        alertBox.style.display = 'block';
+      }
+      document.getElementById('rejectAdminPassword')?.select();
+      return;
+    }
+
+    closeModal('modalRejectRequest');
+    showToast(result.message || 'Account request declined.', 'info');
+    await loadRequests();
+
+  } catch (err) {
+    console.error('Rejection error:', err);
+    if (alertBox) {
+      alertBox.textContent = 'Server error during rejection: ' + err.message;
+      alertBox.style.display = 'block';
+    }
+  } finally {
+    btnConfirm.disabled = false;
+    btnConfirm.textContent = 'Decline Request';
+  }
+}
+
+// -------------------------------------------------------------
+// MODAL: ADD / EDIT SYSTEM USER (ADMIN PASSWORD REQUIRED)
+// -------------------------------------------------------------
 function setPermissionCheckboxes(permIds) {
   const checkboxes = document.querySelectorAll('input[name="perm"]');
   checkboxes.forEach(cb => {
@@ -269,6 +984,7 @@ function openAddUserModal() {
   document.getElementById('modalUserTitle').textContent = 'Add New System User';
   document.getElementById('userIdInput').value = '';
   document.getElementById('fullNameInput').value = '';
+  document.getElementById('emailInput').value = '';
   document.getElementById('usernameInput').value = '';
   document.getElementById('passwordInput').value = '';
   document.getElementById('passwordInput').required = true;
@@ -277,6 +993,17 @@ function openAddUserModal() {
 
   document.getElementById('roleSelect').value = 'Cashier';
   document.getElementById('statusSelect').value = 'Active';
+
+  const customRoleCont = document.getElementById('customRoleInputContainer');
+  const customRoleInput = document.getElementById('customRoleNameInput');
+  if (customRoleCont) customRoleCont.style.display = 'none';
+  if (customRoleInput) customRoleInput.value = '';
+
+  const authPass = document.getElementById('adminAuthPasswordUserForm');
+  if (authPass) authPass.value = '';
+
+  const errAlert = document.getElementById('userFormErrorAlert');
+  if (errAlert) errAlert.style.display = 'none';
 
   setPermissionCheckboxes(PRESETS.cashier);
   openModal('modalUserForm');
@@ -291,15 +1018,39 @@ function openEditUserModal(userId) {
 
   document.getElementById('modalUserTitle').textContent = `Edit User & Permissions: ${user.full_name}`;
   document.getElementById('userIdInput').value = user.user_id;
-  document.getElementById('fullNameInput').value = user.full_name;
-  document.getElementById('usernameInput').value = user.username;
+  document.getElementById('fullNameInput').value = user.full_name || '';
+  document.getElementById('emailInput').value = user.email || '';
+  document.getElementById('usernameInput').value = user.username || '';
   document.getElementById('passwordInput').value = '';
   document.getElementById('passwordInput').required = false;
   document.getElementById('passwordRequiredStar').style.display = 'none';
   document.getElementById('passwordHelpText').style.display = 'block';
 
-  document.getElementById('roleSelect').value = user.role || 'Cashier';
+  const roleSelect = document.getElementById('roleSelect');
+  const customRoleCont = document.getElementById('customRoleInputContainer');
+  const customRoleInput = document.getElementById('customRoleNameInput');
+  const userRole = user.role || 'Cashier';
+  const roleExists = roleSelect && [...roleSelect.options].some(o => o.value.toLowerCase() === userRole.toLowerCase());
+
+  if (roleSelect) {
+    if (roleExists) {
+      roleSelect.value = userRole;
+      if (customRoleCont) customRoleCont.style.display = 'none';
+      if (customRoleInput) customRoleInput.value = '';
+    } else {
+      roleSelect.value = '__custom__';
+      if (customRoleCont) customRoleCont.style.display = 'block';
+      if (customRoleInput) customRoleInput.value = userRole;
+    }
+  }
+
   document.getElementById('statusSelect').value = user.account_status || 'Active';
+
+  const authPass = document.getElementById('adminAuthPasswordUserForm');
+  if (authPass) authPass.value = '';
+
+  const errAlert = document.getElementById('userFormErrorAlert');
+  if (errAlert) errAlert.style.display = 'none';
 
   const userPerms = Array.isArray(user.permissions) ? user.permissions : [];
   setPermissionCheckboxes(userPerms);
@@ -312,19 +1063,46 @@ async function handleUserFormSubmit(e) {
 
   const userId = document.getElementById('userIdInput').value;
   const fullName = document.getElementById('fullNameInput').value.trim();
+  const email = document.getElementById('emailInput').value.trim();
   const username = document.getElementById('usernameInput').value.trim();
   const password = document.getElementById('passwordInput').value;
-  const role = document.getElementById('roleSelect').value;
+  let role = document.getElementById('roleSelect').value;
   const account_status = document.getElementById('statusSelect').value;
   const permissions = getSelectedPermissions();
+  const adminPassword = document.getElementById('adminAuthPasswordUserForm').value;
+  const errAlert = document.getElementById('userFormErrorAlert');
 
-  if (!fullName || !username) {
-    showToast('Please fill in all required fields.', 'warning');
+  if (errAlert) errAlert.style.display = 'none';
+
+  if (role === '__custom__') {
+    const customRoleName = document.getElementById('customRoleNameInput').value.trim();
+    if (!customRoleName) {
+      if (errAlert) {
+        errAlert.textContent = 'Please enter a name for the custom role.';
+        errAlert.style.display = 'block';
+      }
+      document.getElementById('customRoleNameInput')?.focus();
+      return;
+    }
+    role = customRoleName;
+  }
+
+  if (!fullName || !username || !email) {
+    showToast('Please fill in all required fields (Full name, Email, and Username).', 'warning');
     return;
   }
 
   if (!userId && !password) {
     showToast('Password is required for new accounts.', 'warning');
+    return;
+  }
+
+  if (!adminPassword) {
+    if (errAlert) {
+      errAlert.textContent = 'Administrator password is required to authorize this action.';
+      errAlert.style.display = 'block';
+    }
+    document.getElementById('adminAuthPasswordUserForm')?.focus();
     return;
   }
 
@@ -334,21 +1112,26 @@ async function handleUserFormSubmit(e) {
     }
   }
 
+  const currentUser = JSON.parse(sessionStorage.getItem('roberice_logged_user')) || {};
   const isEditing = Boolean(userId);
   const payload = {
     action: isEditing ? 'update' : 'create',
     user_id: isEditing ? parseInt(userId, 10) : undefined,
     full_name: fullName,
+    email: email,
     username: username,
     password: password,
     role: role,
     account_status: account_status,
-    permissions: permissions
+    permissions: permissions,
+    admin_password: adminPassword,
+    admin_user_id: currentUser.id || 1,
+    admin_username: currentUser.username || 'admin'
   };
 
   const btnSave = document.getElementById('btnSaveUser');
   btnSave.disabled = true;
-  btnSave.textContent = 'Saving Account...';
+  btnSave.textContent = 'Verifying Admin Password...';
   showTopLoader();
 
   try {
@@ -360,7 +1143,12 @@ async function handleUserFormSubmit(e) {
 
     const result = await res.json();
     if (!result.success) {
-      throw new Error(result.message || 'Error processing user account.');
+      if (errAlert) {
+        errAlert.textContent = result.message || 'Authorization failed. Incorrect administrator password.';
+        errAlert.style.display = 'block';
+      }
+      document.getElementById('adminAuthPasswordUserForm')?.select();
+      return;
     }
 
     showToast(result.message || 'User saved successfully!', 'success');
@@ -368,72 +1156,308 @@ async function handleUserFormSubmit(e) {
     await loadUsers();
   } catch (err) {
     console.error('Save user error:', err);
-    showToast(err.message, 'danger');
+    if (errAlert) {
+      errAlert.textContent = 'Error processing request: ' + err.message;
+      errAlert.style.display = 'block';
+    }
   } finally {
     btnSave.disabled = false;
-    btnSave.textContent = 'Save User Account';
+    btnSave.textContent = 'Authorize & Save Account';
     hideTopLoader();
   }
 }
 
-async function toggleUserStatus(userId, currentStatus) {
-  const isActivating = (currentStatus || 'Active').toLowerCase() !== 'active';
-  const actionText = isActivating ? 'activate' : 'deactivate';
+// -------------------------------------------------------------
+// HELPER FUNCTIONS
+// -------------------------------------------------------------
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
 
-  if (!confirm(`Are you sure you want to ${actionText} this user account?`)) {
+function formatDateTime(dateStr) {
+  if (!dateStr) return '-';
+  try {
+    const d = new Date(dateStr.replace(' ', 'T'));
+    if (isNaN(d.getTime())) return dateStr;
+    return d.toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
+  } catch (e) {
+    return dateStr;
+  }
+}
+
+// -------------------------------------------------------------
+// CUSTOM ROLE MANAGEMENT FUNCTIONS
+// -------------------------------------------------------------
+function populateRoleOptions() {
+  const filterRoleSelect = document.getElementById('filterUserRole');
+  const roleSelect = document.getElementById('roleSelect');
+  const approveRoleSelect = document.getElementById('approveRoleSelect');
+
+  const currentFilterVal = filterRoleSelect ? filterRoleSelect.value : 'all';
+  const currentRoleVal = roleSelect ? roleSelect.value : 'Cashier';
+  const currentApproveVal = approveRoleSelect ? approveRoleSelect.value : 'Cashier';
+
+  // 1. Populate filterUserRole
+  if (filterRoleSelect) {
+    let filterHtml = `
+      <option value="all">All Roles</option>
+      <option value="Admin">Administrator</option>
+      <option value="Cashier">Cashier</option>
+      <option value="Store Manager">Store Manager</option>
+      <option value="Inventory Clerk">Inventory Clerk</option>
+    `;
+    customRoles.forEach(cr => {
+      filterHtml += `<option value="${escapeHtml(cr.role_name)}">${escapeHtml(cr.role_name)}</option>`;
+    });
+    filterRoleSelect.innerHTML = filterHtml;
+    if ([...filterRoleSelect.options].some(o => o.value.toLowerCase() === currentFilterVal.toLowerCase())) {
+      filterRoleSelect.value = currentFilterVal;
+    }
+  }
+
+  // 2. Populate roleSelect (in User Add/Edit modal)
+  if (roleSelect) {
+    let optsHtml = `
+      <option value="Admin">Administrator (Full Access)</option>
+      <option value="Cashier">Cashier</option>
+      <option value="Store Manager">Store Manager</option>
+      <option value="Inventory Clerk">Inventory Clerk</option>
+    `;
+    if (customRoles.length > 0) {
+      optsHtml += `<optgroup label="Custom Roles">`;
+      customRoles.forEach(cr => {
+        optsHtml += `<option value="${escapeHtml(cr.role_name)}">${escapeHtml(cr.role_name)}</option>`;
+      });
+      optsHtml += `</optgroup>`;
+    }
+    optsHtml += `<option value="__custom__">✨ + Enter Custom Role Name...</option>`;
+    roleSelect.innerHTML = optsHtml;
+    if ([...roleSelect.options].some(o => o.value.toLowerCase() === currentRoleVal.toLowerCase())) {
+      roleSelect.value = currentRoleVal;
+    }
+  }
+
+  // 3. Populate approveRoleSelect (in Approve Request modal)
+  if (approveRoleSelect) {
+    let approveOptsHtml = `
+      <option value="Cashier">Cashier</option>
+      <option value="Inventory Clerk">Inventory Clerk</option>
+      <option value="Store Manager">Store Manager</option>
+      <option value="Admin">Administrator</option>
+    `;
+    if (customRoles.length > 0) {
+      approveOptsHtml += `<optgroup label="Custom Roles">`;
+      customRoles.forEach(cr => {
+        approveOptsHtml += `<option value="${escapeHtml(cr.role_name)}">${escapeHtml(cr.role_name)}</option>`;
+      });
+      approveOptsHtml += `</optgroup>`;
+    }
+    approveOptsHtml += `<option value="__custom__">✨ + Enter Custom Role Name...</option>`;
+    approveRoleSelect.innerHTML = approveOptsHtml;
+    if ([...approveRoleSelect.options].some(o => o.value.toLowerCase() === currentApproveVal.toLowerCase())) {
+      approveRoleSelect.value = currentApproveVal;
+    }
+  }
+}
+
+function openManageRolesModal() {
+  const errBox = document.getElementById('customRoleFormError');
+  if (errBox) errBox.style.display = 'none';
+
+  const roleNameInput = document.getElementById('newRoleNameInput');
+  if (roleNameInput) roleNameInput.value = '';
+
+  const passInput = document.getElementById('createRoleAdminPassword');
+  if (passInput) passInput.value = '';
+
+  // Default permissions: pos, view-inventory, transactions
+  document.querySelectorAll('input[name="newRolePerm"]').forEach(cb => {
+    cb.checked = ['pos', 'view-inventory', 'transactions'].includes(cb.value);
+  });
+
+  renderCustomRolesList();
+  openModal('modalManageRoles');
+  setTimeout(() => roleNameInput?.focus(), 150);
+}
+
+function renderCustomRolesList() {
+  const container = document.getElementById('customRolesListContainer');
+  const countBadge = document.getElementById('customRolesCountBadge');
+
+  if (countBadge) {
+    countBadge.textContent = `${customRoles.length} Custom Role${customRoles.length === 1 ? '' : 's'}`;
+  }
+
+  if (!container) return;
+
+  if (customRoles.length === 0) {
+    container.innerHTML = `
+      <div style="font-size: 12.5px; color: var(--text-muted); padding: 14px; background: var(--bg-main); border-radius: var(--radius-md); text-align: center; border: 1px dashed var(--border-color);">
+        No custom roles configured yet. You can define one below.
+      </div>
+    `;
     return;
   }
 
-  showTopLoader();
+  container.innerHTML = customRoles.map(cr => {
+    const perms = Array.isArray(cr.default_permissions) ? cr.default_permissions : [];
+    const permsBadges = perms.map(p => {
+      const def = MODULE_DEFINITIONS.find(m => m.id === p);
+      return `<span class="badge badge-secondary" style="font-size: 10.5px; padding: 2px 6px;">${def ? def.icon + ' ' + def.label : p}</span>`;
+    }).join(' ');
+
+    const assignedUserCount = allUsers.filter(u => (u.role || '').toLowerCase() === cr.role_name.toLowerCase()).length;
+
+    return `
+      <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: var(--bg-main); border: 1px solid var(--border-color); border-radius: var(--radius-md); gap: 12px; flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 200px;">
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+            <strong style="font-size: 13.5px; color: var(--text-main);">${escapeHtml(cr.role_name)}</strong>
+            <span class="badge badge-info" style="font-size: 10.5px;">${assignedUserCount} User${assignedUserCount === 1 ? '' : 's'} Assigned</span>
+          </div>
+          <div style="display: flex; flex-wrap: wrap; gap: 4px; align-items: center;">
+            <span style="font-size: 11px; color: var(--text-muted);">Default:</span>
+            ${permsBadges || '<span style="font-size: 11px; color: var(--text-muted); font-style: italic;">No permissions</span>'}
+          </div>
+        </div>
+        <div>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="promptDeleteCustomRole(${cr.role_id}, '${escapeHtml(cr.role_name)}')" title="Delete custom role" style="color: var(--danger-text); padding: 4px 8px; font-size: 11.5px;">
+            <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+            Delete
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function handleCreateCustomRoleSubmit(e) {
+  e.preventDefault();
+
+  const roleName = document.getElementById('newRoleNameInput').value.trim();
+  const adminPassword = document.getElementById('createRoleAdminPassword').value;
+  const errBox = document.getElementById('customRoleFormError');
+  const btnSubmit = document.getElementById('btnSubmitCustomRole');
+
+  if (errBox) errBox.style.display = 'none';
+
+  if (!roleName) {
+    if (errBox) {
+      errBox.textContent = 'Please enter a custom role name.';
+      errBox.style.display = 'block';
+    }
+    return;
+  }
+
+  if (!adminPassword) {
+    if (errBox) {
+      errBox.textContent = 'Administrator password is required to authorize creating a custom role.';
+      errBox.style.display = 'block';
+    }
+    document.getElementById('createRoleAdminPassword')?.focus();
+    return;
+  }
+
+  const selectedPerms = [];
+  document.querySelectorAll('input[name="newRolePerm"]:checked').forEach(cb => {
+    selectedPerms.push(cb.value);
+  });
+
+  const currentUser = JSON.parse(sessionStorage.getItem('roberice_logged_user')) || {};
+
+  btnSubmit.disabled = true;
+  btnSubmit.textContent = 'Verifying Admin Password...';
+
   try {
     const res = await fetch('../api/users.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        action: 'toggle_status',
-        user_id: userId
+        action: 'create_role',
+        role_name: roleName,
+        permissions: selectedPerms,
+        admin_password: adminPassword,
+        admin_user_id: currentUser.id || 1,
+        admin_username: currentUser.username || 'admin'
       })
     });
 
     const result = await res.json();
-    if (!result.success) throw new Error(result.message || 'Failed to update status.');
 
-    showToast(result.message || 'Status updated successfully.', 'success');
+    if (!result.success) {
+      if (errBox) {
+        errBox.textContent = result.message || 'Failed to create custom role. Check administrator password.';
+        errBox.style.display = 'block';
+      }
+      document.getElementById('createRoleAdminPassword')?.select();
+      return;
+    }
+
+    showToast(result.message || 'Custom role created successfully!', 'success');
+
+    // Reset inputs
+    document.getElementById('newRoleNameInput').value = '';
+    document.getElementById('createRoleAdminPassword').value = '';
+
+    // Reload users and custom roles from server
     await loadUsers();
+    renderCustomRolesList();
   } catch (err) {
-    console.error('Toggle status error:', err);
-    showToast(err.message, 'danger');
+    console.error('Error creating custom role:', err);
+    if (errBox) {
+      errBox.textContent = 'Server error: ' + err.message;
+      errBox.style.display = 'block';
+    }
   } finally {
-    hideTopLoader();
+    btnSubmit.disabled = false;
+    btnSubmit.innerHTML = `
+      <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+      Authorize & Save Custom Role
+    `;
   }
 }
 
-async function deleteUser(userId, encodedName) {
-  const fullName = decodeURIComponent(encodedName);
-  if (!confirm(`Are you sure you want to permanently delete the account for "${fullName}"? This action cannot be undone.`)) {
-    return;
-  }
+function promptDeleteCustomRole(roleId, roleName) {
+  promptAdminPasswordAction({
+    title: 'Delete Custom Role',
+    promptText: `Are you sure you want to delete the custom role <strong>'${escapeHtml(roleName)}'</strong>? Enter your administrator password to authorize:`,
+    confirmBtnText: 'Authorize & Delete Role',
+    btnColor: 'var(--danger-text)',
+    onConfirm: async (adminPassword) => {
+      const currentUser = JSON.parse(sessionStorage.getItem('roberice_logged_user')) || {};
+      const res = await fetch('../api/users.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'delete_role',
+          role_id: roleId,
+          role_name: roleName,
+          admin_password: adminPassword,
+          admin_user_id: currentUser.id || 1,
+          admin_username: currentUser.username || 'admin'
+        })
+      });
 
-  showTopLoader();
-  try {
-    const res = await fetch('../api/users.php', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: 'delete',
-        user_id: userId
-      })
-    });
+      const result = await res.json();
+      if (!result.success) throw new Error(result.message || 'Authorization failed.');
 
-    const result = await res.json();
-    if (!result.success) throw new Error(result.message || 'Failed to delete user.');
-
-    showToast(result.message || 'User deleted successfully.', 'success');
-    await loadUsers();
-  } catch (err) {
-    console.error('Delete user error:', err);
-    showToast(err.message, 'danger');
-  } finally {
-    hideTopLoader();
-  }
+      showToast(result.message || 'Custom role deleted.', 'success');
+      await loadUsers();
+      renderCustomRolesList();
+      return true;
+    }
+  });
 }

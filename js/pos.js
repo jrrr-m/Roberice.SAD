@@ -1081,7 +1081,7 @@ async function processSale() {
 
     if (!result.success) {
       hidePageLoader();
-      showToast(result.message || 'Unable to complete sale.', 'danger');
+      showToast(result.message || 'Unable to process sale.', 'danger');
       return;
     }
 
@@ -1109,7 +1109,7 @@ async function processSale() {
     showToast(`Sale completed! Txn: ${transaction.id}`, 'success');
   } catch (error) {
     console.error(error);
-    showToast('Unable to complete sale.', 'danger');
+    showToast(error && error.message ? error.message : 'Unable to process sale.', 'danger');
   } finally {
     hidePageLoader();
   }
