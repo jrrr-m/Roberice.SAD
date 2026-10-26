@@ -182,9 +182,40 @@ function bindFilterEvents() {
     btnMonthPrev.addEventListener('click', () => {
       const monthInput = document.getElementById('filterMonthInput');
       if (monthInput) {
-        const d = new Date();
-        d.setMonth(d.getMonth() - 1);
-        monthInput.value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        let val = monthInput.value;
+        let [year, month] = (val && val.includes('-')) 
+          ? val.split('-').map(Number)
+          : [2026, 10];
+
+        month -= 1;
+        if (month < 1) {
+          month = 12;
+          year -= 1;
+        }
+
+        monthInput.value = `${year}-${String(month).padStart(2, '0')}`;
+        loadSalesReport();
+      }
+    });
+  }
+
+  const btnMonthNext = document.getElementById('btnMonthNext');
+  if (btnMonthNext) {
+    btnMonthNext.addEventListener('click', () => {
+      const monthInput = document.getElementById('filterMonthInput');
+      if (monthInput) {
+        let val = monthInput.value;
+        let [year, month] = (val && val.includes('-')) 
+          ? val.split('-').map(Number)
+          : [2026, 10];
+
+        month += 1;
+        if (month > 12) {
+          month = 1;
+          year += 1;
+        }
+
+        monthInput.value = `${year}-${String(month).padStart(2, '0')}`;
         loadSalesReport();
       }
     });

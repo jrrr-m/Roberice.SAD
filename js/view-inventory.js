@@ -268,74 +268,91 @@ function renderInventoryTable() {
     if (isExpanded) {
       let subTableContent = '';
 
-      if (p.batches.length === 0 && totalVolume <= 0) {
+      try {
+        const batchesList = Array.isArray(p.batches) ? p.batches : [];
+
+        if (batchesList.length === 0 && totalVolume <= 0) {
+          subTableContent = `
+            <div style="padding:18px;text-align:center;color:var(--text-muted);font-style:italic;">
+              All previous batches for <strong>${escapeHtml(p.name || 'this variety')}</strong> have run out and been archived to the audit log. Restock new inventory to create an active batch.
+            </div>
+          `;
+        } else if (batchesList.length === 0) {
+          subTableContent = `
+            <div style="padding:18px;text-align:center;color:var(--text-muted);font-style:italic;">
+              No individual batch lots recorded for <strong>${escapeHtml(p.name || 'this variety')}</strong> (Active stock balance: ${formatNumber(totalVolume)} kg).
+            </div>
+          `;
+        } else {
+          const displayBatches = batchesList;
+
+          const batchRowsHtml = displayBatches.map(b => {
+            if (!b) return '';
+            const bSacks = Number(b.stock_sacks ?? 0);
+            const b25 = Number(b.packaged_25kg ?? b.packaged25kg ?? 0);
+            const b20 = Number(b.packaged_20kg ?? b.packaged20kg ?? 0);
+            const b10 = Number(b.packaged_10kg ?? b.packaged10kg ?? 0);
+            const b5 = Number(b.packaged_5kg ?? b.packaged5kg ?? 0);
+            const bKg = Number(b.stock_kg ?? b.stockKg ?? 0);
+            const bVolume = Number(b.total_kg !== undefined && b.total_kg !== null ? b.total_kg : ((bSacks * 50) + (b25 * 25) + (b20 * 20) + (b10 * 10) + (b5 * 5) + bKg));
+            const bAgeBadge = getAgeBadge(b.days_old ?? b.daysOld ?? 0);
+            const batchCode = escapeHtml(b.batch_code || b.batchNumber || 'ACTIVE-LOT');
+            const recvDate = escapeHtml(b.received_date || b.receivedDate || 'N/A');
+
+            return `
+              <tr>
+                <td><span class="batch-code-tag">${batchCode}</span></td>
+                <td>${recvDate}</td>
+                <td>${bAgeBadge}</td>
+                <td><strong>${bSacks}</strong> whole</td>
+                <td>${b25}</td>
+                <td>${b20}</td>
+                <td>${b10}</td>
+                <td>${b5}</td>
+                <td>${formatNumber(bKg)} kg</td>
+                <td><strong style="color:var(--primary);">${formatNumber(bVolume)} kg</strong></td>
+                <td>
+                  <button class="btn btn-open-sack btn-sm" type="button" onclick="event.stopPropagation(); openViewOpenSackModal('${p.id}', '${batchCode}')" title="Open a sack from Batch ${batchCode}">
+                    Open Sack
+                  </button>
+                </td>
+              </tr>
+            `;
+          }).join('');
+
+          subTableContent = `
+            <table class="batch-subtable">
+              <thead>
+                <tr>
+                  <th>Batch Code</th>
+                  <th>Date Received</th>
+                  <th>Stock Age</th>
+                  <th>50Kg Sacks</th>
+                  <th>25Kg Half</th>
+                  <th>20Kg Sacks</th>
+                  <th>10Kg Packs</th>
+                  <th>5Kg Packs</th>
+                  <th>Loose Kg</th>
+                  <th>Batch Volume</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${batchRowsHtml}
+              </tbody>
+            </table>
+          `;
+        }
+      } catch (drawerErr) {
+        console.error('Error rendering batch drawer:', drawerErr);
         subTableContent = `
-          <div style="padding:14px;text-align:center;color:var(--text-muted);font-style:italic;">
-            All previous batches for <strong>${p.name}</strong> have run out and been archived to the audit log. Restock new inventory to create an active batch.
+          <div style="padding:16px;text-align:center;color:var(--danger-text);font-size:12.5px;">
+            ⚠️ Unable to display batch details: ${escapeHtml(drawerErr && drawerErr.message ? drawerErr.message : String(drawerErr))}
           </div>
         `;
-      } else {
-        const displayBatches = p.batches.length > 0 ? p.batches : [{
-          batch_code: p.batchNumber || 'ACTIVE-LOT',
-          received_date: p.receivedDate || '2026-10-12',
-          days_old: p.daysOld || 0,
-          stock_sacks: p.stockSacks,
-          packaged_25kg: p.packaged25kg,
-          packaged_20kg: p.packaged20kg,
-          packaged_10kg: p.packaged10kg,
-          packaged_5kg: p.packaged5kg,
-          stock_kg: p.stockKg,
-          total_kg: totalVolume
-        }];
-
-        const batchRowsHtml = displayBatches.map(b => {
-          const bVolume = Number(b.total_kg !== undefined ? b.total_kg : ((b.stock_sacks * 50) + (b.packaged_25kg * 25) + (b.packaged_20kg * 20) + (b.packaged_10kg * 10) + (b.packaged_5kg * 5) + b.stock_kg));
-          const bAgeBadge = getAgeBadge(b.days_old);
-
-          return `
-            <tr>
-              <td><span class="batch-code-tag">${b.batch_code}</span></td>
-              <td>${b.received_date}</td>
-              <td>${bAgeBadge}</td>
-              <td><strong>${b.stock_sacks}</strong> whole</td>
-              <td>${b.packaged_25kg}</td>
-              <td>${b.packaged_20kg}</td>
-              <td>${b.packaged_10kg}</td>
-              <td>${b.packaged_5kg}</td>
-              <td>${formatNumber(b.stock_kg)} kg</td>
-              <td><strong style="color:var(--primary);">${formatNumber(bVolume)} kg</strong></td>
-              <td>
-                <button class="btn btn-open-sack btn-sm" type="button" onclick="event.stopPropagation(); openViewOpenSackModal('${p.id}', '${b.batch_code}')" title="Open a sack from Batch ${b.batch_code}">
-                  Open Sack
-                </button>
-              </td>
-            </tr>
-          `;
-        }).join('');
-
-        subTableContent = `
-          <table class="batch-subtable">
-            <thead>
-              <tr>
-                <th>Batch Code</th>
-                <th>Date Received</th>
-                <th>Stock Age</th>
-                <th>50Kg Sacks</th>
-                <th>25Kg Half</th>
-                <th>20Kg Sacks</th>
-                <th>10Kg Packs</th>
-                <th>5Kg Packs</th>
-                <th>Loose Kg</th>
-                <th>Batch Volume</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${batchRowsHtml}
-            </tbody>
-          </table>
-        `;
       }
+
+      const activeBatchCount = Array.isArray(p.batches) ? p.batches.length : 0;
 
       htmlRows += `
         <tr class="batch-drawer-row">
@@ -343,8 +360,8 @@ function renderInventoryTable() {
             <div class="batch-drawer-box">
               <div class="batch-drawer-title-bar">
                 <h4>
-                  <span>📦 Available Batches for ${p.name}</span>
-                  <span style="font-size:12px;font-weight:600;color:var(--text-muted);">(${p.batches.length} lot(s) currently in warehouse)</span>
+                  <span>📦 Available Batches for ${escapeHtml(p.name || '')}</span>
+                  <span style="font-size:12px;font-weight:600;color:var(--text-muted);">(${activeBatchCount} lot(s) currently in warehouse)</span>
                 </h4>
                 <span class="batch-fifo-tag">FIFO: Oldest batches listed first for quality rotation</span>
               </div>
@@ -589,7 +606,7 @@ async function handleViewOpenSackSubmit(e) {
 
   hideViewOpenSackAlert();
   const loggedUser = JSON.parse(sessionStorage.getItem('roberice_logged_user') || '{}');
-  const userName = loggedUser.full_name || 'Admin User';
+  const userName = loggedUser.name || loggedUser.full_name || loggedUser.username || 'Admin User';
 
   try {
     const response = await fetch('api/adjust_stock.php', {

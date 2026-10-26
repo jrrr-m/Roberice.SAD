@@ -711,7 +711,7 @@ async function handleRestockSubmit(e) {
         receivedDate,
         batchNumber,
         note: `Restocked batch ${batchNumber} (${receivedDate})`,
-        user: user.name || 'Admin User'
+        user: user.name || user.full_name || user.username || 'Admin User'
       })
     });
 
@@ -867,7 +867,7 @@ async function handleAdjustSubmit(e) {
         packaged5kg,
         batchNumber,
         note,
-        user: user.name || 'Admin User'
+        user: user.name || user.full_name || user.username || 'Admin User'
       })
     });
 
@@ -1069,7 +1069,7 @@ async function handleOpenSackSubmit(e) {
         qty,
         batchNumber,
         note: note ? `${note} (Batch: ${batchNumber})` : `Opened from Batch ${batchNumber}`,
-        user: user.name || 'Admin User'
+        user: user.name || user.full_name || user.username || 'Admin User'
       })
     });
 

@@ -562,6 +562,14 @@ if ($method === "POST") {
             exit;
         }
 
+        if ($userId === $adminUserId) {
+            echo json_encode([
+                "success" => false,
+                "message" => "You cannot delete your own account."
+            ]);
+            exit;
+        }
+
         try {
             $txStmt = $conn->prepare("SELECT COUNT(*) FROM sales_transaction WHERE user_id = ?");
             $txStmt->execute([$userId]);

@@ -1405,7 +1405,7 @@ async function handlePosOpenSackSubmit(e) {
         qty,
         batchNumber,
         note: note ? `${note} (Batch: ${batchNumber})` : `Opened from Batch ${batchNumber}`,
-        user: user.name || 'Cashier'
+        user: user.name || user.full_name || user.username || 'Cashier'
       })
     });
 
