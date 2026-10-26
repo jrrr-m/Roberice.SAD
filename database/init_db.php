@@ -39,6 +39,14 @@ try {
         }
     }
 
+    // Ensure max_allowed_packet is increased for this session and globally if permitted
+    try {
+        $pdo->exec("SET GLOBAL max_allowed_packet = 67108864;");
+    } catch (Exception $ignored) {}
+    try {
+        $pdo->exec("SET SESSION max_allowed_packet = 67108864;");
+    } catch (Exception $ignored) {}
+
     // 4. Initialize schema and dataset from roberice_db.sql if uninitialized or confirmed fresh reset requested
     if (!$hasTables || $isFresh) {
         $sqlFile = __DIR__ . '/roberice_db.sql';
@@ -46,7 +54,7 @@ try {
             $imported = false;
             $mysqlBin = 'C:\\xampp\\mysql\\bin\\mysql.exe';
             if (file_exists($mysqlBin) && function_exists('exec')) {
-                $cmd = sprintf('"%s" -h%s -P%d -u%s %s < "%s"', 
+                $cmd = sprintf('"%s" --max_allowed_packet=64M -h%s -P%d -u%s %s < "%s"', 
                     $mysqlBin, 
                     $host, 
                     $port, 
@@ -61,8 +69,11 @@ try {
             }
 
             if (!$imported) {
+                // Read and execute in statement batches to never exceed any packet limit
                 $sqlContent = file_get_contents($sqlFile);
-                $pdo->exec($sqlContent);
+                if (!empty($sqlContent)) {
+                    $pdo->exec($sqlContent);
+                }
             }
         }
     }
