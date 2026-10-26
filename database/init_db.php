@@ -136,7 +136,7 @@ try {
     if (php_sapi_name() === 'cli') {
         echo "[Roberice] Database initialization completed successfully.\n";
         echo "Database: {$dbname}\n";
-        echo "Seed Data: roberice_db.sql (Data coverage: Oct 14, 2025 to Oct 21, 2026)\n";
+        echo "Seed Data: roberice_db.sql (Data coverage: Oct 14, 2025 to Oct 28, 2026)\n";
         echo "Status: Ready for live system demonstration.\n";
         exit(0);
     }
