@@ -571,20 +571,20 @@ if ($method === "POST") {
         }
 
         try {
-            $txStmt = $conn->prepare("SELECT COUNT(*) FROM sales_transaction WHERE user_id = ?");
-            $txStmt->execute([$userId]);
-            $count = (int)$txStmt->fetchColumn();
+            $conn->beginTransaction();
 
-            if ($count > 0) {
-                echo json_encode([
-                    "success" => false,
-                    "message" => "This user has {$count} recorded sales transactions and cannot be deleted to protect audit records. Please deactivate their account instead."
-                ]);
-                exit;
-            }
+            // If the user has sales transactions, reassign them to the authorized administrator so audit history is kept intact
+            $reassignStmt = $conn->prepare("UPDATE sales_transaction SET user_id = ? WHERE user_id = ?");
+            $reassignStmt->execute([$adminUserId, $userId]);
+
+            // Reassign any reviewed account requests to the current admin
+            $reqStmt = $conn->prepare("UPDATE account_requests SET reviewed_by = ? WHERE reviewed_by = ?");
+            $reqStmt->execute([$adminUserId, $userId]);
 
             $delStmt = $conn->prepare("DELETE FROM users WHERE user_id = ?");
             $delStmt->execute([$userId]);
+
+            $conn->commit();
 
             echo json_encode([
                 "success" => true,
@@ -592,6 +592,9 @@ if ($method === "POST") {
             ]);
             exit;
         } catch (PDOException $e) {
+            if ($conn->inTransaction()) {
+                $conn->rollBack();
+            }
             echo json_encode(["success" => false, "message" => "Error: " . $e->getMessage()]);
             exit;
         }

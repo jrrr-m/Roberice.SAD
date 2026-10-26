@@ -154,6 +154,21 @@ function bindFilterEvents() {
   }
 
   // Date input quick buttons
+  const btnDailyPrev = document.getElementById('btnDailyPrev');
+  if (btnDailyPrev) {
+    btnDailyPrev.addEventListener('click', () => {
+      const dailyInput = document.getElementById('filterDailyDate');
+      if (dailyInput && dailyInput.value) {
+        const [y, m, d] = dailyInput.value.split('-').map(Number);
+        const dt = new Date(y, m - 1, d);
+        dt.setDate(dt.getDate() - 1);
+        const prevStr = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+        dailyInput.value = prevStr;
+        loadSalesReport();
+      }
+    });
+  }
+
   const btnDailyToday = document.getElementById('btnDailyToday');
   if (btnDailyToday) {
     btnDailyToday.addEventListener('click', () => {
@@ -161,6 +176,40 @@ function bindFilterEvents() {
       if (dailyInput) {
         dailyInput.value = typeof getLocalDateString === 'function' ? getLocalDateString() : new Date().toLocaleDateString('en-CA');
         loadSalesReport();
+      }
+    });
+  }
+
+  const btnWeekPrev = document.getElementById('btnWeekPrev');
+  if (btnWeekPrev) {
+    btnWeekPrev.addEventListener('click', () => {
+      const weekInput = document.getElementById('filterWeekInput');
+      if (weekInput && weekInput.value) {
+        const match = weekInput.value.match(/^(\d{4})-W(\d{1,2})$/);
+        if (match) {
+          const y = parseInt(match[1], 10);
+          const w = parseInt(match[2], 10);
+          // Midweek Wednesday of the current ISO week
+          const simple = new Date(y, 0, 1 + (w - 1) * 7);
+          const dayOfWeek = simple.getDay();
+          const midWeek = new Date(simple);
+          if (dayOfWeek <= 4) {
+            midWeek.setDate(simple.getDate() - simple.getDay() + 3);
+          } else {
+            midWeek.setDate(simple.getDate() + 10 - simple.getDay());
+          }
+          // Shift back 7 days
+          midWeek.setDate(midWeek.getDate() - 7);
+          
+          // Calculate new ISO week
+          midWeek.setHours(0, 0, 0, 0);
+          midWeek.setDate(midWeek.getDate() + 3 - (midWeek.getDay() + 6) % 7);
+          const week1 = new Date(midWeek.getFullYear(), 0, 4);
+          const newWk = 1 + Math.round(((midWeek - week1) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
+          weekInput.value = `${midWeek.getFullYear()}-W${String(newWk).padStart(2, '0')}`;
+          updateWeeklyNotice();
+          loadSalesReport();
+        }
       }
     });
   }
@@ -199,23 +248,13 @@ function bindFilterEvents() {
     });
   }
 
-  const btnMonthNext = document.getElementById('btnMonthNext');
-  if (btnMonthNext) {
-    btnMonthNext.addEventListener('click', () => {
+  const btnMonthCurrent = document.getElementById('btnMonthCurrent') || document.getElementById('btnMonthNext');
+  if (btnMonthCurrent) {
+    btnMonthCurrent.addEventListener('click', () => {
       const monthInput = document.getElementById('filterMonthInput');
       if (monthInput) {
-        let val = monthInput.value;
-        let [year, month] = (val && val.includes('-')) 
-          ? val.split('-').map(Number)
-          : [2026, 10];
-
-        month += 1;
-        if (month > 12) {
-          month = 1;
-          year += 1;
-        }
-
-        monthInput.value = `${year}-${String(month).padStart(2, '0')}`;
+        const now = new Date();
+        monthInput.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
         loadSalesReport();
       }
     });

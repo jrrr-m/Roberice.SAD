@@ -1185,7 +1185,11 @@ body {
 }
 
 .batch-subtable th {
-  background: #f4ede0;
+  position: static !important;
+  top: auto !important;
+  z-index: auto !important;
+  box-shadow: none !important;
+  background: #f4ede0 !important;
   color: #142e20;
   padding: 8px 10px;
   font-weight: 700;

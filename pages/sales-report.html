@@ -8,7 +8,7 @@
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
   <link rel="icon" type="image/png" href="../assets/roberice-logo.png">
-  <link rel="stylesheet" href="../css/styles.css?v=20261021_v5">
+  <link rel="stylesheet" href="../css/styles.css?v=20261021_v8">
   <script>
     (function() {
       try {
@@ -71,7 +71,7 @@
             </button>
           </div>
 
-          <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end;">
+          <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; padding-bottom: 18px;">
             <!-- Report Type Dropdown -->
             <div class="form-group" style="margin-bottom:0; min-width: 170px;">
               <label for="filterReportType">Report Type</label>
@@ -87,31 +87,33 @@
             </div>
 
             <!-- 1. Daily Report Picker Group -->
-            <div class="form-group" id="dailyPickerGroup" style="margin-bottom:0; min-width: 180px;">
+            <div class="form-group" id="dailyPickerGroup" style="margin-bottom:0; min-width: 220px;">
               <label for="filterDailyDate">Target Date</label>
-              <div style="display:flex; gap:6px;">
-                <input type="date" id="filterDailyDate" class="form-control" value="2026-10-12">
-                <button type="button" class="btn btn-secondary btn-sm" id="btnDailyToday" title="Set to Today" style="padding: 0 10px; font-size: 11px;">Today</button>
+              <div style="display:flex; gap:6px; align-items:stretch;">
+                <button type="button" class="btn btn-secondary" id="btnDailyPrev" title="Previous Day" style="padding: 0 12px; font-size: 12px; height: 38px; white-space: nowrap;">Prev Day</button>
+                <input type="date" id="filterDailyDate" class="form-control" value="2026-10-12" style="height: 38px;">
+                <button type="button" class="btn btn-secondary" id="btnDailyToday" title="Set to Today" style="padding: 0 12px; font-size: 12px; height: 38px; white-space: nowrap;">Today</button>
               </div>
             </div>
 
             <!-- 2. Weekly Report Picker Group -->
-            <div class="form-group" id="weeklyPickerGroup" style="margin-bottom:0; min-width: 220px; display: none;">
+            <div class="form-group" id="weeklyPickerGroup" style="margin-bottom:0; min-width: 260px; display: none; position: relative;">
               <label for="filterWeekInput">Target Week</label>
-              <div style="display:flex; gap:6px; align-items:center;">
-                <input type="week" id="filterWeekInput" class="form-control" value="2026-W42">
-                <button type="button" class="btn btn-secondary btn-sm" id="btnWeekCurrent" title="Set to Current Week" style="padding: 0 10px; font-size: 11px; white-space: nowrap;">This Week</button>
+              <div style="display:flex; gap:6px; align-items:stretch;">
+                <button type="button" class="btn btn-secondary" id="btnWeekPrev" title="Previous Week" style="padding: 0 12px; font-size: 12px; height: 38px; white-space: nowrap;">Prev Wk.</button>
+                <input type="week" id="filterWeekInput" class="form-control" value="2026-W42" style="height: 38px;">
+                <button type="button" class="btn btn-secondary" id="btnWeekCurrent" title="Set to Current Week" style="padding: 0 12px; font-size: 12px; height: 38px; white-space: nowrap;">This Week</button>
               </div>
-              <small id="weeklyRangeNotice" style="display:block; font-size:11px; color:var(--text-muted); margin-top:3px; font-weight:500;"></small>
+              <small id="weeklyRangeNotice" style="display:block; position:absolute; top:100%; left:0; font-size:11px; color:var(--text-muted); margin-top:3px; font-weight:500; white-space:nowrap;"></small>
             </div>
 
             <!-- 3. Monthly Report Month Selector -->
             <div class="form-group" id="monthPickerGroup" style="margin-bottom:0; min-width: 180px; display: none;">
               <label for="filterMonthInput">Target Month</label>
-              <div style="display:flex; gap:6px;">
-                <button type="button" class="btn btn-secondary btn-sm" id="btnMonthPrev" title="Previous Month" style="padding: 0 10px; font-size: 11px; white-space: nowrap;">Prev Mo.</button>
-                <input type="month" id="filterMonthInput" class="form-control" value="2026-10">
-                <button type="button" class="btn btn-secondary btn-sm" id="btnMonthNext" title="Next Month" style="padding: 0 10px; font-size: 11px; white-space: nowrap;">Next Mo.</button>
+              <div style="display:flex; gap:6px; align-items:stretch;">
+                <button type="button" class="btn btn-secondary" id="btnMonthPrev" title="Previous Month" style="padding: 0 12px; font-size: 12px; height: 38px; white-space: nowrap;">Prev Mo.</button>
+                <input type="month" id="filterMonthInput" class="form-control" value="2026-10" style="height: 38px;">
+                <button type="button" class="btn btn-secondary" id="btnMonthCurrent" title="Set to Current Month" style="padding: 0 12px; font-size: 12px; height: 38px; white-space: nowrap;">This Month</button>
               </div>
             </div>
 
@@ -320,9 +322,9 @@
   </div>
 
   <!-- Scripts -->
-  <script src="../js/data.js?v=20261021_v5"></script>
-  <script src="../js/utils.js?v=20261021_v5"></script>
-  <script src="../js/auth.js?v=20261021_v5"></script>
-  <script src="../js/sales-report.js?v=20261021_v5"></script>
+  <script src="../js/data.js?v=20261021_v6"></script>
+  <script src="../js/utils.js?v=20261021_v6"></script>
+  <script src="../js/auth.js?v=20261021_v6"></script>
+  <script src="../js/sales-report.js?v=20261021_v8"></script>
 </body>
 </html>
