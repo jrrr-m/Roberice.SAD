@@ -178,6 +178,114 @@ try {
         exit;
     }
 
+    if ($action === "restore_db") {
+        $destPath = "";
+        $restoreFileName = "";
+        $uploader = trim($_POST["uploader"] ?? "Admin User");
+
+        // Case 1: Restoring from a newly uploaded file
+        if (isset($_FILES["file"]) && $_FILES["file"]["error"] === UPLOAD_ERR_OK) {
+            $file = $_FILES["file"];
+            $origName = basename($file["name"]);
+            $ext = strtolower(pathinfo($origName, PATHINFO_EXTENSION));
+
+            if ($ext !== 'sql') {
+                echo json_encode(["success" => false, "message" => "Only .sql database backup files can be imported/restored."]);
+                exit;
+            }
+
+            $cleanBase = preg_replace('/[^a-zA-Z0-9_-]/', '_', pathinfo($origName, PATHINFO_FILENAME));
+            $storedName = $cleanBase . "_imported_" . date("Ymd_His") . ".sql";
+            $destPath = $uploadsDir . "/" . $storedName;
+            $relPath = "uploads/" . $storedName;
+
+            if (!move_uploaded_file($file["tmp_name"], $destPath)) {
+                echo json_encode(["success" => false, "message" => "Failed to save the imported SQL backup file."]);
+                exit;
+            }
+
+            $restoreFileName = $origName;
+            $fileSize = filesize($destPath);
+
+            // Record this imported backup in file_records
+            $stmt = $conn->prepare("
+                INSERT INTO file_records
+                (file_name, original_name, file_path, file_size, file_type, category, description, uploaded_by, uploaded_at)
+                VALUES (?, ?, ?, ?, 'application/sql', 'Database Backup', 'Imported SQL database backup file for restoration.', ?, NOW())
+            ");
+            $stmt->execute([
+                $storedName,
+                $origName,
+                $relPath,
+                $fileSize,
+                $uploader
+            ]);
+        }
+        // Case 2: Restoring from an existing backup in file_records
+        elseif (!empty($_POST["fileId"])) {
+            $fileId = (int)$_POST["fileId"];
+            $stmt = $conn->prepare("SELECT * FROM file_records WHERE file_id = ?");
+            $stmt->execute([$fileId]);
+            $rec = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$rec) {
+                echo json_encode(["success" => false, "message" => "Selected backup file record was not found."]);
+                exit;
+            }
+
+            $destPath = __DIR__ . "/../" . $rec["file_path"];
+            $restoreFileName = $rec["original_name"];
+            $ext = strtolower(pathinfo($destPath, PATHINFO_EXTENSION));
+
+            if ($ext !== 'sql') {
+                echo json_encode(["success" => false, "message" => "Selected file is not an SQL backup file."]);
+                exit;
+            }
+
+            if (!file_exists($destPath)) {
+                echo json_encode(["success" => false, "message" => "The physical backup file does not exist on disk ($destPath)."]);
+                exit;
+            }
+        } else {
+            echo json_encode(["success" => false, "message" => "Please select a backup file from the list or upload a .sql file to restore."]);
+            exit;
+        }
+
+        // Perform Database Restoration
+        $restored = false;
+        $mysqlBin = "C:\\xampp\\mysql\\bin\\mysql.exe";
+
+        if (file_exists($mysqlBin) && function_exists('exec')) {
+            $cmd = sprintf('"%s" -h localhost -u root --default-character-set=utf8mb4 roberice_db < "%s"', $mysqlBin, $destPath);
+            @exec($cmd, $cmdOutput, $returnVar);
+            if ($returnVar === 0) {
+                $restored = true;
+            }
+        }
+
+        // Fallback restoration using PDO if mysql CLI is not executable
+        if (!$restored) {
+            $sqlContent = file_get_contents($destPath);
+            if ($sqlContent === false) {
+                echo json_encode(["success" => false, "message" => "Failed to read backup SQL file content."]);
+                exit;
+            }
+
+            // Execute queries in batch
+            $conn->setAttribute(PDO::ATTR_EMULATE_PREPARES, 1);
+            $conn->exec("SET FOREIGN_KEY_CHECKS=0;");
+            $conn->exec($sqlContent);
+            $conn->exec("SET FOREIGN_KEY_CHECKS=1;");
+            $restored = true;
+        }
+
+        echo json_encode([
+            "success" => true,
+            "message" => "Database successfully restored from '{$restoreFileName}'!"
+        ]);
+        exit;
+    }
+
     if ($action === "export_sales") {
         $reportType = trim($_POST["report_type"] ?? "");
         $dailyDate = trim($_POST["daily_date"] ?? $_POST["date"] ?? "");

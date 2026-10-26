@@ -152,6 +152,41 @@
     </div>
   </div>
 
+  <!-- Import / Restore Database Modal -->
+  <div class="modal-overlay" id="modalImportDatabase">
+    <div class="modal-card" style="max-width: 520px;">
+      <div class="modal-header">
+        <h3 style="display:flex;align-items:center;gap:8px;">
+          <svg width="20" height="20" fill="none" stroke="#2563eb" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+          Import & Restore Database
+        </h3>
+        <button class="modal-close" onclick="closeModal('modalImportDatabase')">&times;</button>
+      </div>
+      <form id="importDatabaseForm">
+        <div class="modal-body">
+          <div style="background: #eff6ff; border-left: 4px solid #3b82f6; padding: 12px; border-radius: 4px; font-size: 13px; color: #1e40af; margin-bottom: 16px;">
+            <strong>Important Notice:</strong> Importing or restoring a database will update current system records to match the backup state. Please ensure you have a recent backup if needed.
+          </div>
+
+          <div class="form-group">
+            <label for="inputRestoreFile">Select SQL Backup File (.sql)</label>
+            <input type="file" id="inputRestoreFile" class="form-control" accept=".sql" required>
+            <span style="font-size:11px;color:var(--text-muted);">Choose an exported Roberice MySQL database backup (.sql file).</span>
+          </div>
+
+          <div class="form-group">
+            <label for="inputRestoreNotes">Import Description / Note (Optional)</label>
+            <input type="text" id="inputRestoreNotes" class="form-control" placeholder="e.g. Restoring data from previous month or new branch setup">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('modalImportDatabase')">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="btnSubmitRestore">Import & Restore Now</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- Scripts -->
   <script src="../js/data.js?v=20261021_v5"></script>
   <script src="../js/utils.js?v=20261021_v5"></script>

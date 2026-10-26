@@ -27,6 +27,20 @@ function bindEvents() {
     });
   }
 
+  // Import / Restore DB modal button
+  document.addEventListener('click', (e) => {
+    if (e.target.closest('#btnOpenImportModal')) {
+      const form = document.getElementById('importDatabaseForm');
+      if (form) form.reset();
+      openModal('modalImportDatabase');
+    }
+  });
+
+  const importForm = document.getElementById('importDatabaseForm');
+  if (importForm) {
+    importForm.addEventListener('submit', handleImportDatabaseSubmit);
+  }
+
   document.getElementById('uploadFileForm').addEventListener('submit', handleUploadSubmit);
 
   const btnBackup = document.getElementById('btnQuickBackup');
@@ -117,6 +131,13 @@ function renderFilesTable() {
     else if (f.category === 'Supplier Invoice') categoryBadge = `<span class="badge badge-warning">Invoice / DR</span>`;
     else if (f.category === 'Sales Report') categoryBadge = `<span class="badge badge-success">Sales Report</span>`;
 
+    const isSql = ext === 'sql' || f.category === 'Database Backup';
+    const restoreBtn = isSql ? `
+      <button class="btn btn-warning btn-sm" onclick="restoreDatabaseFile(${f.file_id}, '${f.original_name.replace(/'/g, "\\'")}')" title="Restore this database snapshot" style="background:#f59e0b;color:#fff;border-color:#d97706;">
+        Restore
+      </button>
+    ` : '';
+
     return `
       <tr>
         <td>
@@ -134,7 +155,8 @@ function renderFilesTable() {
         <td><strong>${f.uploaded_by}</strong></td>
         <td>${formatDateTime(f.uploaded_at)}</td>
         <td>
-          <div style="display:flex;gap:6px;">
+          <div style="display:flex;gap:6px;flex-wrap:nowrap;">
+            ${restoreBtn}
             <a href="../${f.file_path}" target="_blank" download class="btn btn-primary btn-sm" style="text-decoration:none;">
               Download
             </a>
@@ -232,6 +254,94 @@ async function handleQuickBackup() {
       <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path></svg>
       One-Click Database Backup
     `;
+  }
+}
+
+async function handleImportDatabaseSubmit(e) {
+  e.preventDefault();
+
+  const fileInput = document.getElementById('inputRestoreFile');
+  if (!fileInput.files.length) {
+    showToast('Please select an SQL backup file (.sql) to import.', 'warning');
+    return;
+  }
+
+  const file = fileInput.files[0];
+  if (!file.name.toLowerCase().endsWith('.sql')) {
+    showToast('Only .sql database files are supported for database restoration.', 'warning');
+    return;
+  }
+
+  const confirmMsg = `WARNING: Restoring the database from "${file.name}" will overwrite the active roberice_db database tables and records.\n\nAre you sure you want to proceed?`;
+  if (!confirm(confirmMsg)) {
+    return;
+  }
+
+  const user = JSON.parse(sessionStorage.getItem('roberice_logged_user')) || {};
+  const formData = new FormData();
+  formData.append('action', 'restore_db');
+  formData.append('file', file);
+  formData.append('uploader', user.name || 'Admin User');
+
+  const btn = document.getElementById('btnSubmitRestore');
+  btn.disabled = true;
+  btn.textContent = 'Restoring Database...';
+  showPageLoader('Importing and restoring database (roberice_db)...');
+
+  try {
+    const res = await fetch('api/file_manager.php', {
+      method: 'POST',
+      body: formData
+    });
+
+    const data = await res.json();
+    if (data.success) {
+      showToast(data.message || 'Database restored successfully!', 'success');
+      closeModal('modalImportDatabase');
+      await loadFiles();
+    } else {
+      showToast(data.message || 'Database restore failed.', 'danger');
+    }
+  } catch (err) {
+    console.error(err);
+    showToast('An error occurred during database restoration.', 'danger');
+  } finally {
+    hidePageLoader();
+    btn.disabled = false;
+    btn.textContent = 'Import & Restore Now';
+  }
+}
+
+async function restoreDatabaseFile(fileId, fileName) {
+  const confirmMsg = `WARNING: You are about to restore the database using "${fileName}".\n\nThis will restore roberice_db tables and data to this backup's state.\n\nDo you want to proceed?`;
+  if (!confirm(confirmMsg)) return;
+
+  showPageLoader(`Restoring database from "${fileName}"...`);
+
+  const user = JSON.parse(sessionStorage.getItem('roberice_logged_user')) || {};
+  const formData = new FormData();
+  formData.append('action', 'restore_db');
+  formData.append('fileId', fileId);
+  formData.append('uploader', user.name || 'Admin User');
+
+  try {
+    const res = await fetch('api/file_manager.php', {
+      method: 'POST',
+      body: formData
+    });
+
+    const data = await res.json();
+    if (data.success) {
+      showToast(data.message || `Database restored from "${fileName}".`, 'success');
+      await loadFiles();
+    } else {
+      showToast(data.message || 'Restore failed.', 'danger');
+    }
+  } catch (err) {
+    console.error(err);
+    showToast('Failed to restore database.', 'danger');
+  } finally {
+    hidePageLoader();
   }
 }
 
